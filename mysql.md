@@ -167,3 +167,10 @@ show slave status \G;
 	start slave;
 	show slave status \G;    # 观察 Slave_IO_Running = YES   Slave_SQL_Running = YES
 ```
+
+##### 七 mysql 初始化 timestamp，提示 Invalid default value for 'xxx'
+解决方法: `去掉 sql_mode 中的 values: NO_ZERO_IN_DATE,NO_ZERO_DATE`
+
+>1 `show variables like 'sql_mode';`
+>2 `set session`
+   `sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';`

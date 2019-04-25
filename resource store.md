@@ -17,3 +17,7 @@
 8. `https://github.com/vipshop/vjtools`  唯品会开源的工具类使用
 
 9. `https://mp.baomidou.com/guide/quick-start.html`  mybait-plus使用说明
+
+10. `https://www.imooc.com/article/49814`  RabbitMQ消息可靠性投递解决方案 - 基于SpringBoot实现
+
+11. `https://blog.csdn.net/sunlihuo/article/details/79700225?utm_source=copy`  redis+lua 实现分布式令牌桶，高并发限流
