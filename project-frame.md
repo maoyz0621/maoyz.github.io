@@ -1,8 +1,9 @@
 # 应用分层
-![结构分层.png](https://upload-images.jianshu.io/upload_images/4092000-43b1c8ab2362393a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+  ![结构分层.png](https://upload-images.jianshu.io/upload_images/4092000-43b1c8ab2362393a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
 默认上层依赖于下层，箭头关系表示可直接依赖，如：开放接口层可以依赖于Web 层，也可以直接依赖于 Service 层，依此类推：
-![应用分层.png](https://upload-images.jianshu.io/upload_images/4092000-79a0a3a5fcf1793c.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+
+  ![应用分层.png](https://upload-images.jianshu.io/upload_images/4092000-79a0a3a5fcf1793c.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
 1. 开放接口层：可直接封装 Service 方法暴露成 RPC 接口；通过 Web 封装成 http 接口；进行网关安全控制、流量控制等。
 
@@ -28,31 +29,34 @@
 
 # POJO
 POJO 专指只有 setter / getter/ toString 的简单类
-- BO（Business Object）：业务对象，由 Service 层输出的封装业务逻辑的对象
+- BO（Business Object）：业务对象，由Service层输出的封装业务逻辑的对象
 > 为了减少POJO间的转换，Service层可以返回VO和DTO，一般情况下，不需要使用BO，只有在web层和rpc层需要
 
 - DO（Data Object）：在多个表联合查询出来的对象，在PO无法满足的情况下，用DO进行承载。
-- PO（Persist Object）：此对象 与数据库表结构一一对应，通过 DAO 层向上传输数据源对象。
-- DTO（Data Transfer Object）：数据传输对象，Service 或 Manager 向外传输的对象。
+- PO（Persist Object）：此对象与数据库表结构一一对应，通过DAO层向上传输数据源对象。
+- DTO（Data Transfer Object）：数据传输对象，Service或Manager向外传输的对象。
 
 > 用于和第三方系统对接，在rpc层分为xxxRequestDTO和xxxResponseDTO(强制)
 
-- VO（View Object）：显示层对象，通常是 Web 向模板渲染引擎层传输的对象。
-- Query：数据查询对象，各层接收上层的查询请求。注意超过 2 个参数的查询封装，禁止使用 Map 类来传输。
-- Form：表单对象，接收来自页面的表单数据。注意超过 2 个参数的表单封装，禁止使用 Map 类来接收。
-- AO（Application Object）：应用对象，在 Web 层与 Service 层之间抽象的复用对象模型，极为贴近展示层，复用度不高。
+- VO（View Object）：显示层对象，通常是Web向模板渲染引擎层传输的对象。
+- Query：数据查询对象，各层接收上层的查询请求。注意超过2个参数的查询封装，禁止使用Map类来传输。
+- Form：表单对象，接收来自页面的表单数据。注意超过2个参数的表单封装，禁止使用Map类来接收。
+- AO（Application Object）：应用对象，在Web层与Service层之间抽象的复用对象模型，极为贴近展示层，复用度不高。
 
 # POJO使用及传输规则
 > Web层只会存在Form,Query,VO,BO
    RPC层只会存在Form,Query,DTO,BO,VO
    DAO层只会存在DO,PO,Query
-  service,manager层由于是业务处理，所有POJO都可能出现
+   service,manager层由于是业务处理，所有POJO都可能出现
 
 - 终端显示到service
+
  ![终端->service.png](https://upload-images.jianshu.io/upload_images/4092000-6cdb21ce20227daf.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
  - 第三方应用到service
-![第三方->service.png](https://upload-images.jianshu.io/upload_images/4092000-e69346ba78fac3dd.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+
+ ![第三方->service.png](https://upload-images.jianshu.io/upload_images/4092000-e69346ba78fac3dd.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
  - service到DAO
-![service->DAO.png](https://upload-images.jianshu.io/upload_images/4092000-8cc0943f8fe97ab3.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+
+ ![service->DAO.png](https://upload-images.jianshu.io/upload_images/4092000-8cc0943f8fe97ab3.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)

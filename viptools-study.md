@@ -25,20 +25,17 @@
 - 4. JDK Arrays的其他函数，如sort(), toString() 请直接调用
 - 5. Common Lang ArrayUtils的其他函数，如subarray(),reverse(),indexOf(), 请直接调用
 
-> 将传入的数组乱序
-
+>  + 将传入的数组乱序
     `huffle(T[] array)`
     `shuffle(T[] array, Random random)`
 
-> 将Array转List
-
+>  + 将Array转List
     `asList(T... a)`
     `intAsList(int... backingArray)`
     `longAsList(long... backingArray)`
     `doubleAsList(double... backingArray)`
 
-> 添加元素到数组
-
+> + 添加元素到数组
     `concat(@Nullable T element, T[] array)`添加元素到数组头;
     `concat(T[] array, @Nullable T element)`添加元素到数组末尾
 
@@ -48,8 +45,7 @@
 - 3. 各种扩展List类型的创建函数
 - 4. 集合运算：交集，并集, 差集, 补集，from Commons Collection，但对其不合理的地方做了修正
 
-> 1. 初始化List
-
+> + 初始化List
     `newArrayList(T... elements)`
     `newArrayList(Iterable<T> elements)`
     `newArrayListWithCapacity(int initSize)`穿件初始容量
@@ -58,8 +54,7 @@
     `unmodifiableList(List<? extends T> list)`
     `synchronizedList(List<T> list)`返回包装后同步的List，所有方法都会被synchronized原语同步,用于CopyOnWriteArrayList与 ArrayDequeue均不符合的场景
 
-> 2. List排序和查找
-
+> +  List排序和查找
     `sort(List<T> list)`
     `sort(List<T> list, Comparator<? super T> c)`
     `shuffle(List<?> list)`洗牌
@@ -67,8 +62,7 @@
     `reverse(final List<T> list)`
     `sortReverse(List<T> list)`
 
-> 3. List计算
-
+> + List计算
     `union`并集
     `intersection`交集
     `difference`差集
@@ -80,44 +74,36 @@
 
 ##### 3 IdUtil
 > 1. 计算UUID
-
     `fastUUID`
 
 ##### BeanMapper
 > 1. 使用Dozer提供的Mapper
-
     `map(S source, Class<D> destinationClass)`简单的复制出新类型对象
     `mapList(Iterable<S> sourceList, Class<D> destinationClass)`简单的复制出新对象ArrayList
     `mapArray(final S[] sourceArray, final Class<D> destinationClass)`简单复制出新对象数组
 
 ##### JsonMapper
 > 1. JsonMapper的创建
-
     `JsonMapper.INSTANCE`
     `JsonMapper.defaultMapper()`
     `JsonMapper.nonNullMapper()`非null属性
     `JosnMapper.nonEmptyMapper()`非Null且非Empty
 
 > 2. toJson
-
     `toJson(Object object)`Object可以是POJO，也可以是Collection或数组。 如果对象为Null, 返回"null". 如果集合为空集合, 返回"[]"
 
 > 3. fromJson
-
     `fromJson(@Nullable String jsonString, Class<T> clazz)`如果JSON字符串为Null或"null"字符串, 返回Null. 如果JSON字符串为"[]", 返回空集合
     `fromJson(@Nullable String jsonString, JavaType javaType)`反序列化复杂Collection如List<Bean>
 
 > 4. update
-
-    `update(String jsonString, Object object)`当JSON里只含有Bean的部分属性時，更新一
-個已存在Bean，只覆盖該部分的属性
+    `update(String jsonString, Object object)`当JSON里只含有Bean的部分属性時，更新一個已存在Bean，只覆盖該部分的属性
 
 ##### XmlMapper
 > 1. bean转xml
-
     `toXml(Object root, Class clazz, String encoding)`
 
-    ```
+```
       User user = new User();
       user.setId(1L);
       user.setName("calvin");
@@ -172,46 +158,39 @@
       //     </user>
       // </userList>
       System.out.println("Jaxb Object List to Xml result:\n" + xml);
-    ```
+```
 
 ##### Number
 
 ##### MathUtil
 > 1. 2的倍数
-
     `nextPowerOfTwo()`
     `previousPowerOfTwo`
 
 > 2. 取模与开方
-
     `mod()`
     `pow()`
     `sqrt()`
 
 ##### MoneyUtil
 > 1. 分 --> 元, 元 --> 分
-
     `fen2yuan()`
     `yuan2fen()`
 
 > 2. 金额转字符串
-
     `format(double number, String pattern)`1234.00
     `prettyFormat(double number)`33,999,999,932.33
 
 > 3. 字符串转金额
-
     `parsePrettyString("1,234.00")`
     `parseString("1234.00")`
 
 ##### RandomUtil
 > 1. Random实例
-
     `secureRandom()`
     `threadLocalRandom()`
 
 > 2. 生成随机数
-
     `nextInt(int min, int max)`返回min到max的随机Int, 使用ThreadLocalRandom
     `nextInt(Random random, int max)`返回0到max的随机Int, 可传入SecureRandom或ThreadLocalRandom
     `randomStringFixLength(int length)`随机字母或数字，固定长度
@@ -222,7 +201,6 @@
 ##### Time
 ###### DateFormatUtil
 > 1. 采用Apache Common Lang中线程安全, 性能更佳的FastDateFormat
-
     `formatDate(@NotNull String pattern, @NotNull Date date)`
     `parseDate(@NotNull String pattern, @NotNull String dateString)`
     `formatFriendlyTimeSpanByNow(@NotNull Date date)`打印用户友好的，与当前时间相比的时间差，如刚刚，5分钟前，今天XXX，昨天XXX
@@ -231,13 +209,11 @@
 
 ###### DateUtil
 > 1. 时间比较
-
     `isSameDay()`同一天
     `isSameTime()`同意时刻
     `isBetween()`时间范围内
 
 > 2. 时间操作
-
     `addMonths()`
     `subMonths()`
     `addWeeks()`
@@ -252,7 +228,6 @@
     `subSeconds()`
 
 > 3. 设置时间
-
     `setYears()`
     `setMonths()`
     `setDays()`
@@ -262,14 +237,12 @@
     `setMilliseconds()`
 
 > 4. 获取日期的位置
-
     `getDayOfWeek()`获得日期是一周的第几天. 已改为中国习惯，1 是Monday，而不是Sundays
     `getDayOfYear()`
     `getWeekOfMonth`
     `getWeekOfYear()`
 
 > 5. 获得往前往后的日期
-
     `beginOfYear()`
     `endOfYear()`
     `nextYear()`
@@ -283,12 +256,11 @@
     `nextHour()`
     `isLeapYear()`是否闰年
 
-
 #### Concurrent
 ##### limiter
 ###### RateLimiterUtil
-> 1.
-
-###### Sampler
+> +
+    `create(double permitsPerSecond, double maxBurstSeconds, boolean filledWithToken)`
+###### 采样器Sampler
 
 ###### TimeIntervalLimiter
