@@ -117,3 +117,581 @@ Consumer最佳实践
 	后果就是：以后所有该TOPIC的消息，都将发送到这台broker上，达不到负载均衡的目的。
 	所以基于目前RocketMQ的设计，建议关闭自动创建TOPIC的功能，然后根据消息量的大小，手动创建TOPIC。
 
+
+
+package com.homestead.task.quartz.model;
+
+import java.util.Date;
+
+/**
+ * @author:
+ * @date 2016/9/30.
+ */
+public class ScheduleModel {
+
+    private long id;
+
+    private Date createTime = new Date();
+
+    private Date updateTime;
+
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+}
+
+
+
+package com.homestead.task.quartz.model;
+
+import java.util.Properties;
+
+/**
+ * @author:
+ * @date 2016/9/30.
+ */
+public class ScheduleQuartzModel extends ScheduleModel {
+
+    private String className;
+
+    private String cronExpression;
+
+    private String triggerType;
+
+    private String status;
+
+    private Properties data;
+    
+    @Override
+    public String toString() {
+        return "ScheduleQuartzModel{" +
+                "className='" + className + '\'' +
+                ", cronExpression='" + cronExpression + '\'' +
+                ", triggerType='" + triggerType + '\'' +
+                ", status='" + status + '\'' +
+                ", data='" + data + '\'' +
+                '}';
+    }
+
+    public static final class QuartzScheduleModelBuilder {
+        private String className;
+        private String cronExpression;
+        private String triggerType;
+        private String status;
+        private Properties data;
+
+        public static QuartzScheduleModelBuilder newBuilder() {
+            return new QuartzScheduleModelBuilder();
+        }
+
+        public QuartzScheduleModelBuilder withClassName(String className) {
+            this.className = className;
+            return this;
+        }
+
+        public QuartzScheduleModelBuilder withCronExpression(String cronExpression) {
+            this.cronExpression = cronExpression;
+            return this;
+        }
+
+        public QuartzScheduleModelBuilder withTriggerType(String triggerType) {
+            this.triggerType = triggerType;
+            return this;
+        }
+
+        public QuartzScheduleModelBuilder withStatus(String status) {
+            this.status = status;
+            return this;
+        }
+
+        public QuartzScheduleModelBuilder withData(Properties data) {
+            this.data = data;
+            return this;
+        }
+
+        public ScheduleQuartzModel build() {
+            ScheduleQuartzModel scheduleQuartzModel = new ScheduleQuartzModel();
+            scheduleQuartzModel.setClassName(this.className);
+            scheduleQuartzModel.setStatus(this.status);
+            scheduleQuartzModel.setCronExpression(this.cronExpression);
+            scheduleQuartzModel.setTriggerType(this.triggerType);
+            scheduleQuartzModel.setData(this.data);
+            return scheduleQuartzModel;
+        }
+    }
+
+    public String getClassName() {
+        return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
+    public String getCronExpression() {
+        return cronExpression;
+    }
+
+    public void setCronExpression(String cronExpression) {
+        this.cronExpression = cronExpression;
+    }
+
+    public String getTriggerType() {
+        return triggerType;
+    }
+
+    public void setTriggerType(String triggerType) {
+        this.triggerType = triggerType;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Properties getData() {
+        return data;
+    }
+
+    public void setData(Properties data) {
+        this.data = data;
+    }
+
+}
+
+
+package com.homestead.task.quartz.model;
+
+import java.util.Objects;
+
+/**
+ * quatz对应的trigger任务类型
+ *
+ * @author:
+ * @date 2016/9/30.
+ */
+public enum TriggerTypeEnum {
+    SIMPLE_TRIGGER("simple_trigger"),
+    CRON_TRIGGER("cron_trigger");
+
+    private final String name;
+
+    TriggerTypeEnum(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public static TriggerTypeEnum getTriggerTypeEnum(String name) {
+        for (TriggerTypeEnum triggerTypeEnum : values()) {
+            if (Objects.equals(triggerTypeEnum.getName(), name)) {
+                return triggerTypeEnum;
+            }
+        }
+        throw new IllegalArgumentException("triggerTypeEnum name " + name + " is not legal.");
+    }
+}
+
+
+package com.homestead.task.quartz;
+
+import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Properties;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.annotation.Resource;
+
+import org.quartz.CronScheduleBuilder;
+import org.quartz.Job;
+import org.quartz.JobBuilder;
+import org.quartz.JobDetail;
+import org.quartz.JobKey;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.SchedulerFactory;
+import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
+import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.triggers.CronTriggerImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+
+import com.homestead.common.util.DateHelper;
+import com.homestead.task.quartz.model.ScheduleQuartzModel;
+import com.homestead.task.quartz.model.TriggerTypeEnum;
+import com.oppo.basic.heracles.client.core.store.KVStore;
+
+/**
+ * 定时任务管理器
+ *
+ * @author:
+ */
+@Component("scheduleQuartzManager")
+public class ScheduleQuartzManager {
+
+	private static final Logger logger = LoggerFactory.getLogger(ScheduleQuartzManager.class);
+
+	private static final String DEFAULT_GROUP = "schedule_job";
+
+	public static final String DATA_KEY = "data";
+
+	@Resource(name = "writeJdbcTemplate")
+	private JdbcTemplate mysqlJdbcTemplate;
+
+	private Scheduler scheduler;
+
+	private ScheduleQuartzManager() {
+
+	}
+
+	@Value("${job}")
+	private String job;
+
+	@PostConstruct
+	public void start() throws Exception {
+		logger.info("begin to get the config quartz list");
+
+		Properties p = new Properties();
+		p.setProperty("org.quartz.threadPool.threadCount", "30");
+
+		SchedulerFactory schedulerFactory = new StdSchedulerFactory(p);
+		scheduler = schedulerFactory.getScheduler();
+
+		List<ScheduleQuartzModel> scheduleQuartzModelList = getScheduleQuartzModelList();
+		if (!CollectionUtils.isEmpty(scheduleQuartzModelList)) {
+			for (ScheduleQuartzModel scheduleQuartzModel : scheduleQuartzModelList) {
+				if (null == scheduleQuartzModel) {
+					continue;
+				}
+				if (!Objects.equals("valid", scheduleQuartzModel.getStatus())) {
+					logger.info("job stopped {}", scheduleQuartzModel);
+					continue;
+				}
+				JobDetail jobDetail = getJobDetail(scheduleQuartzModel);
+				if (jobDetail == null) {// 不存在job 的class文件
+					continue;
+				}
+				Trigger trigger = createTrigger(scheduleQuartzModel);
+				if (null == trigger) {
+					continue;
+				}
+				scheduler.scheduleJob(jobDetail, trigger);
+			}
+		}
+		scheduler.start();
+		this.reSchedule();
+		logger.info("start the quartz success...");
+	}
+
+	private JobDetail getJobDetail(ScheduleQuartzModel scheduleQuartzModel) {
+		Class<? extends Job> classNamInst = null;
+		try {
+			classNamInst = (Class<? extends Job>) Class.forName(scheduleQuartzModel.getClassName());
+		} catch (Exception e) {
+			logger.error("the class can not be newInstance, the class is :{}.", scheduleQuartzModel.getClassName(), e);
+		}
+		if (classNamInst == null) {
+			return null;
+		}
+		String jobIdentity = scheduleQuartzModel.getClassName();
+		JobDetail jobDetail = JobBuilder.newJob(classNamInst).withIdentity(jobIdentity, DEFAULT_GROUP).build();
+		return jobDetail;
+	}
+
+	/**
+	 * @param scheduleQuartzModel
+	 *            任务的配置
+	 * @returnr
+	 */
+	private Trigger createTrigger(ScheduleQuartzModel scheduleQuartzModel) {
+		String className = scheduleQuartzModel.getClassName();
+		String cronExpression = scheduleQuartzModel.getCronExpression();
+		String triggerType = scheduleQuartzModel.getTriggerType();
+		Properties data = scheduleQuartzModel.getData();
+		logger.info("the className is :{}, the triggerType is :{}, the cronExpression is :{} .data{}", className, triggerType, cronExpression, data);
+		Trigger trigger = null;
+		TriggerTypeEnum triggerTypeEnum = TriggerTypeEnum.getTriggerTypeEnum(triggerType);
+		String triggerIdentity = className;
+		if (TriggerTypeEnum.SIMPLE_TRIGGER == triggerTypeEnum) {
+			int cronExpressionInt;
+			try {
+				cronExpressionInt = Integer.parseInt(cronExpression);
+			} catch (Exception e) {
+				logger.error("parse the cron expression fail, the cornExpress can not transfer to int ,the value is :{}.", cronExpression);
+				return null;
+			}
+			trigger = TriggerBuilder.newTrigger().withIdentity(triggerIdentity, DEFAULT_GROUP).startNow()
+					.withSchedule(simpleSchedule().withIntervalInSeconds(cronExpressionInt))
+					.withDescription(DateHelper.getDateString(scheduleQuartzModel.getUpdateTime())).build();
+		} else if (TriggerTypeEnum.CRON_TRIGGER == triggerTypeEnum) {
+			trigger = TriggerBuilder.newTrigger().withIdentity(triggerIdentity, DEFAULT_GROUP)
+					.withSchedule(CronScheduleBuilder.cronSchedule(cronExpression))
+					.withDescription(DateHelper.getDateString(scheduleQuartzModel.getUpdateTime())).build();
+			((CronTriggerImpl) trigger).setStartTime(new Date());
+		} else {
+			logger.error(" the className is :{}, the trigger type is :{}, the trigger type is not support.", className, triggerType);
+		}
+		if (trigger != null && data != null && !data.isEmpty()) {
+			trigger.getJobDataMap().put(DATA_KEY, data);
+		}
+		return trigger;
+	}
+
+	/**
+	 * 停止任务
+	 *
+	 * @throws Exception
+	 */
+	@PreDestroy
+	public void stop() {
+		logger.info(" stop the scheduler.");
+		try {
+			if (null != scheduler) {
+				scheduler.shutdown();
+			}
+		} catch (Exception e) {
+			logger.error(" stop the scheduler failed , the fail message is :{}.", e.getMessage(), e);
+		}
+	}
+
+	public List<ScheduleQuartzModel> getScheduleQuartzModelList() {
+		List<ScheduleQuartzModel> list = new ArrayList<>();
+		Properties o;
+		for (String i : job.split("\n")) {
+			o = KVStore.getProperty(i + ".properties");
+			logger.info("{}", o);
+			list.add(ScheduleQuartzModel.QuartzScheduleModelBuilder.newBuilder().withClassName(i).withCronExpression(o.getProperty("cron_expression"))
+					.withStatus(o.getProperty("status", "invalid")).withTriggerType(o.getProperty("trigger_type")).withData(o).build());
+		}
+		return list;
+	}
+
+	// 监听
+	public void reSchedule() {
+		for (String i : job.split("\n")) {
+			KVStore.Notify.getInstance().addKeyListener(i + ".properties", new KVStore.Notify.UpdateListener() {
+				@Override
+				public void handleEvent(Object newValue, Object oldValue) {
+					synchronized (i.intern()) {
+						Properties o = KVStore.getProperty(i + ".properties");
+						try {
+							ScheduleQuartzModel scheduleQuartzModel = ScheduleQuartzModel.QuartzScheduleModelBuilder.newBuilder().withClassName(i)
+									.withCronExpression(o.getProperty("cron_expression")).withStatus(o.getProperty("status", "invalid"))
+									.withTriggerType(o.getProperty("trigger_type")).withData(o).build();
+
+							String className = scheduleQuartzModel.getClassName();
+							Trigger trigger = scheduler.getTrigger(TriggerKey.triggerKey(className, DEFAULT_GROUP));
+							// 存在会即修改
+							if (trigger != null) {
+								// 暂停
+								scheduler.pauseJob(JobKey.jobKey(className, DEFAULT_GROUP));
+								if (!Objects.equals("valid", scheduleQuartzModel.getStatus())) {
+									logger.info("the className is :{}, delete", className);
+									scheduler.unscheduleJob(trigger.getKey());
+									scheduler.deleteJob(JobKey.jobKey(className, DEFAULT_GROUP));
+								}
+								trigger = createTrigger(scheduleQuartzModel);
+								if (null == trigger) {
+									return;
+								}
+								scheduler.rescheduleJob(trigger.getKey(), trigger);
+								return;
+							}
+
+							if (!Objects.equals("valid", scheduleQuartzModel.getStatus())) {
+								return;
+							}
+
+							JobDetail jobDetail = getJobDetail(scheduleQuartzModel);
+							if (jobDetail == null) {// 不存在job 的class文件
+								return;
+							}
+							trigger = createTrigger(scheduleQuartzModel);
+							if (null == trigger) {
+								return;
+							}
+							scheduler.scheduleJob(jobDetail, trigger);
+
+						} catch (SchedulerException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			});
+		}
+	}
+
+}
+
+
+package com.homestead.task.job.base;
+
+import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ThreadPoolExecutor;
+
+import org.quartz.InterruptableJob;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.Trigger;
+import org.quartz.UnableToInterruptJobException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+
+import com.homestead.task.application.HeraclesConfiguration;
+import com.homestead.task.quartz.ScheduleQuartzManager;
+import com.lambdaworks.redis.cluster.api.sync.RedisClusterCommands;
+
+public class BaseJob implements InterruptableJob, ApplicationContextAware {
+
+	protected static final Logger LOGGER = LoggerFactory.getLogger(BaseJob.class);
+
+	protected static ApplicationContext applicationContext;
+
+	protected static HeraclesConfiguration configuration;
+
+	protected static ThreadPoolExecutor globalThreadPoolExecutor;
+
+	protected static RedisClusterCommands<String, String> redisClusterCommands;
+
+	// 用于判断是否关闭线程池
+	static public volatile boolean isClose = false;
+
+	protected volatile boolean interrupt = false;
+
+	protected Properties dbProperties;
+
+	@SuppressWarnings("unchecked")
+	public void setApplicationContext(ApplicationContext applicationContext) {
+		BaseJob.applicationContext = applicationContext;
+		BaseJob.configuration = (HeraclesConfiguration) applicationContext.getBean(HeraclesConfiguration.class);
+		BaseJob.globalThreadPoolExecutor = (ThreadPoolExecutor) applicationContext.getBean("globalThreadPoolExecutor");
+		BaseJob.redisClusterCommands = applicationContext.getBean("redisClusterCommands", RedisClusterCommands.class);
+	}
+
+	protected void wait(Object object, long sleep, long loop) {
+		this.wait(object, sleep, loop, null);
+	}
+
+	protected void wait(long sleep, long loop, Callable<Object> ca) {
+		this.wait(null, sleep, loop, ca);
+	}
+
+	protected void wait(Object object, long sleep, long loop, Callable<Object> ca) {
+		int i = 0;
+		while (object == null) {
+			try {
+				Thread.sleep(sleep);
+				if (ca != null) {
+					object = ca.call();
+				}
+				i++;
+				if (i > loop)
+					break;
+			} catch (Exception e) {
+				LOGGER.error(e.getMessage(), e);
+			}
+		}
+	}
+
+	@Override
+	public void interrupt() throws UnableToInterruptJobException {
+		interrupt = true;
+	}
+
+	@Override
+	public void execute(JobExecutionContext context) throws JobExecutionException {
+		// 取得job详情
+		Trigger trigger = context.getTrigger();
+		dbProperties = (Properties) trigger.getJobDataMap().get(ScheduleQuartzManager.DATA_KEY);
+		if (dbProperties == null) {
+			dbProperties = new Properties();
+		}
+	}
+
+}
+
+
+
+package com.homestead.task.job.base;
+
+import javax.annotation.PostConstruct;
+
+import org.springframework.stereotype.Component;
+
+import com.homestead.task.quartz.ScheduleQuartzManager;
+
+@Component
+public class BeforeClose extends BaseJob {
+
+	@PostConstruct
+	public void beforeExit() {
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+				LOGGER.info("收到kill消息，执行关闭操作");
+				// 关闭订阅消费
+				isClose = true;
+				// 关闭线程池，等待线程池积压消息处理
+				globalThreadPoolExecutor.shutdown();
+				// // 判断线程池是否关闭
+				while (!globalThreadPoolExecutor.isTerminated()) {
+					try {
+						Thread.sleep(200);
+					} catch (InterruptedException e) {
+					}
+				}
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+				}
+
+				ScheduleQuartzManager sq = (ScheduleQuartzManager) applicationContext.getBean("scheduleQuartzManager");
+				sq.stop();
+
+				LOGGER.info("线程池处理完毕");
+			}
+		});
+
+	}
+}
+
+
