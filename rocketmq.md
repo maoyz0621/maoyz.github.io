@@ -6,13 +6,23 @@ http://jm.taobao.org/
 
 ##### 启动Name Server
     start mqnamesrv.cmd	(window)
-	nohup sh bin/mqnamesrv & tail -f ~/logs/rocketmqlogs/namesrv.log	(linux)
 
+	> nohup sh bin/mqnamesrv & 
+	> tail -f ~/logs/rocketmqlogs/namesrv.log	(linux)
+	
+	停止
+	> sh bin/mqshutdown namesrv
 ##### 启动Broker
 
 	start mqbroker.cmd -n 127.0.0.1:9876 autoCreateTopicEnable=true	 (window)
-	nohup sh bin/mqbroker -n localhost:9876 & tail -f ~/logs/rocketmqlogs/broker.log	(linux)
+	> nohup sh bin/mqbroker -n localhost:9876 & 
+	> tail -f ~/logs/rocketmqlogs/broker.log	(linux)
+
+	停止
+	> sh bin/mqshutdown broker
 	
+	注: nohup Command ... &  --> 不挂断的后台运行
+
 ##### Producer发送消息方式：
 
 	同步：同步发送指消息发送方发出数据后会在收到接收方发回响应之后才发下一个数据包。一般用于重要通知消息，例如重要通知邮件、营销短信
