@@ -1,4 +1,4 @@
-###### 一、@ConditionalOnXxx注解
+# 一、@ConditionalOnXxx注解
 
 >使用范围
 
@@ -15,3 +15,88 @@
 >`@ConditionalOnMissingClass`  (某个class类路径上不存在的时候，才会实例化一个Bean)
 
 >`@ConditionalOnNotWebApplication`（不是web应用）
+
+
+# 二 Environment.resolveRequiredPlaceholders(key)
+
+获取application.properties的配置内容
+```
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Documented
+    public @interface RocketMQMessageListener {
+
+        String NAME_SERVER_PLACEHOLDER = "${rocketmq.name-server:}";
+    }
+
+    获取属性值:
+    applicationContext.getEnvironment().
+                      resolveRequiredPlaceholders(rocketMQMessageListener.customizedTraceTopic())
+```
+
+# 三 引用other.properties文件
+	
+`@ImportResource(locations = {"classpath:other.properties"})`
+
+# 四 注解@Cacheable 和@Transactional 失效原因
+
+在有些情形下注解式缓存@Cacheable和事务@Transactional是不起作用的：例如同一个bean内部方法调用，子类调用父类中有缓存注解的方法等。因为注解调用走的都是增强代理类; 后者不起作用是因为缓存切面必须走代理才有效，这时可以手动使用CacheManager来获得缓存效果。
+
+```
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void save() {
+        userRepository.deleteById(1L);
+        int i = 1 / 0;
+        UserPO userPO = new UserPO("aaaa", "1");
+    }
+
+    @Override
+    public void execute() {
+        // 相当于this.save(),this并不是增强代理类,事务无效
+        save();
+    }
+```
+
+解决办法一:ApplicationContext
+```
+    @Component
+    public class ApplicationContextHolder implements ApplicationContextAware {
+
+        protected static final Logger logger = LoggerFactory.getLogger(ApplicationContextHolder.class);
+
+        private static ApplicationContext applicationContext;
+
+        public static ApplicationContext getContext() {
+            return applicationContext;
+        }
+
+        @Override
+        public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+            ApplicationContextHolder.applicationContext = applicationContext;
+        }
+    }
+
+    /**
+     * 内部调用,如果直接使用getMenuList()，相当于this.getMenuList(),不走增强代理
+     * <p>
+     * 方法一 ApplicationContext
+     */
+    public List<String> getRecommendsWithContext() {
+        MenuService proxy = ApplicationContextHolder.getContext().getBean(getClass());
+        return proxy.save();
+    }
+```
+
+解决方法二:AopContext
+```
+
+    /**
+     * 方法二 AopContext.currentProxy()
+     */
+    public List<String> getRecommendsWithAopContext() {
+        // java.lang.IllegalStateException: Cannot find current proxy: Set 'exposeProxy' property on Advised to 'true' to make it available.
+        // 解决办法 @EnableAspectJAutoProxy(proxyTargetClass = true, exposeProxy = true),默认值都是false
+        return ((MenuService) AopContext.currentProxy()).getMenuList();
+    }
+```
