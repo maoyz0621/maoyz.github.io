@@ -1,37 +1,84 @@
-## Welcome to GitHub Pages
+# 服务器端口号
+server.port=8888
+# 是否生成ddl语句
+spring.jpa.generate-ddl=false
+# 是否打印sql语句
+spring.jpa.show-sql=true
 
-You can use the [editor on GitHub](https://github.com/maoyz0621/maoyz.github.io/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+# 自动生成ddl，由于指定了具体的ddl，此处设置为none
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.show_sql=true
+spring.jpa.properties.hibernate.use_sql_comments=true
+spring.jpa.properties.hibernate.format_sql=true
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
 
-### Markdown
+# 使用H2数据库
+spring.datasource.platform=h2
+spring.datasource.url=jdbc:h2:mem:h2test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+spring.datasource.username=mao
+spring.datasource.password=
+spring.datasource.driver-class-name= org.h2.Driver
+# 指定生成数据库的schema文件位置
+#spring.datasource.schema=classpath:schema.sql
+# 指定插入数据库语句的脚本位置
+spring.datasource.data=classpath:data.sql
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
 
-```markdown
-Syntax highlighted code block
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2
+spring.h2.console.settings.trace=false
+spring.h2.console.settings.web-allow-others=false
 
-# Header 1
-## Header 2
-### Header 3
 
-- Bulleted
-- List
+# 配置日志打印信息
+logging.level.root=INFO
+logging.level.org.hibernate=INFO
+logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
+logging.level.org.hibernate.type.descriptor.sql.BasicExtractor=TRACE
 
-1. Numbered
-2. List
 
-**Bold** and _Italic_ and `Code` text
+package com.example.paytm.pojo;
 
-[Link](url) and ![Image](src)
-```
+import lombok.Data;
+import lombok.ToString;
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+import javax.persistence.*;
 
-### Jekyll Themes
+@Entity
+@Table(name = "t_user")
+@Data
+@ToString
+public class User {
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/maoyz0621/maoyz.github.io/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-### Support or Contact
+    @Column(name = "first_name")
+    private String firstName;
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+    @Column(name = "last_name")
+    private String lastName;
+
+    protected User() {
+    }
+
+
+    public User(String firstName, String lastName) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+    }
+
+
+}
+package com.example.paytm.dao;
+
+import com.example.paytm.pojo.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+
+}
