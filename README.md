@@ -3,7 +3,6 @@
  * @author: 孙昊
  * @date: 2018-10-15 13:33
  * @Copyright: 2018 www.xiniaoyun.com Inc. All rights reserved.
- * 注意：本内容仅限于南京微欧科技有限公司内部传阅，禁止外泄以及用于其他的商业目的
  */
 package com.oppo.csc.hrms.common.util;
 
@@ -284,6 +283,82 @@ public class CscBeanMapper {
      */
     public static void copy(Object source, Object destinationObject) {
         MAPPER.map(source, destinationObject);
+    }
+}
+
+
+package com.oppo.csc.hrms.component.logback.aspect;
+
+import com.alibaba.fastjson.JSON;
+import net.logstash.logback.encoder.org.apache.commons.lang.StringUtils;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.List;
+
+/**
+ * 统一日志切面,打印入参
+ *
+ * @author zhangtao
+ */
+@Aspect
+@Component
+@Order(1)
+public class LogAspect {
+    private static final Logger logger = LoggerFactory.getLogger(LogAspect.class);
+    private static final String COMMA = ",";
+
+    @Around("@within(org.springframework.web.bind.annotation.RestController)")
+    public Object deBefore(ProceedingJoinPoint joinPoint) throws Throwable {
+        before(joinPoint);
+        final StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        Object object = joinPoint.proceed();
+        stopWatch.stop();
+
+        after(object, stopWatch.getTotalTimeMillis());
+
+        return object;
+    }
+
+    private void before(ProceedingJoinPoint joinPoint) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            return;
+        }
+
+        HttpServletRequest request = attributes.getRequest();
+        Enumeration<String> names = request.getHeaderNames();
+
+        List<String> header = new ArrayList<>();
+        while (names.hasMoreElements()) {
+            String name = names.nextElement();
+            header.add(name + " = " + request.getHeader(name));
+        }
+
+        if (logger.isInfoEnabled()) {
+            String message = "\n【CSC】请求相关信息：\n【请求头信息】->【{}】,\n【请求方法】->【{}】,\n【请求参数】->【{}】";
+            logger.info(message, StringUtils.join(header, COMMA), joinPoint.getSignature(), Arrays.toString(joinPoint.getArgs()));
+        }
+    }
+
+    private void after(Object object, long totalTimeMillis) {
+        if (logger.isInfoEnabled()) {
+            String message = "\n【CSC】执行情况：\n执行时间为：【{}毫秒】\n返回值为：【{}】";
+            logger.info(message, totalTimeMillis, JSON.toJSONString(object));
+        }
     }
 }
 
