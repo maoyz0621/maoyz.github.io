@@ -16,8 +16,10 @@
       3. localhost:8100
 
 # 安装脚手架
-  npm install -g @vue/cli
-  npm install -g @vue/cli-service-global
+  cnpm install -g @vue/cli
+  cnpm install -g @vue/cli-service-global
+
+  vue init webpack project-name
 
 # 创建工程
   vue create my-project
@@ -27,7 +29,7 @@
 
 # 语法
 
-+ v-bind (简写 -> :)
++ v-bind (简写 -> :) 常用于静态属性
 
 缩写
   > <!-- 完整语法 -->
@@ -36,18 +38,18 @@
     <a :href="url">...</a>
 
 
-+ v-on (简写 -> @)
++ v-on (简写 -> @) 用于绑定事件
 
 缩写
   > <!-- 完整语法 -->
-    <a v-on:click="doSomething">...</a>
+    <a v-on:click="doSomething()">...</a>
     <!-- 缩写 -->
-    <a @click="doSomething">...</a>
+    <a @click="doSomething()">...</a>
 
 
 + v-html  解析html标签
-
-+ v-model 数据双向绑定，一般用在表单
++ v-text  内容
++ v-model 数据双向绑定，一般用于表单
 
 + 条件渲染
   v-if
@@ -143,9 +145,44 @@ watch -- (异步场景)
         path: "/about",  // 路径
         name: "about",   // 别名
         component: () =>
-          import(/* webpackChunkName: "about" */ "./views/About.vue")
+          import("./views/About.vue")
       }
     ]
+```
+
+# 服务端交互-axios
+
++ 安装
+
+1)：npm install axios --save
+2)：npm install qs.js --save　　//它的作用是能把json格式的直接转成data所需的格式
+
+```
+1) main.js
+
+import Vue from 'vue'
+import axios from 'axios'
+import qs from 'qs'
+
+Vue.prototype.$axios = axios    //全局注册，使用方法为:this.$axios
+Vue.prototype.qs = qs           //全局注册，使用方法为:this.qs
+
+2) 组件中
+created(){
+    this.$axios({
+        method:'post',
+        url:'api',
+        data:this.qs.stringify({    //这里是发送给后台的数据
+              userId:this.userId,
+              token:this.token,
+        })
+    }).then((response) =>{          //这里使用了ES6的语法
+        console.log(response)       //请求成功返回的数据
+    }).catch((error) =>{
+        console.log(error)       //请求失败返回的数据
+    })
+}
+
 ```
 
 

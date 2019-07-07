@@ -16,6 +16,9 @@
 
 >`@ConditionalOnNotWebApplication`（不是web应用）
 
+>`@ConditionalOnProperty(name = "swagger.enabled", matchIfMissing = true)`
+
+
 
 # 二 Environment.resolveRequiredPlaceholders(key)
 
