@@ -1,6 +1,25 @@
+# 语法
+
+## for循环起别名
+
+别名：deep
+```
+deep: for (int i = 0; i < 10; i++) {
+    System.out.println(i);
+
+    for (int j = 0; j < 10; j++) {
+        if (j > 5){
+            // 此时跳出外部循环
+            break deep;
+        }
+    }
+}
+```
+
 ## Array
 
-+ 将Array转换List,使用`Arrays.asList(T... a)`,此时获取的List是不可变List,无法进行操作,否则抛出`UnsupportedOperationException`
++ 将Array转换List,使用`Arrays.asList(T... a)`,此时获取的List是不可变List,无法进行操作,否则抛出`UnsupportedOperationException`；
++ 原因：此时的ArrayList是Arrays中的静态内部类，同我们平常使用的ArrayList不是同一个ArrlyList。
 
 
 ## Map
