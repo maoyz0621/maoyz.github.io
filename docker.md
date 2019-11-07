@@ -100,3 +100,57 @@ mvn clean package -Dmaven.test.skip=true docker:build
 
 
 K8s
+
+
+cd /etc/docker/
+mv daemon.json daemon.conf
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>dockerfile-maven-plugin</artifactId>
+                <version>${dockerfile-maven-version}</version>
+                <executions>
+                    <execution>
+                        <id>default</id>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>push</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <dockerInfoDirectory>src/main/docker</dockerInfoDirectory>
+                    <dockerConfigFile>src/main/docker</dockerConfigFile>
+                    <repository>${docker.image}/${project.artifactId}</repository>
+                    <tag>${project.version}</tag>
+                    <buildArgs>
+                        <JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
+                    </buildArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+
+FROM java:8
+
+VOLUME /tmp
+
+# Add Maven dependencies (not shaded into the artifact; Docker-cached)
+#ADD target/lib  /usr/share/maoyz/lib
+
+# Add the service itself
+ARG JAR_FILE
+ADD ${JAR_FILE} app.jar
+
+RUN bash -c 'touch /app.jar'
+
+EXPOSE 8701
+
+ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]

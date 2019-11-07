@@ -144,24 +144,19 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
 1. 队列的容量一旦在构造时指定，后续不能改变；  
 2. 插入元素时，在队尾进行；删除元素时，在队首进行；  
 3. 队列满时，调用特定方法插入元素会阻塞线程；队列空时，删除元素也会阻塞线程；  
-4. 支持公平/非公平策略，默认为非公平策略。  
+4. 支持公平/非公平策略，默认为非公平策略；
+5. 使用一把全局锁，即入队和出队使用同一个ReentrantLock锁  
 
 - 重要参数
 
 ```
-    /**
-     * 内部数组
-     */
+    // 内部数组
     final Object[] items;
 
-    /**
-     * 下一个待删除位置的索引: take, poll, peek, remove方法使用
-     */
+    // 下一个待删除位置的索引: take, poll, peek, remove方法使用
     int takeIndex;
 
-    /**
-     * 下一个待插入位置的索引: put, offer, add方法使用
-     */
+    // 下一个待插入位置的索引: put, offer, add方法使用
     int putIndex;
      
     // 全局重入锁
@@ -188,7 +183,6 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
     
     public ArrayBlockingQueue(int capacity, boolean fair, Collection<? extends E> c) {
         this(capacity, fair);
-
         final ReentrantLock lock = this.lock;
         lock.lock(); // Lock only for visibility, not mutual exclusion
         try {
@@ -203,6 +197,7 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
                 throw new IllegalArgumentException();
             }
             count = i;
+            // 如果队列已满，则重置puIndex索引为0
             putIndex = (i == capacity) ? 0 : i;
         } finally {
             lock.unlock();
@@ -224,7 +219,7 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
         throw new IllegalStateException("Queue full");
 ```
 
-2) offer()
+2） offer()
 
 ```
     // offer(E e)
@@ -246,9 +241,12 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
     final ReentrantLock lock = this.lock;
     lock.lockInterruptibly();
     try {
+        // 若队列已满，循环等待被通知，再次检查队列是否非空
         while (count == items.length) {
+            // 可等待的时间小于等于零，直接返回失败
             if (nanos <= 0)
                 return false;
+            // 等待，直到超时, 返回的为剩余可等待时间，相当于每次等待，都会扣除相应已经等待的时间
             nanos = notFull.awaitNanos(nanos);
         }
         enqueue(e);
@@ -262,9 +260,11 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
         // assert items[putIndex] == null;
         final Object[] items = this.items;
         items[putIndex] = x;
+        // 队列已满,则重置索引为0
         if (++putIndex == items.length)
             putIndex = 0;
         count++;
+        // 唤醒一个notEmpty上的等待线程(可以来队列取元素了)
         notEmpty.signal();
     }
 ```
@@ -274,12 +274,213 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
 ```
     checkNotNull(e);
     final ReentrantLock lock = this.lock;
+    // 加锁
     lock.lockInterruptibly();
     try {
+        // todo 队列已满; 这里必须用while，防止虚假唤醒
         while (count == items.length)
+            // 在notFull队列上等待
             notFull.await();
+        // 队列未满, 直接入队
         enqueue(e);
     } finally {
         lock.unlock();
     }
+```
+
+4）take()
+
+```
+    final ReentrantLock lock = this.lock;
+    lock.lockInterruptibly();
+    try {
+        // 队列为空, 则线程在notEmpty条件队列等待
+        while (count == 0)
+            notEmpty.await();
+        return dequeue();
+    } finally {
+        lock.unlock();
+    }
+    
+     private E dequeue() {
+        // assert lock.getHoldCount() == 1;
+        // assert items[takeIndex] != null;
+        final Object[] items = this.items;
+        @SuppressWarnings("unchecked")
+        E x = (E) items[takeIndex];
+        items[takeIndex] = null;
+        // 如果队列已空
+        if (++takeIndex == items.length)
+            takeIndex = 0;
+        count--;
+        if (itrs != null)
+            itrs.elementDequeued();
+        // 唤醒一个notFull上的等待线程(可以插入元素到队列了)
+        notFull.signal();
+        return x;
+    }
+```
+
+5）poll()
+
+```
+    // poll()
+    final ReentrantLock lock = this.lock;
+    lock.lock();
+    try {
+         // 获得头元素
+        return (count == 0) ? null : dequeue();
+    } finally {
+        lock.unlock();
+    }
+    
+    // poll(long timeout, TimeUnit unit)
+    long nanos = unit.toNanos(timeout);
+    final ReentrantLock lock = this.lock;
+    lock.lockInterruptibly();
+    try {
+        while (count == 0) {
+            if (nanos <= 0)
+                return null;
+            nanos = notEmpty.awaitNanos(nanos);
+        }
+        return dequeue();
+    } finally {
+        lock.unlock();
+    }
+```
+
+#### LinkedBlockingQueue 有界阻塞队列
+
+- 原理
+
+基本同ArrayBlockingQueue一致, 入队使用一个ReentrantLock锁（putLock），出队使用另一个ReentrantLock锁（takeLock）,不能指定公平/非公平策略（默认都是非公平）
+
+- 重要参数
+
+```
+    /** Current number of elements */
+    private final AtomicInteger count = new AtomicInteger();
+
+    /** Head of linked list. Invariant: head.item == null */
+    transient Node<E> head;
+
+    /** Tail of linked list. Invariant: last.next == null */
+    private transient Node<E> last;
+
+    /** Lock held by take, poll, etc */
+    private final ReentrantLock takeLock = new ReentrantLock();
+
+    /** Wait queue for waiting takes */
+    private final Condition notEmpty = takeLock.newCondition();
+
+    /** Lock held by put, offer, etc */
+    private final ReentrantLock putLock = new ReentrantLock();
+
+    /** Wait queue for waiting puts */
+    private final Condition notFull = putLock.newCondition();
+    
+    // 默认容量 = Integer.MAX_VALUE
+    public LinkedBlockingQueue() {
+        this(Integer.MAX_VALUE);
+    }
+    
+    public LinkedBlockingQueue(int capacity) {
+        if (capacity <= 0) throw new IllegalArgumentException();
+        this.capacity = capacity;
+        last = head = new Node<E>(null);
+    }
+    
+    public LinkedBlockingQueue(Collection<? extends E> c) {
+        this(Integer.MAX_VALUE);
+        final ReentrantLock putLock = this.putLock;
+        putLock.lock(); // Never contended, but necessary for visibility
+        try {
+            int n = 0;
+            for (E e : c) {
+                if (e == null)
+                    throw new NullPointerException();
+                if (n == capacity)
+                    throw new IllegalStateException("Queue full");
+                enqueue(new Node<E>(e));
+                ++n;
+            }
+            count.set(n);
+        } finally {
+            putLock.unlock();
+        }
+    }
+```
+
+- 主要方法
+
+1）offer()
+
+```
+    if (e == null) throw new NullPointerException();
+    final AtomicInteger count = this.count;
+    // 元素个数达到容量
+    if (count.get() == capacity)
+        return false;
+    int c = -1;
+    Node<E> node = new Node<E>(e);
+    // 获取入队锁
+    final ReentrantLock putLock = this.putLock;
+    putLock.lock();
+    try {
+        if (count.get() < capacity) {
+            // 入队
+            enqueue(node);
+            // c表示入队前的队列元素个数. 赋值给c的是原子本身
+            c = count.getAndIncrement();
+            // c+1 表示的元素个数. 唤醒一个"入队线程"
+            if (c + 1 < capacity)
+                notFull.signal();
+        }
+    } finally {
+        putLock.unlock();
+    }
+    // 队列初始为空, 则唤醒一个“出队线程”
+    if (c == 0)
+        signalNotEmpty();
+    return c >= 0;
+    
+    
+    private void signalNotEmpty() {
+        final ReentrantLock takeLock = this.takeLock;
+        takeLock.lock();
+        try {
+            notEmpty.signal();
+        } finally {
+            takeLock.unlock();
+        }
+    }
+```
+
+2）put()
+
+``` 
+   if (e == null) throw new NullPointerException();
+   // Note: convention in all put/take/etc is to preset local var
+   // holding count negative to indicate failure unless set.
+   int c = -1;
+   Node<E> node = new Node<E>(e);
+   // 获取入队锁
+   final ReentrantLock putLock = this.putLock;
+   final AtomicInteger count = this.count;
+   putLock.lockInterruptibly();
+   try {
+       while (count.get() == capacity) {
+           notFull.await();
+       }
+       enqueue(node);
+       c = count.getAndIncrement();
+       // c+1 元素的个数, 唤醒一个“入队线程"
+       if (c + 1 < capacity)
+           notFull.signal();
+   } finally {
+       putLock.unlock();
+   }
+   if (c == 0)
+       signalNotEmpty();
 ```
