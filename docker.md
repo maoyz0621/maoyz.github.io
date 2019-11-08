@@ -154,3 +154,9 @@ RUN bash -c 'touch /app.jar'
 EXPOSE 8701
 
 ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
+
+
+mvn clean package
+
+
+mvn clean package dockerfile:build -Dmaven.test.skip=true
