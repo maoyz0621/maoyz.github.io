@@ -25,11 +25,11 @@ deep: for (int i = 0; i < 10; i++) {
 ## Map
 
 + Map中putIfAbsent()和put()的区别:
-    1) 使用put()方法添加键值对，如果map集合中没有该key对应的值，则直接添加，并返回null，
-如果已经存在对应的值，则会覆盖旧值，value为新的值。
+    1) 使用put()方法添加键值对，如果map集合中没有该key对应的值，则直接添加，并返回null，如果已经存在对应的值，则会覆盖旧值，value为新的值。
 
-    2) 使用putIfAbsent()方法添加键值对，如果map集合中没有该key对应的值，则直接添加，并返
-回null，如果已经存在对应的值，则依旧为原来的值。
+    2) 使用putIfAbsent()方法添加键值对，如果map集合中没有该key对应的值，则直接添加，并返回null，如果已经存在对应的值，则依旧为原来的值。
+
+
 
 java容器? 同步容器和并发容器?
 
@@ -47,7 +47,7 @@ AtomicInteger为什么使用CAS,而不是sysnchronose?
 
 JVM分区?老年代和新生代比例?使用的算法有那些?
 
-jstack, jmap,  jutil?如何排查线上JVM问题?
+jstack, jmap,  jutil? 如何排查线上JVM问题?
 
 线程池正在处理任务,但服务器突然挂掉, 正在处理和在阻塞队列中的任务如何处理?
 
@@ -60,6 +60,9 @@ ThreadLocal的底层实现?
 volatile的实现原理?
 
 什么是CAS?
+    CompareAndSwap  比较并交换
+
+ABA问题?
 
 线上频繁full gc,如何处理?
 
@@ -84,6 +87,8 @@ Lock内部实现?
 happens before原理?
 
 JUC?
+
+## Redis
 
 数据库和redis如何保证双写一致?
 

@@ -2,13 +2,14 @@
 
 ## 1.1 概念
 
-`image`(镜像)
-`container`(容器)
-`registry`(仓库)
+`image`(镜像)  
+`container`(容器)  
+`registry`(仓库)  
 
 + 添加国内淘宝镜像源
 
-daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/instances/mirrors?accounttraceid=4e34a8a5-2ed6-4856-815a-051d44f17c2e
+daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/instances/mirrors?accounttraceid=4e34a8a5-2ed6-4856-815a-051d44f17c2e  
+
 ```
     sudo mkdir -p /etc/docker
     sudo tee /etc/docker/daemon.json <<-'EOF'
@@ -20,32 +21,35 @@ daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/in
     sudo systemctl restart docker
 ```
 
+    aaa
+
 + 常用命令
 
-`docker images`                        查看镜像
-`docker search mysql`                  搜索镜像
-`docker pull mysql:5.7`                安装镜像(指定版本号)
+`docker images`                        查看镜像  
+`docker search mysql`                  搜索镜像  
+`docker pull mysql:5.7`                安装镜像(指定版本号)  
 `docker rmi -f IMAGE_ID`               删除镜像
-`docker run -d -p 80:80 --name=mynginx nginx`     容器运行   -d(指定容器运行于前台还是后台，默认为false);  -p (端口映射);  80:80 (: 之前是宿主机端口，之后是容器需暴露的端口);   --name=mynginx(为容器指定一个名字)
-`docker run --name myz-mysql -e MYSQL_USER="maoyz" -v /data/docker-mysql/data:/var/lib/mysql -e MYSQL_PASSWORD="123456" -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mysql --character-set-server=utf8 --collation-server=utf8_general_ci`   -v(挂载,本地/data/docker-mysql/data充当)  -e(配置信息，此处配置mysql的root用户的登陆密码)
-`docker stop nginx`                    停止镜像
-`docker exec -it zookeeper bash`       进入容器
-`docker exec -it myz-mysql /usr/bin/bash`  
-`docker ps`                            查看运行容器
-`docker ps -a`                         查看所有容器
-`docker logs -f zookeeper(id/别名)`     查看日志
-`docker rm zookeeper(id/别名)`          删除容器
+`docker run -d -p 80:80 --name=mynginx nginx`     容器运行   -d(指定容器运行于前台还是后台，默认为false);  -p (端口映射);  80:80 (: 之前是宿主机端口，之后是容器需暴露的端口);   --name=mynginx(为容器指定一个名字)  
+`docker run --name myz-mysql -e MYSQL_USER="maoyz" -v /data/docker-mysql/data:/var/lib/mysql -e MYSQL_PASSWORD="123456" -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mysql --character-set-server=utf8 --collation-server=utf8_general_ci`   -v(挂载,本地/data/docker-mysql/data充当)  -e(配置信息，此处配置mysql的root用户的登陆密码)  
+`docker stop nginx`                    停止镜像  
+`docker container exec -it zookeeper bash`       进入容器  
+`docker container exec -it myz-mysql /usr/bin/bash`  
+`docker container ps`                            查看运行容器  
+`docker container ps -a`                         查看所有容器  
+`docker logs -f zookeeper(id/别名)`     查看日志  
+`docker rm zookeeper(id/别名)`          删除容器  
+`docker logs container-name`  查看日志  
 
+更新容器  
 
-`docker build -t name:v1.0.0 -f /home/maoyz/Dockerfile`                 镜像构建(指定目录)
-`docker build -t name:v1.0.0 .`                                         镜像构建(当前目录)
-`docker tag image_name:${version} my_registry/image_name:${version}`    镜像tag
-`docker push my_registry/image_name:${version}`                         镜像推送
+`docker build -t name:v1.0.0 -f /home/maoyz/Dockerfile`                 镜像构建(指定目录)  
+`docker build -t name:v1.0.0 .`                                         镜像构建(当前目录)  
+`docker tag image_name:${version} my_registry/image_name:${version}`    镜像tag  
+`docker push my_registry/image_name:${version}`                         镜像推送  
 
-
-`docker pull registry`                                 创建本地仓库
-`docker run -d -p 5000:5000 -v /data/docker registry`  运行容器,挂在本地/data/docker目录
-`http://127.0.0.01:5000/v2/_catalog`                   查看仓库信息
+`docker pull registry`                                 创建本地仓库  
+`docker run -d -p 5000:5000 -v /data/docker registry`  运行容器,挂在本地/data/docker目录  
+`http://127.0.0.01:5000/v2/_catalog`                   查看仓库信息  
 
 
 出现docker push denied: requested access to the resource is denied
@@ -85,26 +89,11 @@ docker执行build:  org.apache.http.impl.execchain.RetryExec execute 信息: Ret
 
 /etc/default/docker
 
-mvn clean package -Dmaven.test.skip=true docker:build
+mvn clean package -Dmaven.test.skip=true dockerfile:build
 
-+ Dockerfile
++ maven插件
 
-    FROM    指定基础镜像,是必备的指令，并且必须是第一条指令
-    RUN     执行命令行命令
-    ADD     更高级的复制文件
-    VOLUME  指定挂载点
-    WORKDIR 指定工作目录
-    CMD     容器启动命令
-    EXPOSE  声明端口
-
-
-
-K8s
-
-
-cd /etc/docker/
-mv daemon.json daemon.conf
-
+```
     <build>
         <plugins>
             <plugin>
@@ -136,22 +125,54 @@ mv daemon.json daemon.conf
             </plugin>
         </plugins>
     </build>
+```
+
++ Dockerfile
+
+- FROM    指定基础镜像,是必备的指令，并且必须是第一条指令  
+- ENV  
+- RUN     执行命令行命令  
+- ADD     更高级的复制文件, 可解压文件  
+- VOLUME  指定挂载点  
+- WORKDIR 指定工作目录  
+- EXPOSE  暴露端口  
+- CMD []    容器启动命令, 可被覆盖
+- ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
+
+```
+    FROM java:8
+    
+    VOLUME /tmp
+    
+    # Add Maven dependencies (not shaded into the artifact; Docker-cached)
+    #ADD target/lib  /usr/share/maoyz/lib
+    
+    # Add the service itself
+    ARG JAR_FILE
+    ADD ${JAR_FILE} app.jar
+    
+    RUN bash -c 'touch /app.jar'
+    
+    EXPOSE 8701
+    
+    ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
+```
+
+开启远程访问
 
 
-FROM java:8
 
-VOLUME /tmp
 
-# Add Maven dependencies (not shaded into the artifact; Docker-cached)
-#ADD target/lib  /usr/share/maoyz/lib
+出现问题:  
 
-# Add the service itself
-ARG JAR_FILE
-ADD ${JAR_FILE} app.jar
++ 1. `Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get http://%2Fvar%2Frun%2Fdocker.sock/v1.39/containers/json: dial unix /var/run/docker.sock: connect: permission denied`
 
-RUN bash -c 'touch /app.jar'
+```
+    1. sudo ls -l /var/run/docker.sock      # 这个文件的所有者和所属组是什么
+    输出结果: srw-rw---- 1 root docker 0 Jul 12 22:41 /var/run/docker.sock   表示属于root用户和docker组的
 
-EXPOSE 8701
+    2. sudo gpasswd -a ${USER} docker   # 加入到了用户组
+
 
 ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
 
@@ -160,3 +181,14 @@ mvn clean package
 
 
 mvn clean package dockerfile:build -Dmaven.test.skip=true
+
+    3. newgrp - docker
+```
+
++ 2. linux修改docker.service之后重新启动docker出错: `Job for docker.service failed because the control process exited with error code. See "systemctl status docker.service" and "journalctl -xe" for details`
+
+```
+    cd /etc/docker/
+    
+    mv daemon.json daemon.conf
+```
