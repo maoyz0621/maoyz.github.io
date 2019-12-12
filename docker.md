@@ -8,7 +8,8 @@
 
 + 添加国内淘宝镜像源
 
-daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/instances/mirrors?accounttraceid=4e34a8a5-2ed6-4856-815a-051d44f17c2e
+daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/instances/mirrors?accounttraceid=4e34a8a5-2ed6-4856-815a-051d44f17c2e  
+
 ```
     sudo mkdir -p /etc/docker
     sudo tee /etc/docker/daemon.json <<-'EOF'
@@ -19,6 +20,8 @@ daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/in
     sudo systemctl daemon-reload
     sudo systemctl restart docker
 ```
+
+    aaa
 
 + 常用命令
 
@@ -169,6 +172,15 @@ mvn clean package -Dmaven.test.skip=true dockerfile:build
     输出结果: srw-rw---- 1 root docker 0 Jul 12 22:41 /var/run/docker.sock   表示属于root用户和docker组的
 
     2. sudo gpasswd -a ${USER} docker   # 加入到了用户组
+
+
+ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
+
+
+mvn clean package
+
+
+mvn clean package dockerfile:build -Dmaven.test.skip=true
 
     3. newgrp - docker
 ```
