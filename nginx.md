@@ -371,7 +371,183 @@ yum install keepalived -y
 /etc/keepalived.conf
 
 # 修改配置文件
+
+# 全局定义
+global_defs {
+   notification_email {
+     acassen@firewall.loc
+     failover@firewall.loc
+     sysadmin@firewall.loc
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   # 重要, 主机名称
+   router_id LVS_DEVEL
+   vrrp_skip_check_adv_addr
+   vrrp_strict
+   vrrp_garp_interval 0
+   vrrp_gna_interval 0
+}
+
+＃ 检测脚本
+vrrp_script chk_nginx {
+        script "/usr/local/sbin/nginx.sh"               #定义服务检查脚本用于服务异常挂起时尝试启动的操作
+        # 检测间隔 2s
+        interval 3
+        weight -20
+}
+
+vrrp_instance VI_1 {
+    # 充当角色,　备份服务器上, 为BACKUP
+    state MASTER
+    # 网卡
+    interface eth0
+    # 主 备机的virtual_router_id必须相同
+    virtual_router_id 51
+    # 优先级,　主机值较大
+    priority 100
+    # 心跳检测
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    # 虚拟IP地址
+    virtual_ipaddress {
+        192.168.200.16
+        192.168.200.17
+        192.168.200.18
+    }
+}
+
+virtual_server 192.168.200.100 443 {
+    delay_loop 6
+    lb_algo rr
+    lb_kind NAT
+    persistence_timeout 50
+    protocol TCP
+
+    real_server 192.168.201.100 443 {
+        weight 1
+        SSL_GET {
+            url {
+              path /
+              digest ff20ad2481f97b1754ef3e12ecd3a9cc
+            }
+            url {
+              path /mrtg/
+              digest 9b3a0c85a887a256d6939da88aabd8cd
+            }
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+}
+
+virtual_server 10.10.10.2 1358 {
+    delay_loop 6
+    lb_algo rr 
+    lb_kind NAT
+    persistence_timeout 50
+    protocol TCP
+
+    sorry_server 192.168.200.200 1358
+
+    real_server 192.168.200.2 1358 {
+        weight 1
+        HTTP_GET {
+            url { 
+              path /testurl/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            url { 
+              path /testurl2/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            url { 
+              path /testurl3/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+
+    real_server 192.168.200.3 1358 {
+        weight 1
+        HTTP_GET {
+            url { 
+              path /testurl/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334c
+            }
+            url { 
+              path /testurl2/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334c
+            }
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+}
+
+virtual_server 10.10.10.3 1358 {
+    delay_loop 3
+    lb_algo rr 
+    lb_kind NAT
+    persistence_timeout 50
+    protocol TCP
+
+    real_server 192.168.200.4 1358 {
+        weight 1
+        HTTP_GET {
+            url { 
+              path /testurl/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            url { 
+              path /testurl2/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            url { 
+              path /testurl3/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+
+    real_server 192.168.200.5 1358 {
+        weight 1
+        HTTP_GET {
+            url { 
+              path /testurl/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            url { 
+              path /testurl2/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            url { 
+              path /testurl3/test.jsp
+              digest 640205b7b0fc66c1ea91c463fac6334d
+            }
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+}
+
 ```
+
+master和worker进程(nginx热部署),　每个worker是独立进程, worker数量: cpu, worker_connection连接数: 发起请求,　占用worker2个或4个连接数 ;
+一个mater, 有4个worker，每个worker支持最大的连接数1024，　支持的最大并发数: 4 * 1024/2(4(作为反向代理))
 
 语法规则： location [=|~|~*|^~] /uri/ { … }
 
