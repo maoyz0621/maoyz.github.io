@@ -1,4 +1,4 @@
-##　nginx
+## nginx
 
 1. 是什么?  
     反向代理服务器, 负载均衡, 动静分离, 健康检查
@@ -366,13 +366,18 @@ http {
 nginx宕机, keepalived, master和backup
 
 ```
-yum install keepalived -y
+yum install keepalived.x86_64 -y
 #　配置文件
-/etc/keepalived.conf
+/etc/keepalived/keepalived.conf
 
 # 修改配置文件
+<<<<<<< Updated upstream
 
 # 全局定义
+=======
+! Configuration File for keepalived
+
+>>>>>>> Stashed changes
 global_defs {
    notification_email {
      acassen@firewall.loc
@@ -382,7 +387,10 @@ global_defs {
    notification_email_from Alexandre.Cassen@firewall.loc
    smtp_server 192.168.200.1
    smtp_connect_timeout 30
+<<<<<<< Updated upstream
    # 重要, 主机名称
+=======
+>>>>>>> Stashed changes
    router_id LVS_DEVEL
    vrrp_skip_check_adv_addr
    vrrp_strict
@@ -390,6 +398,7 @@ global_defs {
    vrrp_gna_interval 0
 }
 
+<<<<<<< Updated upstream
 ＃ 检测脚本
 vrrp_script chk_nginx {
         script "/usr/local/sbin/nginx.sh"               #定义服务检查脚本用于服务异常挂起时尝试启动的操作
@@ -408,12 +417,22 @@ vrrp_instance VI_1 {
     # 优先级,　主机值较大
     priority 100
     # 心跳检测
+=======
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    virtual_router_id 51
+    priority 100
+>>>>>>> Stashed changes
     advert_int 1
     authentication {
         auth_type PASS
         auth_pass 1111
     }
+<<<<<<< Updated upstream
     # 虚拟IP地址
+=======
+>>>>>>> Stashed changes
     virtual_ipaddress {
         192.168.200.16
         192.168.200.17
@@ -543,11 +562,16 @@ virtual_server 10.10.10.3 1358 {
         }
     }
 }
+<<<<<<< Updated upstream
 
 ```
 
 master和worker进程(nginx热部署),　每个worker是独立进程, worker数量: cpu, worker_connection连接数: 发起请求,　占用worker2个或4个连接数 ;
 一个mater, 有4个worker，每个worker支持最大的连接数1024，　支持的最大并发数: 4 * 1024/2(4(作为反向代理))
+=======
+```
+
+>>>>>>> Stashed changes
 
 语法规则： location [=|~|~*|^~] /uri/ { … }
 
