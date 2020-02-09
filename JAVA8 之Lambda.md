@@ -55,7 +55,21 @@ Lambda表达式可以看成是匿名内部类（Anonymous Classes）的语法糖
    }
    ```
 
-   
+   补充：javap 命令
+
+   ```kotlin
+    -l                       输出行号和本地变量表
+    -public                  仅显示公共类和成员
+    -protected               显示受保护的/公共类和成员
+    -package                 显示显示程序包/受保护的/公共类 和成员 (默认)
+    -p  -private             显示所有类和成员
+    -c                       对代码进行反汇编
+    -s                       输出内部类型签名
+    -sysinfo                 显示正在处理的类的系统信息 (路径, 大小, 日期, MD5 散列)
+    -constants               显示静态最终常量
+    -classpath <path>        指定查找用户类文件的位置
+    -bootclasspath <path>    覆盖引导类文件的位置
+   ```
 
    二、Lambda表达式不会产生新的类。
 
@@ -181,7 +195,7 @@ public interface ConsumerInterface<T> {
     } 
 ```
 
-测试用例
+测试用例：
 
 ```java
 public static void main(String[] args) {
@@ -206,6 +220,17 @@ public static void main(String[] args) {
 }
 ```
 
+处理两个参数函数型接口**BiFunction<T, U, R>**，接收T，U对象，返回R对象
+
+```java
+    R apply(T t, U u);
+
+    default <V> BiFunction<T, U, V> andThen(Function<? super R, ? extends V> after) {
+        Objects.requireNonNull(after);
+        return (T t, U u) -> after.apply(apply(t, u));
+    }
+```
+
 
 
 ### Consumer< T >
@@ -223,7 +248,7 @@ public static void main(String[] args) {
     }
 ```
 
-测试用例
+测试用例：
 
 ```java
 public static void main(String[] args) {
@@ -245,6 +270,23 @@ public static void main(String[] args) {
     System.out.println(map);
 }
 ```
+
+消费型接口**BiConsumer<T, U>**，接收T，U对象，不返回值
+
+```java
+    void accept(T t, U u);
+
+    default BiConsumer<T, U> andThen(BiConsumer<? super T, ? super U> after) {
+        Objects.requireNonNull(after);
+
+        return (l, r) -> {
+            accept(l, r);
+            after.accept(l, r);
+        };
+    }
+```
+
+
 
 
 
@@ -281,7 +323,7 @@ public static void main(String[] args) {
     }
 ```
 
-测试用例
+测试用例：
 
 ```java
 	/**
@@ -349,6 +391,26 @@ public static void main(String[] args) {
     public void testIsEqual() {
         Predicate<String> predicate = Predicate.isEqual("a");
         System.out.println(predicate.test("ab"));
+    }
+```
+
+断言型接口**BiPredicate<T, U>**，接收T，U对象并返回boolean
+
+```java
+    boolean test(T t, U u);
+
+    default BiPredicate<T, U> and(BiPredicate<? super T, ? super U> other) {
+        Objects.requireNonNull(other);
+        return (T t, U u) -> test(t, u) && other.test(t, u);
+    }
+
+    default BiPredicate<T, U> negate() {
+        return (T t, U u) -> !test(t, u);
+    }
+   
+    default BiPredicate<T, U> or(BiPredicate<? super T, ? super U> other) {
+        Objects.requireNonNull(other);
+        return (T t, U u) -> test(t, u) || other.test(t, u);
     }
 ```
 
@@ -512,7 +574,7 @@ default V getOrDefault(Object key, V defaultValue) {
 
 #### forEach()
 
-
+遍历Map值
 
 ```java
 default void forEach(BiConsumer<? super K, ? super V> action) {
@@ -536,8 +598,9 @@ default void forEach(BiConsumer<? super K, ? super V> action) {
 
 #### replace() 和 replaceAll()
 
-- `replace(K key, V value)`，只有在当前`Map`中**`key`的映射存在时**才用`value`去替换原来的值，否则什么也不做．
-- `replace(K key, V oldValue, V newValue)`，只有在当前`Map`中**`key`的映射存在且等于`oldValue`时**才用`newValue`去替换原来的值，否则什么也不做．
+- `V replace(K key, V value)`，只有在当前`Map`中**`key`的映射存在时**才用`value`去替换原来的值，否则什么也不做．
+- `boolean replace(K key, V oldValue, V newValue)`，只有在当前`Map`中**`key`的映射存在且等于`oldValue`时**才用`newValue`去替换原来的值，否则什么也不做．
+- void replaceAll(BiFunction<? super K, ? super V, ? extends V> function)，对`Map`中的每个映射执行`function`指定的操作，并用`function`的执行结果替换原来的`value`
 
 ```java
 default V replace(K key, V value) {
