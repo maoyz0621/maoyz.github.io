@@ -44,14 +44,14 @@ Lambda表达式可以看成是匿名内部类（Anonymous Classes）的语法糖
    
      public static void main(java.lang.String[]);
        Code:
-          0: new           #2                  // class java/lang/Thread
-          3: dup
+          0: new           #2                  // class java/lang/Thread 为对象分配内存空间，并将地址压入操作数栈顶
+          3: dup								// 复制操作数栈顶，压入栈底(此时操作数栈上有连续相同的两个对象地址)
           4: new           #3                  // class com/myz/java/study/java8/lambda/MainAnonymousClassTest$1 /* 创建内部类 */
           7: dup
           8: invokespecial #4                  // Method com/myz/java/study/java8/lambda/MainAnonymousClassTest$1."<init>":()V
          11: invokespecial #5                  // Method java/lang/Thread."<init>":(Ljava/lang/Runnable;)V
          14: invokevirtual #6                  // Method java/lang/Thread.start:()V
-         17: return
+         17: return							// 指令结束
    }
    ```
 
@@ -110,7 +110,7 @@ Lambda表达式可以看成是匿名内部类（Anonymous Classes）的语法糖
          12: invokevirtual #5                  // Method java/lang/Thread.start:()V
          15: return
    
-     private static void lambda$main$0();	/*Lambda表达式被封装成主类的私有方法，之后通过invokedynamic指令调用*/
+     private static void lambda$main$0();	    /*Lambda表达式被封装成主类的私有方法，之后通过invokedynamic指令调用*/
        Code:
           0: getstatic     #6                  // Field java/lang/System.out:Ljava/io/PrintStream;
           3: ldc           #7                  // String Lambda实现Runnable
@@ -123,7 +123,7 @@ Lambda表达式可以看成是匿名内部类（Anonymous Classes）的语法糖
 
 1. this指向
 
-   对于匿名类，关键词 this 解读为匿名类本身，而对于 Lambda 表达式，关键词 this 为 Lambda 的外部类。
+   对于匿名类，关键词**this**解读为匿名类本身，而对于 Lambda 表达式，关键词**this**为 Lambda 的外部类。
 
    ```java
    public void testRunnable() {
@@ -463,8 +463,6 @@ static class A {
 
 ## 新增函数接口
 
-
-
 接口 | 描述 | 备注
 ---|---|---
 Iterable	| 	|void forEach(Consumer<? super T> action);<br/>Spliterator<T> spliterator()
@@ -491,7 +489,7 @@ default void forEach(Consumer<? super T> action) {
 
 #### spliterator()
 
-返回容器的可拆分迭代器
+返回容器的可拆分迭代器**Spliterator**，可以多次调用trySplit()分成多个迭代器，且元素没有重叠。
 
 ```
 default Spliterator<E> spliterator() {
@@ -561,7 +559,7 @@ default boolean removeIf(Predicate<? super E> filter) {
 
 #### getOrDefault()
 
-按照给定的`key`查询`Map`中对应的`value`，如果没有找到则返回`defaultValue`
+按照给定的key查询`Map`中对应的value，如果没有找到则返回defaultValue
 
 ```java
 default V getOrDefault(Object key, V defaultValue) {
@@ -613,8 +611,7 @@ default V replace(K key, V value) {
 
 default boolean replace(K key, V oldValue, V newValue) {
     Object curValue = get(key);
-    if (!Objects.equals(curValue, oldValue) ||
-        (curValue == null && !containsKey(key))) {
+    if (!Objects.equals(curValue, oldValue) || (curValue == null && !containsKey(key))) {
         return false;
     }
     put(key, newValue);
@@ -646,4 +643,122 @@ default void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) 
     }
 }
 ```
+
+
+
+#### putIfAbsent()
+
+只有在**不存在key值的映射或映射值为null时**，才将value指定的值放入到`Map`中，否则不对`Map`做更改。
+
+```
+default V putIfAbsent(K key, V value) {
+	V v = get(key);
+	if (v == null) {
+		v = put(key, value);
+	}
+
+	return v;
+}
+```
+
+
+
+#### remove()
+
+只有在当前`Map`中key正好映射到value时才删除该映射。
+
+```
+default boolean remove(Object key, Object value) {
+	Object curValue = get(key);
+	if (!Objects.equals(curValue, value) || (curValue == null && !containsKey(key))) {
+		return false;
+	}
+	remove(key);
+	return true;
+}
+```
+
+
+
+#### merge()
+
+1. 如果`Map`中`key`对应的映射不存在或者为`null`，则将`value`（不能是`null`）关联到`key`上；
+2. 否则执行`remappingFunction`，如果执行结果非`null`则用该结果跟`key`关联，否则在`Map`中删除`key`的映射
+
+```
+    Map<String, Object> param = new HashMap<>(4);
+    param.put("a", 1);
+    param.put("b", 2);
+
+    // v1 -> 原本存在的非null值， v2 -> 期望merge的值
+    param.merge("a", "a", (v1, v2) -> v1 + ":" + v2);
+    // remappingFunction执行结果 null, 则删除key
+    param.merge("b", "a", (v1, v2) -> null);
+    // 对应的映射不存在或者为null
+    param.merge("c", "a", (v1, v2) -> v1 + ":" + v2);
+
+    // {a=1:a, c=a}
+    System.out.println(param);
+```
+
+
+
+#### compute()、computeIfAbsent()、computeIfPresent()
+
+compute：把`remappingFunction`的计算结果关联到`key`上，如果计算结果为`null`，则在`Map`中删除`key`的映射；
+
+computeIfAbsent：只有在当前`Map`中**不存在`key`值的映射或映射值为`null`时**，才调用`mappingFunction`，并在`mappingFunction`执行结果非`null`时，将结果跟`key`关联；
+
+computeIfPresent：只有在当前`Map`中**存在`key`值的映射且非`null`时**，才调用`remappingFunction`，如果`remappingFunction`执行结果为`null`，则删除`key`的映射，否则使用该结果替换`key`原来的映射。
+
+
+
+## Stream
+
+1、不是某种数据结构，只是数据源的一种视图；
+
+2、惰性执行，只有等到用户真正需要结果的时候才会执行；
+
+3、可消费性，只能被消费一次，一旦遍历过就会失效，就像容器的迭代器那样，想要再次遍历必须重新生成。
+
+Collection.stream()
+
+Collection.parallelStream()
+
+Arrays.stream(T[] array)
+
+接口继承关系：
+
+```
+BaseStream
+    IntStream extends BaseStream<Integer, IntStream> 
+    LongStream extends BaseStream<Long, LongStream>
+    DoubleStream extends BaseStream<Double, DoubleStream>
+    Stream<T> extends BaseStream<T, Stream<T>>
+```
+
+操作分类：
+
+|    |           |      |
+| -- | -- | -- |
+|中间操作| 无状态(Stateless)          | unordered() <br/>filter() <br/>map()   对所有元素进行转换，转换前后元素个数不会改变<br>mapToInt() <br/>mapToLong() <br/>mapToDouble() <br/>flatMap()   摊平<br/>flatMapToInt() <br/>flatMapToLong() <br/>flatMapToDouble() <br/>peek() |
+|中间操作| 有状态(Stateful)           | distinct()  去除重复元素 <br/>sorted()   排序<br/>limit() <br/>skip() |
+|结束操作| 非短路操作                 | forEach() <br/>forEachOrdered() <br/>toArray() <br/>reduce() <br/>collect() <br/>max() <br/>min() <br/>count() |
+|结束操作| 短路操作(short-circuiting) | anyMatch() <br>allMatch() <br>noneMatch() <br>findFirst() <br>findAny()</br> |
+
+
+### 中间操作
+
+惰式执行，调用中间操作只会生成一个标记了该操作的新*stream*。
+
+
+### 结束操作
+
+会触发实际计算，计算发生时会把所有中间操作积攒的操作以*pipeline*的方式执行，这样可以减少迭代次数。计算完成之后*stream*就会失效。
+
+规约操作：
+
+​	**collect()** 
+
+​	**reduce()** 
 
