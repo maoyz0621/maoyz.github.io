@@ -30,7 +30,7 @@ daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/in
 `docker pull mysql:5.7`                安装镜像(指定版本号)  
 `docker rmi -f IMAGE_ID`               删除镜像
 `docker run -d -p 80:80 --name=mynginx nginx`     容器运行   -d(指定容器运行于前台还是后台，默认为false);  -p (端口映射);  80:80 (: 之前是宿主机端口，之后是容器需暴露的端口);   --name=mynginx(为容器指定一个名字)  
-`docker run --name myz-mysql -e MYSQL_USER="maoyz" -v /data/docker-mysql/data:/var/lib/mysql -e MYSQL_PASSWORD="123456" -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mysql --character-set-server=utf8 --collation-server=utf8_general_ci`   -v(挂载,本地/data/docker-mysql/data充当)  -e(配置信息，此处配置mysql的root用户的登陆密码)  
+`docker run --name myz-mysql -e MYSQL_USER="maoyz" -v /data/docker-mysql/data:/var/lib/mysql -e MYSQL_PASSWORD="123456" -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mysql --character-set-server=UTF8MB4--collation-server=UTF8MB4`   -v(挂载,本地/data/docker-mysql/data充当)  -e(配置信息，此处配置mysql的root用户的登陆密码)  
 `docker stop nginx`                    停止镜像  
 `docker container exec -it zookeeper bash`       进入容器  
 `docker container exec -it myz-mysql /usr/bin/bash`  
