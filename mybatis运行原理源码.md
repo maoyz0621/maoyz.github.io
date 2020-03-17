@@ -1,6 +1,8 @@
-## 1. 创建Session
+# Mybatis运行原理
 
-### 1.1 SqlSessionFactoryBuilder创建SqlSessionFactory；
+## 创建Session
+
+### SqlSessionFactoryBuilder创建SqlSessionFactory；
 ```
 public class SqlSessionFactoryBuilder {
 
@@ -32,7 +34,7 @@ public class SqlSessionFactoryBuilder {
 }
 ```
 
-### 1.2 SqlSessionFactory创建SqlSession；
+### SqlSessionFactory创建SqlSession；
 
 ```
 public class DefaultSqlSessionFactory implements SqlSessionFactory {
@@ -76,7 +78,7 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
 }
 ```
 
-#### 1.2.1 执行器的选择
+#### 执行器的选择
 ```
 public class Configuration {
 
@@ -108,7 +110,7 @@ public class Configuration {
 }
 ```
 
-### 1.3 SqlSession获取Mapper接口, 获取的接口是代理类是com.sun.proxy.$Proxy1，代理对象是org.apache.ibatis.binding.MapperProxy
+### SqlSession获取Mapper接口, 获取的接口是代理类是com.sun.proxy.$Proxy1，代理对象是org.apache.ibatis.binding.MapperProxy
 
 ```
 public class DefaultSqlSession implements SqlSession {
@@ -169,7 +171,7 @@ public class MapperProxyFactory<T> {
 
 ```
 
-### 1.4 Mapper执行，执行者为MapperProxy的动态代理模式
+### Mapper执行，执行者为MapperProxy的动态代理模式
 
 ```
 public class MapperProxy<T> implements InvocationHandler, Serializable {
@@ -295,7 +297,7 @@ public class MapperMethod {
 }
 ```
 
-#### 1.4.1 SqlSession真正执行的操作：selectList(String statement, Object parameter, RowBounds rowBounds)
+#### SqlSession真正执行的操作：selectList(String statement, Object parameter, RowBounds rowBounds)
 
 ```
 public class DefaultSqlSession implements SqlSession {
@@ -342,7 +344,7 @@ public class DefaultSqlSession implements SqlSession {
 }
 ```
 
-#### 1.4.2 Executor执行器工作
+#### Executor执行器工作
 
 ```
 public abstract class BaseExecutor implements Executor {
@@ -438,7 +440,7 @@ public class SimpleExecutor extends BaseExecutor {
 
 ```
 
-#### 1.4.3 StatementHandler语句处理器
+#### StatementHandler语句处理器
 
 ```
 public class RoutingStatementHandler implements StatementHandler {
@@ -482,7 +484,7 @@ public class PreparedStatementHandler extends BaseStatementHandler {
 
 ```
 
-### 1.5 ResultHandler结果处理, TypeHandler：负责java数据类型和jdbc数据类型之间的映射和转换
+### ResultHandler结果处理, TypeHandler：负责java数据类型和jdbc数据类型之间的映射和转换
 
 ```
 // 负责将JDBC返回的ResultSet结果集对象转换成List类型的集合；

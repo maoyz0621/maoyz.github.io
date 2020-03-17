@@ -1,3 +1,5 @@
+# Spring整合Mybatis
+
 ## SqlSessionFactoryBean
 
 在MyBatis中，是通过 SqlSessionFactoryBuilder 来创建 SqlSessionFactory 的。 而在 MyBatis-Spring 中，则使用 SqlSessionFactoryBean 来创建的。
@@ -197,6 +199,8 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
 }
 ```
 
+
+
 ## DataSourceTransactionManager
 
 一个使用 MyBatis-Spring 的其中一个主要原因是它允许 MyBatis 参与到 Spring 的事务管理中。而不是给 MyBatis 创建一个新的专用事务管理器，MyBatis-Spring 借助了 Spring 中的 DataSourceTransactionManager 来实现事务管理。
@@ -206,6 +210,7 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
 事务配置好了以后，MyBatis-Spring 将会透明地管理事务。这样在你的 DAO 类中就不需要额外的代码了。
 
 **注意：为事务管理器指定的 DataSource 必须和用来创建 SqlSessionFactoryBean 的是同一个数据源，否则事务管理器就无法工作了。**
+
 
 
 ## SqlSessionTemplate
@@ -283,7 +288,11 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
 
 ```
 
+
+
 ## 事务管理
+
+
 
 
 ```

@@ -1,10 +1,12 @@
+# java并发包
+
 ## JUC (java.util.concurrent)
 
 ### 1. collections
 
 ### 1.1 List
 
-#### CopyOnWriteArrayList  
+#### CopyOnWriteArrayList
 
 - 原理: 需要修改（增/删/改）列表中的元素时，不直接进行修改，而是先将列表Copy，然后在新的副本上进行修改，修改完成之后，再将引用从原列表指向新列表  
 
@@ -23,7 +25,7 @@
 1）add() 
 
 首先会进行加锁，保证只有一个线程能进行修改；然后会创建一个新数组（大小为n+1），并将原数组的值复制到新数组，新元素插入到新数组的最后；最后，将字段array指向新数组  
-  
+
 ```
     // this.lock 同一个对象引用同一把锁
     final ReentrantLock lock = this.lock;
