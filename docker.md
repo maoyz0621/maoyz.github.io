@@ -38,7 +38,9 @@ daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/in
 `docker container ps -a`                         查看所有容器  
 `docker logs -f zookeeper(id/别名)`     查看日志  
 `docker rm zookeeper(id/别名)`          删除容器  
-`docker logs container-name`  查看日志  
+`docker logs container-name`  查看日志 
+
+docker inspect 容器名称 | grep Address 
 
 更新容器  
 
@@ -192,3 +194,19 @@ mvn clean package dockerfile:build -Dmaven.test.skip=true
     
     mv daemon.json daemon.conf
 ```
+
+docker-compose
+
+```
+sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+```
+
+
+
+```
+sudo chmod +x /usr/local/bin/docker-compose
+
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+```
+
