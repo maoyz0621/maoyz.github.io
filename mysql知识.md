@@ -1,3 +1,7 @@
+---
+typora-copy-images-to: ./
+---
+
 # Mysql
 
 ## group by
@@ -90,6 +94,24 @@ SELECT any_value(id) id, any_value(student) student, any_value(class) class, any
 
 
 ```mysql
+SELECT
+    any_value (id) id,
+    group_concat(student SEPARATOR ' ||') student,
+    group_concat(class ORDER BY class DESC SEPARATOR ' || ') class,
+    any_value (score) score
+FROM
+    `courses`
+GROUP BY
+    `score`;
+```
+
+|               group_concat(DISTINCT, ORDER BY)               |
+| :----------------------------------------------------------: |
+| ![image-20200319105005691](C:%5CUsers%5Cdell%5CAppData%5CRoaming%5CTypora%5Ctypora-user-images%5Cimage-20200319105005691.png) |
+
+
+
+```mysql
 SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` GROUP BY class, student;
 ```
 
@@ -133,3 +155,46 @@ ORDER BY `avg_score` DESC;
 SQL执行顺序：
 
 `from` ... `where` ... `group by` ... `order by` ... `select`，`order by` 作用在整个记录，而不是每个分组上。
+
+数据库编码需要使用utf8mb4 ，排序规则需要使用 utf8mb4_general_ci
+
+空值和null
+
++ 空值不占空间
++ For MyISAM tables, each NULL column takes one bit extra, rounded up to the nearest byte.
++ NOT NULL的字段不能插入NULL，只能插入"空值"
++ B树索引不会存储NULL值
++ 字段尽量NOT NULL
++ count()统计某列记录数，会忽略掉NULL，但"空值"会统计
++ 判断`NULL` 用`IS NULL` 或者 `IS NOT NULL`, `SQL`语句函数中可以使用`ifnull()`函数来进行处理，判断空字符用`=''`或者 `<>''`来进行处理
++ 对于`timestamp`数据类型，如果往这个数据类型插入的列插入`NULL`值，则出现的值是当前系统时间。插入空值，则会出现 `0000-00-00 00:00:00`
+
+```mysql
+DROP TABLE IF EXISTS `test_01`;
+CREATE TABLE `test_01` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `create_time` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4;
+
+-- 执行插入
+INSERT INTO test_01 (create_time, update_time) VALUES (NULL, '');
+```
+
+```mysql
+-- 更新字段create_time NOT NULL
+alter table test_01 modify create_time timestamp not null default CURRENT_TIMESTAMP;
+```
+
+|                     更新字段前 查询结果                      |                     更新字段后 查询结果                      |
+| :----------------------------------------------------------: | :----------------------------------------------------------: |
+| ![image-20200320100020644](D:%5CWork%5CIDEA%5Cmaoyz.github.io%5Cimage-20200320100020644.png) | ![image-20200320100715305](D:%5CWork%5CIDEA%5Cmaoyz.github.io%5Cimage-20200320100715305.png) |
+
++ NULL 和 '空值'的length
+
+  |                                                              |
+  | :----------------------------------------------------------: |
+  | ![image-20200320101126970](D:%5CWork%5CIDEA%5Cmaoyz.github.io%5Cimage-20200320101126970.png) |
+
+  
