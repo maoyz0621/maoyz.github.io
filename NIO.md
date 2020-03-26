@@ -356,7 +356,7 @@ NIO提供的零拷贝方法：
 
 #### 传统阻塞IO
 
-![传统IO](/home/maoyz0621/myWord/maoyz.github.io/传统IO.png)
+![传统IO](../maoyz.github.io/传统IO.png)
 
 #### Reactor模式
 
@@ -370,7 +370,7 @@ Reactor模式中的三种角色：
 
 ##### 1) 单Reactor单线程
 
-![单Reactor单线程](/home/maoyz0621/myWord/maoyz.github.io/单Reactor单线程.png)
+![单Reactor单线程](../maoyz.github.io/单Reactor单线程.png)
 
 其中Reactor和Handler处于同一条线程执行，Acceptor可以看作是特殊的Handler．
 
@@ -382,7 +382,7 @@ Reactor模式中的三种角色：
 
 ##### 2) 单Reactor多线程
 
-![单Reactor多线程](/home/maoyz0621/myWord/maoyz.github.io/单Reactor多线程.png)
+![单Reactor多线程](../maoyz.github.io/单Reactor多线程.png)
 
 Handler处理器的执行放在线程池中，多线程处理业务；Reactor独立的线程．
 
@@ -397,14 +397,14 @@ Handler处理器的执行放在线程池中，多线程处理业务；Reactor独
 
 
 
-![主从Reactor多线程](/home/maoyz0621/myWord/maoyz.github.io/主从Reactor多线程.png)
+![主从Reactor多线程](../maoyz.github.io/主从Reactor多线程.png)
 
 **mainReactor**负责监听ServerSocket，用来处理client新连接的建立，将建立的SocketChannel指定注册subReactor其中一个线程上。
 **subReactor**维护自己的Selector, 基于mainReactor 注册的socketChannel多路分离IO读写事件，读写网络数据，对业务处理的功能，另其扔给worker线程池来完成。
 
 Netty基于此，做了改进
 
-![](/home/maoyz0621/myWord/maoyz.github.io/Netty.png)
+![](../maoyz.github.io/Netty.png)
 
 其工作原理
 
@@ -428,7 +428,7 @@ work NioEventLoop循环任务：
 
 work NioEventLoop处理业务时，使用Pipeline（管道），通过Pipeline可以获取到对应的Channel，Pipeline维护了很多的Handler
 
-![](/home/maoyz0621/图片/Netty具体线程模型
+![](../maoyz.github.io/Netty具体线程模型
 .png)
 
 
@@ -533,13 +533,13 @@ ChannelPipeline
 
 
 
-![](/home/maoyz0621/myWord/maoyz.github.io/ChannelPipeline.png)
+![](../maoyz.github.io/ChannelPipeline.png)
 
 ChannelPipeline 中维护的，是一个由 ChannelHandlerContext 组成的双向链表。这个链表的头是 HeadContext, 链表的尾是 TailContext。而无状态的Handler，作为Context的成员，关联在ChannelHandlerContext 中。在对应关系上，每个 ChannelHandlerContext 中仅仅关联着一个 ChannelHandler。
 
 
 
-![](/home/maoyz0621/myWord/maoyz.github.io/ChannelHandlerContext.png)
+![](../maoyz.github.io/ChannelHandlerContext.png)
 
 执行流程：
 
