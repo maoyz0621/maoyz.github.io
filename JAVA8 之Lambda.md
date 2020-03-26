@@ -752,13 +752,261 @@ BaseStream
 惰式执行，调用中间操作只会生成一个标记了该操作的新*stream*。
 
 
+
+```java
+    /**
+     * Intermediate（中间操作）
+     * Stream可以进行多次的Intermediate操作，如前面开头的那个例子，其中filter、map、sorted都是Intermediate操作，注意该操作是惰性化的，当调用到该方法的时候，
+     * 并没有真正开始Stream的遍历。
+     */
+    @Test
+    public void testMap() {
+        List<String> list = Arrays.asList("a1", "a2", "c1", "d1");
+        // map -> 新的Stream
+        list.stream().map(String::toUpperCase).sorted().forEach(System.out::println);
+        // 原数据不变
+        System.out.println(list);
+    }
+
+    /**
+     * flat 扁平的
+     */
+    @Test
+    public void testFlatMap() {
+        List<Integer> collect0 = Stream.of(1, 22, 33).flatMap(v -> Stream.of(v * v)).collect(Collectors.toList());
+        System.out.println(collect0);
+
+        List<Integer> collect1 = Stream.of(1, 22, 33).map(v -> v * v).collect(Collectors.toList());
+        System.out.println(collect1);
+
+        //flatMap的扁平化处理
+
+        List<Map<String, String>> list = new ArrayList<>();
+        Map<String, String> map1 = new HashMap<>();
+        map1.put("1", "one");
+        map1.put("2", "two");
+
+        Map<String, String> map2 = new HashMap<>();
+        map2.put("3", "three");
+        map2.put("4", "four");
+        list.add(map1);
+        list.add(map2);
+
+        // 收集map中的val
+        Set<String> output = list.stream()
+                // 收集val
+                .map(Map::values)
+                // val 转 String
+                .flatMap(Collection::stream)
+                // 转 Set
+                .collect(Collectors.toSet());
+        // [four, one, two, three]
+        System.out.println(output);
+
+        // 收集map中的key
+        Set<String> collect = list.stream()
+                .map(Map::keySet)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
+        // [1, 2, 3, 4]
+        System.out.println(collect);
+    }
+
+    /**
+     * peek也是对流中的每一个元素进行操作，除了生成一个包含原所有元素的新Stream，还提供一个Consumer消费函数。
+     * peek()可以做一些输出、外部处理、副作用等无返回值。生成一个包含原Stream的所有元素的新Stream，新Stream每个元素在被消费之前都会执行peek给定的消费函数;
+     */
+    @Test
+    public void testPeek() {
+        List<Integer> list = new ArrayList<>();
+        List<Integer> result = Stream.of(1, 2, 3, 4)
+                .peek(list::add)
+                .map(x -> x * 2)
+                .collect(Collectors.toList());
+        System.out.println(result);
+        System.out.println(list);
+    }
+
+    @Test
+    public void testFilter() {
+        List<String> list = Arrays.asList("a1", "a2", "c1", "d1");
+        String[] as = list.stream()
+                .filter((s) -> s.startsWith("a"))
+                .map(String::toUpperCase)
+                .toArray(String[]::new);
+        System.out.println(as.length);
+    }
+
+    /**
+     * 去重
+     */
+    @Test
+    public void testDistinct() {
+        List<Integer> collect = Stream.of(1, 2, 3, 3, 3, 2, 4, 5, 6)
+                .distinct()
+                .collect(Collectors.toList());
+        System.out.println(collect);
+    }
+```
+
+
 ### 结束操作
 
 会触发实际计算，计算发生时会把所有中间操作积攒的操作以*pipeline*的方式执行，这样可以减少迭代次数。计算完成之后*stream*就会失效。
 
 规约操作：
 
-​	**collect()** 
+```
+java.util.stream.Collector	一个收集函数的接口，声明一个收集器功能
+java.util.stream.Collectors	一收集器的工具类，内置了一系列常用收集器的实现，如Collectors.toList()/toSet()，collect()参数
+```
 
-​	**reduce()** 
 
+
+**collect()** 
+
+|                                                              |
+| :----------------------------------------------------------: |
+| ![image-20200319153223436](D:%5CWork%5CIDEA%5Cmaoyz.github.io%5Cimage-20200319153223436.png) |
+
+
+
+```
+<R, A> R collect(Collector<? super T, A, R> collector)
+<R> R collect(Supplier<R> supplier, BiConsumer<R, ? super T> accumulator, BiConsumer<R, R> combiner)
+-- supplier    结果存放容器
+-- accumulator 累加器执行累加的具体实现
+-- combiner    多个容器的聚合策略
+-- Function<A, R> finisher()  对结果容器应用最终转换finisher
+```
+
+
+
+```java
+	public void testCollect() {
+        List<String> list = Arrays.asList("apple", "banana", "orange", "blueberry", "blackberry");
+        List<String> b = list.stream()
+                .filter(s -> s.startsWith("b"))
+                .collect(Collectors.toList());
+        System.out.println(b);
+        
+        // 使用Collectors.toCollection() 指定想要的
+        ArrayList<String> collect = list.stream().collect(Collectors.toCollection(ArrayList::new));
+
+        // 转map
+        Map<String, String> map = list.stream()
+                .filter(s -> s.startsWith("b"))
+                .collect(Collectors.toMap(k -> k, k -> k + "-val"));
+        System.out.println(map);
+
+        // 基本类型也可以实现转换（依赖boxed的装箱操作）
+        int[] ints = {1, 2, 3};
+        List myList = Arrays.stream(ints).boxed().collect(Collectors.toList());
+        System.out.println(myList);
+    }
+```
+
+
+
+**reduce()** 
+
+```
+Optional<T> reduce(BinaryOperator<T> accumulator)
+T reduce(T identity, BinaryOperator<T> accumulator)
+<U> U reduce(U identity,BiFunction<U, ? super T, U> accumulator,BinaryOperator<U> combiner)
+
+-- identity: 一个初始化的值；这个初始化的值其类型是泛型U，与Reduce方法返回的类型一致；注意此时Stream中元素的类型是T，与U可以不一样也可以一样，这样的话操作空间就大了；
+不管Stream中存储的元素是什么类型，U都可以是任何类型，如U可以是一些基本数据类型的包装类型Integer、Long等；或者是String，又或者是一些集合类型ArrayList等
+如果缺少该参数，则没有默认值或初始值，并且它返回 optional
+-- accumulator: （累加器）其类型是BiFunction，输入是U与T两个类型的数据，而返回的是U类型；
+也就是说返回的类型与输入的第一个参数类型是一样的，而输入的第二个参数类型与Stream中元素类型是一样的。
+-- combiner: （组合器）其类型是BinaryOperator，支持的是对U类型的对象进行操作；
+擅长的是生成一个值
+
+注意：非并行流下第三个参数没用。流中元素只有1个的情况下，即使指定parallel也不会走并行。
+使用三个参数的reduce，务必注意线程安全。
+
+```
+
+字符串拼接、数组的sum、min、max、average都是特殊的reduce。
+
+```java
+	public void testReduce() {
+        List<String> list = Arrays.asList("a11", "a2", "c1", "d1");
+
+        // 1个参数 -> Optional<T> reduce(BinaryOperator<T> accumulator), 筛选长度最长的元素
+        Optional<String> reduce = list.stream().reduce((s1, s2) -> s1.length() >= s2.length() ? s1 : s2);
+        System.out.println(reduce.get());
+
+        // 2个参数 -> T reduce(T identity, BinaryOperator<T> accumulator) s1表示的初始值 "@", 其返回类型取决于初始值类型
+        String reduce1 = list.stream().reduce("@", (s1, s2) -> s1 + " = " + s2);
+        System.out.println(reduce1);
+
+        // 3个参数 -> <U> U reduce(U identity,BiFunction<U, ? super T, U> accumulator,BinaryOperator<U> combiner), 求和
+        Integer reduce2 = list.stream().reduce(1,
+                (sum, str) -> sum + str.length(),
+                (s1, s2) -> {
+                    return s1 + s2;
+                });
+        System.out.println(reduce2);
+
+        // 字符串拼接
+        String concat = Stream.of("A", "B", "C", "D").reduce("", String::concat);
+        System.out.println("字符串拼接concat = " + concat);
+
+        // 最小值
+        double minValue = Stream.of(-1.5, 1.0, -3.0, -2.0).reduce(Double.MAX_VALUE, Double::min);
+        System.out.println("最小值minVal = " + minValue);
+
+        // 有起始值
+        int sumValue = Stream.of(1, 2, 3, 4).reduce(0, Integer::sum);
+        System.out.println("有起始值 sumValue = " + sumValue);
+
+        // 无起始值
+        int sumValue0 = Stream.of(1, 2, 3, 4).reduce(Integer::sum).get();
+        System.out.println("无起始值 sumValue0 = " + sumValue0);
+        // parallel()
+        Integer reduce3 = list.stream().parallel().
+                reduce(1,
+                        (sum, str) -> sum + str.length(),
+                        (s1, s2) -> {
+                            System.out.println("thread name = " + Thread.currentThread().getName() + ", s1 = " + s1 + " ,s2 = " + s2);
+                            return s1 + s2;
+                        });
+        System.out.println(reduce3);
+    }
+```
+
+**Collectors**
+
+Collectors.groupingBy(Function<? super T, ? extends K> classifier, Collector<? super T, A, D> downstream) 和 partitioningBy
+
+```java
+public void testGroupBy() {
+    List<Employee> employees = new ArrayList<>();
+    employees.add(new Employee("A", new Department("开发")));
+    employees.add(new Employee("B", new Department("开发")));
+    employees.add(new Employee("C", new Department("策划")));
+    employees.add(new Employee("D", new Department("策划")));
+    employees.add(new Employee("E", new Department("营销")));
+    // groupingBy
+    Map<Department, List<Employee>> byDept = employees.stream()
+            .collect(Collectors.groupingBy(Employee::getDepartment));
+    System.out.println(byDept);
+
+    // 以部门名称分组
+    Map<String, List<Employee>> collect = employees.stream()
+            .collect(Collectors.groupingBy(e -> e.getDepartment().getName()));
+    System.out.println(collect);
+
+
+    // 按照部门对员工进行分组，并且只保留员工的名字
+    Map<String, List<String>> collect1 = employees.stream()
+            .collect(Collectors.groupingBy(e -> e.getDepartment().getName(), Collectors.mapping(Employee::getName, Collectors.toList())));
+    System.out.println(collect1);
+}
+```
+
+
+
+参考文章：https://objcoding.com/2019/03/04/lambda/#stream-pipelines
