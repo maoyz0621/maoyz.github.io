@@ -201,7 +201,9 @@ docker-compose
 sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 ```
 
+出现：curl: (56) OpenSSL SSL_read: SSL_ERROR_SYSCALL, errno 104
 
+使用　1.23.1　版本
 
 ```
 sudo chmod +x /usr/local/bin/docker-compose
@@ -210,3 +212,8 @@ sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 ```
 
+/sys/fs/cgroup/cpu
+
+cpu.cfs_period_us
+
+cpu.cfs_quota_us
