@@ -294,3 +294,42 @@ CompletableFuture.allOf(future1, future2, future3)
 
 ## ForkJoinPool 
 
+1. ExecutorService - ForkJoinPool 用来调用任务执行。
+2. workerThread - ForkJoinWorkerThread 工作线程，用来执行具体的任务。
+3. task - ForkJoinTask 用来定义要执行的任务。
+
+
+
+### work-stealing 工作窃取
+
+默认情况下，work thread从分配给自己的那个队列头中取出任务。如果这个队列是空的，那么这个work thread会从其他的任务队列尾部取出任务来执行，或者从全局队列中取出。这样的设计可以充分利用work thread的性能，提升并发能力。
+
+
+
+### ForkJoinWorkerThread
+
+```
+final ForkJoinPool pool;                // the pool this thread works in
+final ForkJoinPool.WorkQueue workQueue;  // 支持 work-stealing机制的Queue
+run()
+```
+
+
+
+### ForkJoinTask 
+
+#### RecursiveAction
+
+-- recursive 递归的; 循环的;
+
+无返回值
+
+
+
+#### RecursiveTask
+
+有返回值
+
+
+
+### CountedCompleter
