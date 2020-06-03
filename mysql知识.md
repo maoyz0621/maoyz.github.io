@@ -158,6 +158,21 @@ SQL执行顺序：
 
 数据库编码需要使用utf8mb4 ，排序规则需要使用 utf8mb4_general_ci
 
+
+
+## 多表update
+
+```mysql
+UPDATE table1 t1
+JOIN table2 t2 ON t2.order_id = t1.order_id
+SET t1.finish_order = 0,
+t2.profit_status = 0
+WHERE
+t1.order_id = 5475175;
+```
+
+
+
 ## 空值和null
 
 + 空值不占空间
