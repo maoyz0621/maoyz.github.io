@@ -3,7 +3,7 @@
 ## 创建Session
 
 ### SqlSessionFactoryBuilder创建SqlSessionFactory；
-```
+```java
 public class SqlSessionFactoryBuilder {
 
     //第4种方法是最常用的，它使用了一个参照了XML文档或更特定的SqlMapConfig.xml文件的Reader实例。
@@ -36,7 +36,7 @@ public class SqlSessionFactoryBuilder {
 
 ### SqlSessionFactory创建SqlSession；
 
-```
+```java
 public class DefaultSqlSessionFactory implements SqlSessionFactory {
 
     @Override
@@ -79,7 +79,7 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
 ```
 
 #### 执行器的选择
-```
+```java
 public class Configuration {
 
     protected ExecutorType defaultExecutorType = ExecutorType.SIMPLE;
@@ -112,7 +112,7 @@ public class Configuration {
 
 ### SqlSession获取Mapper接口, 获取的接口是代理类是com.sun.proxy.$Proxy1，代理对象是org.apache.ibatis.binding.MapperProxy
 
-```
+```java
 public class DefaultSqlSession implements SqlSession {
     // 接口编程
     @Override
@@ -173,7 +173,7 @@ public class MapperProxyFactory<T> {
 
 ### Mapper执行，执行者为MapperProxy的动态代理模式
 
-```
+```java
 public class MapperProxy<T> implements InvocationHandler, Serializable {
 
     @Override
@@ -299,7 +299,7 @@ public class MapperMethod {
 
 #### SqlSession真正执行的操作：selectList(String statement, Object parameter, RowBounds rowBounds)
 
-```
+```java
 public class DefaultSqlSession implements SqlSession {
 
     @Override
@@ -346,7 +346,7 @@ public class DefaultSqlSession implements SqlSession {
 
 #### Executor执行器工作
 
-```
+```java
 public abstract class BaseExecutor implements Executor {
     
     /**
@@ -442,7 +442,7 @@ public class SimpleExecutor extends BaseExecutor {
 
 #### StatementHandler语句处理器
 
-```
+```java
 public class RoutingStatementHandler implements StatementHandler {
 
      public RoutingStatementHandler(Executor executor, MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql) {
@@ -486,7 +486,7 @@ public class PreparedStatementHandler extends BaseStatementHandler {
 
 ### ResultHandler结果处理, TypeHandler：负责java数据类型和jdbc数据类型之间的映射和转换
 
-```
+```java
 // 负责将JDBC返回的ResultSet结果集对象转换成List类型的集合；
 public class DefaultResultSetHandler implements ResultSetHandler {
 
@@ -536,7 +536,7 @@ public class DefaultResultSetHandler implements ResultSetHandler {
 ## 配置信息Configuration
 
 
-```
+```xml
 configuration (properties?, settings?, typeAliases?, typeHandlers?, objectFactory?, objectWrapperFactory?, reflectorFactory?, plugins?, environments?, databaseIdProvider?, mappers?)
 
     <!--　外部配置文件,其优先级：

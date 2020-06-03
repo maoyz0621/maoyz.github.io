@@ -1120,40 +1120,109 @@ ScheduledExecutorService 定时任务接口
 # io.netty.util.concurrent.SingleThreadEventExecutor#execute
 @Override
 public void execute(Runnable task) {
-    if (task == null) {
-        throw new NullPointerException("task");
-    }
-
+    ...
     boolean inEventLoop = inEventLoop();
     addTask(task);
     if (!inEventLoop) {
         startThread();
-        if (isShutdown()) {
-            boolean reject = false;
-            try {
-                if (removeTask(task)) {
-                    reject = true;
-                }
-            } catch (UnsupportedOperationException e) {
-                // The task queue does not support removal so the best thing we can do is to just move on and
-                // hope we will be able to pick-up the task before its completely terminated.
-                // In worst case we will log on termination.
-            }
-            if (reject) {
-                reject();
-            }
-        }
+        ...
     }
 
     if (!addTaskWakesUp && wakesUpForTask(task)) {
         wakeup(inEventLoop);
     }
 }
+
+private void startThread() {
+    if (state == ST_NOT_STARTED) {
+        if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
+            boolean success = false;
+            try {
+                doStartThread();
+                success = true;
+            } finally {
+                if (!success) {
+                    STATE_UPDATER.compareAndSet(this, ST_STARTED, ST_NOT_STARTED);
+                }
+            }
+        }
+    }
+}
+
+private void doStartThread() {
+    assert thread == null;
+    executor.execute(new Runnable() {
+        @Override
+        public void run() {
+            thread = Thread.currentThread();
+            if (interrupted) {
+                thread.interrupt();
+            }
+
+            boolean success = false;
+            updateLastExecutionTime();
+            try {
+                SingleThreadEventExecutor.this.run();
+                success = true;
+            ...
+}
+
+# io.netty.util.concurrent.SingleThreadEventExecutor#isShuttingDown 核心方法
+protected void run() {
+    for (;;) {
+        try {
+            try {
+                switch (selectStrategy.calculateStrategy(selectNowSupplier, hasTasks())) {
+                    case SelectStrategy.CONTINUE:
+                        continue;
+                    case SelectStrategy.BUSY_WAIT:
+                    case SelectStrategy.SELECT:
+                        // step 1: select
+                        select(wakenUp.getAndSet(false));
+                        if (wakenUp.get()) {
+                            selector.wakeup();
+                        }
+                        // fall through
+                    default:
+                }
+            } 
+            ...
+
+            cancelledKeys = 0;
+            needsToSelectAgain = false;
+            final int ioRatio = this.ioRatio;
+            if (ioRatio == 100) {
+                try {
+                    // step 2:processSelectedKeys
+                    processSelectedKeys();
+                } finally {
+                    // step 3:runAllTasks
+                    runAllTasks();
+                }
+            } else {
+                final long ioStartTime = System.nanoTime();
+                try {
+                    // step 2:processSelectedKeys
+                    processSelectedKeys();
+                } finally {
+                    // Ensure we always run tasks.
+                    final long ioTime = System.nanoTime() - ioStartTime;
+                    // step 3:runAllTasks
+                    runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
+                }
+            }
+        } catch (Throwable t) {
+            handleLoopException(t);
+        }
+        ...
+    }
+}
 ```
 
 task加入异步线程池源码
 
-
+1. handler中加入线程池
+2. context中添加线程池　　 addLast(EventExecutorGroup group, ChannelHandler... handlers)
 
    一　TCP 粘包和拆包
    <p>

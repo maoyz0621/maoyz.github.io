@@ -2,7 +2,7 @@
 
 ## docker搭建redis
 
-```
+```sh
 docker run --rm --name redis -p 6379:6379 -v /opt/docker/redis/redis-one/redis.conf:/etc/redis/redis.conf -v /opt/docker/redis/redis-one/data:/data -d redis:4 redis-server /etc/redis/redis.conf --appendonly yes
 ```
 
@@ -20,23 +20,23 @@ docker run --rm --name redis -p 6379:6379 -v /opt/docker/redis/redis-one/redis.c
 
 查看docker中redis启动情况
 
-```
+```sh
 docker ps -a|grep redis
 ```
 
 使用Redis客户端连接Redis服务器
 
-```
+```sh
 docker exec -it redis redis-cli
 ```
 
 查看redis映像地址
 
-```
+```sh
 docker inspect redis | grep -i add
 ```
 
-```
+```sh
  "CapAdd": null,
             "GroupAdd": null,
             "LinkLocalIPv6Address": "",
@@ -59,19 +59,19 @@ docker inspect redis | grep -i add
 
 下载ruby
 
-```
+```sh
 docker pull ruby
 ```
 
 创建虚拟网卡
 
-```
+```sh
 docker network create redis-net
 ```
 
 查看虚拟网卡
 
-```
+```sh
 docker network ls
 docker network inspect redis-net | grep "Gateway" | grep --color=auto -P '(\d{1,3}.){3}\d{1,3}' -o
 ```
@@ -101,7 +101,7 @@ protected-mode no
 
 启动redis
 
-```
+```sh
 docker run -p 7000:7000 -p 17000:17000 --restart always --name redis-7000 --net redis-net --privileged=true -v /opt/docker/redis/redis-cluster/7000/redis-7000.conf:/etc/redis/redis.conf -v /opt/docker/redis/redis-cluster/7000/data:/data -d redis:4 redis-server /etc/redis/redis.conf
 
 docker run -p 7001:7001 -p 17001:17001 --restart always --name redis-7001 --net redis-net --privileged=true -v /opt/docker/redis/redis-cluster/7001/redis-7001.conf:/etc/redis/redis.conf -v /opt/docker/redis/redis-cluster/7001/data:/data -d redis:4 redis-server /etc/redis/redis.conf
@@ -117,7 +117,7 @@ docker run -p 7005:7005 -p 17005:17005 --restart always --name redis-7005 --net 
 
 查看容器分配ip
 
-```
+```sh
 docker network inspect redis-net
 ```
 
@@ -199,7 +199,7 @@ docker network inspect redis-net
 
 
 
-```
+```sh
 FROM ruby:latest 
 MAINTAINER sunlin<sunlin1111@163.com>
 RUN gem install redis -v 4.0.14
@@ -216,11 +216,11 @@ docker build -t redis-trib .
 
 运行ruby
 
-```
+```sh
 echo yes | docker run -i --rm --net redis-net redis-trib ruby redis-trib.rb create --replicas 1 172.18.0.2:7000 172.18.0.3:7001 172.18.0.4:7002 172.18.0.5:7003 172.18.0.6:7004 172.18.0.7:7005
 ```
 
-```
+```sh
 >>> Creating cluster
 >>> Performing hash slots allocation on 6 nodes...
 Using 3 masters:
@@ -273,7 +273,7 @@ M: 53497b9d7a7c8ecbde46d16ac803cd7ec53bfd17 172.18.0.4:7002
 
 客户端连接地址：
 
-```
+```sh
 172.18.0.2  6379
 172.18.0.3  6379
 172.18.0.4  6379
@@ -290,7 +290,7 @@ M: 53497b9d7a7c8ecbde46d16ac803cd7ec53bfd17 172.18.0.4:7002
 
 docker 搭建zookeeper
 
-```
+```sh
 docker run --name zk -p 2181:2181 -p 2888:2888 -p 3888:3888 --restart always -d zookeeper:latest
 ```
 
@@ -312,7 +312,7 @@ docker搭建zookeeper集群
 
 
 
-```
+```sh
 docker network create zookeeper-net
 docker network inspect zookeeper-net 
 ```
@@ -354,7 +354,7 @@ docker network inspect zookeeper-net
 
 
 
-```
+```sh
 docker run --name zk-2181 -p 2181:21811 -v /opt/docker/zk/zk-cluster/zookeeper-1/conf/:/conf -v /opt/docker/zk/zk-cluster/zookeeper-1/data/:/data --restart always -d zookeeper
 
 docker run --name zk-2182 -p 2182:21812 -v /opt/docker/zk/zk-cluster/zookeeper-2/conf/:/conf -v /opt/docker/zk/zk-cluster/zookeeper-2/data/:/data --restart always -d zookeeper
@@ -364,7 +364,7 @@ docker run --name zk-2183 -p 2183:21813 -v /opt/docker/zk/zk-cluster/zookeeper-3
 
 配置文件zoo.cnf
 
-```
+```sh
 clientPort=2181
 server.1=zk-2181:2888:3888
 server.2=zk-2182:2888:3888
@@ -377,19 +377,19 @@ docker 搭建rocketmq
 
 nameserve服务
 
-```
+```sh
 docker run -d -p 9876:9876 -v `pwd`/data/namesrv/logs:/root/logs -v `pwd`/data/namesrv/store:/root/store --name mqnamesrv -e "MAX_POSSIBLE_HEAP=100000000" rocketmqinc/rocketmq sh mqnamesrv
 ```
 
 broker服务
 
-```
+```sh
 docker run -d -p 10911:10911 -p 10909:10909 -v `pwd`/data/broker/logs:/root/logs -v `pwd`/data/broker/store:/root/store --name rmqbroker --link mqnamesrv:namesrv -e "NAMESRV_ADDR=namesrv:9876" -e "MAX_POSSIBLE_HEAP=200000000" rocketmqinc/rocketmq sh mqbroker
 ```
 
 console服务
 
-```
+```sh
 docker run -d --name rocketmq-console-ng -e "JAVA_OPTS=-Drocketmq.namesrv.addr=172.17.0.2:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false" -p 8080:8080 -t styletang/rocketmq-console-ng
 ```
 

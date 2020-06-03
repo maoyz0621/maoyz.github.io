@@ -62,3 +62,4 @@ deep: for (int i = 0; i < 10; i++) {
 
     2) 使用putIfAbsent()方法添加键值对，如果map集合中没有该key对应的值，则直接添加，并返回null，如果已经存在对应的值，则依旧为原来的值。
 
+包装类型参与计算时，谨慎null，原因：xxxValue

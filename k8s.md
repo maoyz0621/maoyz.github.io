@@ -104,9 +104,9 @@ harbor(docker界面管理)
 
 
 
-+ Mesos
++ Apache Mesos
 
-+ Swarm
++ Docker Swarm
 
 + K8s
 
@@ -129,6 +129,16 @@ Node
 
     Deplyment
     Service
+
+容器生命周期
+
+资源清单
+
+探针
+
+Service
+
+资源控制器
 
 
 
