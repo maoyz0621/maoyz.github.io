@@ -23,7 +23,7 @@
 # 二 Environment.resolveRequiredPlaceholders(key)
 
 获取application.properties的配置内容
-```
+```java
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
     @Documented
@@ -38,14 +38,14 @@
 ```
 
 # 三 引用other.properties文件
-	
+
 `@ImportResource(locations = {"classpath:other.properties"})`
 
 # 四 注解@Cacheable 和@Transactional 失效原因
 
 在有些情形下注解式缓存@Cacheable和事务@Transactional是不起作用的：例如同一个bean内部方法调用，子类调用父类中有缓存注解的方法等。因为注解调用走的都是增强代理类; 后者不起作用是因为缓存切面必须走代理才有效，这时可以手动使用CacheManager来获得缓存效果。
 
-```
+```java
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void save() {
@@ -62,7 +62,7 @@
 ```
 
 解决办法一:ApplicationContext
-```
+```java
     @Component
     public class ApplicationContextHolder implements ApplicationContextAware {
 
@@ -92,7 +92,7 @@
 ```
 
 解决方法二:AopContext
-```
+```java
 
     /**
      * 方法二 AopContext.currentProxy()

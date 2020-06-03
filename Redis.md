@@ -95,7 +95,7 @@ aof-use-rdb-preamble  4.0版本提供
 
 **allkeys-random**：随机淘汰任意键值;
 
-**volatile-lru**：淘汰所有设置了过期时间的键值中最久未使用的键值；
+**volatile-lru**：淘汰所有设置了过期时间的键值中最久未使用的键值；（默认）
 
 **volatile-random**：随机淘汰设置了过期时间的任意键值；
 
@@ -107,8 +107,137 @@ aof-use-rdb-preamble  4.0版本提供
 
 
 
+删除的时候建议采用渐进式的方式来完成：hscan、ltrim、sscan、zscan。
+
+如果你使用Redis 4.0+，一条异步删除unlink就解决，就可以忽略下面内容。
+
 
 
 其中 allkeys-xxx 表示从所有的键值中淘汰数据，而 volatile-xxx 表示从设置了过期键的键值中淘汰数据。
 
 过期键值：贪心策略
+
+
+
+## 删除bigKey
+
+### 4.0+版本
+
+```
+一条异步删除unlink
+```
+
+
+
+### 编程式
+
+#### list
+
+```java
+public void delKeyList(String key) {
+    Long len = jedis.llen(key);
+    int counter = 0;
+    int left = 100;
+    while (counter < len) {
+        // 左侧截取left个 就是说，让列表只保留指定区间内的元素，不在指定区间之内的元素都将被删除。
+        jedis.ltrim(key, left, len);
+        counter += left;
+    }
+    //最终删除key
+    jedis.del(key);
+}
+```
+
+
+
+#### set
+
+```java
+public void delKeySet(String key) {
+    String cursor = START_CURSOR;
+    do {
+        ScanResult<String> scanResult = jedis.sscan(key, cursor, new ScanParams().count(100));
+        // 获取扫描结果
+        List<String> result = scanResult.getResult();
+        if (result != null && !result.isEmpty()) {
+            // set remove 移除集合中一个或多个成员
+            jedis.srem(key, result.toArray(new String[result.size()]));
+        }
+        // 获取游标
+        cursor = scanResult.getCursor();
+    } while (!START_CURSOR.equals(cursor));
+
+    //最终删除key
+    jedis.del(key);
+}
+```
+
+
+
+#### zset
+
+```java
+public void delKeyZSet(String key) {
+    String cursor = START_CURSOR;
+    ScanParams scanParams = new ScanParams().count(100);
+    do {
+        ScanResult<Tuple> scanResult = jedis.zscan(key, cursor, scanParams);
+        // 获取扫描结果
+        List<Tuple> result = scanResult.getResult();
+        if (result != null && !result.isEmpty()) {
+            // zst remove 移除集合中一个或多个成员
+            jedis.zrem(key, result.stream().map(Tuple::getElement).toArray(String[]::new));
+        }
+        // 获取游标
+        cursor = scanResult.getCursor();
+    } while (!START_CURSOR.equals(cursor));
+    jedis.del(key);
+}
+```
+
+
+
+#### hash
+
+```java
+public void delKeyHash(String key) {
+    String cursor = START_CURSOR;
+    ScanParams scanParams = new ScanParams().count(100);
+    do {
+        ScanResult<Map.Entry<String, String>> scanResult = jedis.hscan(key, cursor, scanParams);
+        List<Map.Entry<String, String>> result = scanResult.getResult();
+        if (result != null && !result.isEmpty()) {
+            jedis.hdel(key, result.stream().map(Map.Entry::getKey).toArray(String[]::new));
+        }
+        cursor = scanResult.getCursor();
+    } while (!START_CURSOR.equals(cursor));
+    jedis.del(key);
+}
+```
+
+
+
+## 批命令
+
+原生和Pipeline
+
+
+
+Pipeline 多个命令一起执行，无法保证原子性
+
+multi 事务执行
+
+参考文章：https://mp.weixin.qq.com/s?spm=a2c4e.10696291.0.0.54b019a4fgyMeh&__biz=Mzg2NTEyNzE0OA==&mid=2247483677&idx=1&sn=5c320b46f0e06ce9369a29909d62b401&chksm=ce5f9e9ef928178834021b6f9b939550ac400abae5c31e1933bafca2f16b23d028cc51813aec&scene=21#wechat_redirect
+
+https://yq.aliyun.com/articles/531067
+
+
+关于Redis单线程问题：Redis在处理客户端的请求时，包括获取 (socket 读)、解析、执行、内容返回 (socket 写) 等都由一个顺序串行的主线程处理，这就是所谓的“单线程”。但如果严格来讲从Redis4.0之后并不是单线程，除了主线程外，它也有后台线程在处理一些较为缓慢的操作，例如清理脏数据、无用连接的释放、大key的删除等等。
+
+## Redis5.0
+
+
+
+## Redis6.0
+
+### 多线程

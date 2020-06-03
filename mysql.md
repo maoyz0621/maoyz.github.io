@@ -1,4 +1,5 @@
-#### 一、Mysql.zip安装
+# Mysql
+## Mysql.zip安装
 
 1.  打开我的电脑->属性->高级->环境变量，在系统变量里选择PATH,在其后面添加: mysql bin文件夹的路径 (如: C:\Program Files\mysql-5.7.16-winx64\bin )，注意是追加,不是覆盖 ，然后确定
 
@@ -39,23 +40,30 @@ datadir= C:\Program Files\mysql-5.7.16-winx64\data（mysql所在目录\data）
 12. `Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)`
 	解决方案：
 
-13. error: Access denied for user 'maoyz0621'@'localhost' (using password: NO)
-	解决方案：
-	```
-	*.cnf文件中，添加skip-grant-tables;
-    update mysql.user set authentication_string=password('root') where user='root' and Host = 'localhost';
-	flush privileges;
- 	quit;
-	关闭mysql，重启mysql，生效
-	注释kip-grant-tables
-	```
+13. 
 
-#### 二、运行多mysql实例
-	
+14. error: Access denied for user 'maoyz'@'localhost' (using password: NO)
+    解决方案：
+
+    ```mysql
+    -- *.cnf文件中，添加skip-grant-tables;
+    
+    update mysql.user set authentication_string=password('root') where user='root' and Host = 'localhost';
+    
+    flush privileges;
+    quit;
+    -- 关闭mysql，重启mysql，生效
+    -- 注释kip-grant-tables
+    ```
+
+
+## 运行多mysql实例
+
 帮助文档：https://blog.csdn.net/li87218677/article/details/64454488
-```
-	mysqld --initialize-insecure --defaults-file=/etc/mysql/3301.cnf  --basedir=/usr/  --datadir=/data/mysql/mysql_1  --user=mysql
-	mysqld --initialize-insecure --defaults-file=/etc/mysql/3301.cnf  --basedir=/usr/  --datadir=/data/mysql/mysql_1  --user=mysql
+
+```mysql
+mysqld --initialize-insecure --defaults-file=/etc/mysql/3301.cnf  --basedir=/usr/  --datadir=/data/mysql/mysql_1  --user=mysql
+mysqld --initialize-insecure --defaults-file=/etc/mysql/3301.cnf  --basedir=/usr/  --datadir=/data/mysql/mysql_1  --user=mysql
 ```
 
 1. 安装mysql:
@@ -83,11 +91,12 @@ datadir= C:\Program Files\mysql-5.7.16-winx64\data（mysql所在目录\data）
 `mysqladmin -u root -proot  -S /data/mysql/mysql_2/mysqld.sock shutdown`
 
 
-#### 三、一台服务器多实例mysql做主从复制
+## 一台服务器多实例mysql做主从复制
+
 参考文章：https://www.cnblogs.com/kevingrace/p/6129089.html
 
 1.	主数据库
-```
+```mysql
 log-bin=mysql-bin-master  #启用二进制日志,开启log-bin 并设置为master
 server-id=3301   #本机数据库ID 标示 默认就是1,这里不用改
 binlog-do-db=Test #可以被从服务器复制的库。二进制需要同步的数据库名
@@ -95,77 +104,83 @@ binlog-ignore-db=mysql  #不可以被从服务器复制的库
 ```
 
 2. 主数据库设置用户
-```
+```mysql
 grant replication slave on *.* to 'repl'@'127.0.0.1' identified by '123456';
+
 flush privileges;
+
 show master status;	#记录Position
 ```
 
 3. 从数据库
-```
+```mysql
 stop slave;
+
 reset slave;
+
 change master to master_user='repl', master_password='123456', master_host='127.0.0.1',master_port=3301, master_log_file='mysql-bin-master.000001',master_log_pos=597;
+
 start slave;
+
 show slave status \G;
 ```
 
 4. 登陆repl用户
 `mysql -urepl -p -S /data/mysql/mysql_1/mysqld.sock -hlocalhost  -P 3301`
 
-#### 四、开启profile 查看生命周期
-```
-    set profiling = on;
-    show profiles;		# 记录操作语句
-    show profiles cpu, block io for query QUERY_ID;		# 具体哪条语句的执行情况
+## 开启profile 查看生命周期
+```mysql
+set profiling = on;
+show profiles;		# 记录操作语句
+show profiles cpu, block io for query QUERY_ID;		# 具体哪条语句的执行情况
 
-    converting HEAP to MyISAM	查询结果大，内存不够用，网磁盘挪
-    Creating tmp table		创建临时表
-    Coping to tmp table on disk		内存临时表复制到磁盘（危险）      
-    locked
-```
-		
-#### 五、全局查询日志
-```
-    set global general_log = 1;
-    set global log_output = 'TABLE';
-    select * from mysql.general_log;	# 查询
+converting HEAP to MyISAM	查询结果大，内存不够用，网磁盘挪
+Creating tmp table		创建临时表
+Coping to tmp table on disk		内存临时表复制到磁盘（危险）      
+locked
 ```
 
-#### 六、主从复制配置
+## 全局查询日志
+```mysql
+set global general_log = 1;
+set global log_output = 'TABLE';
+select * from mysql.general_log;	# 查询
 ```
-    [mysqld]
-	server-id = 1
-	log_bin = /var/log/mysql/binlog/mysqlbin
 
-	# 需要复制的数据库
-	binlog_do_db = include_database_name
-	# 忽略的数据库
-	binlog_ignore_db = mysql
+## 主从复制配置
+```mysql
+[mysqld]
+server-id = 1
+log_bin = /var/log/mysql/binlog/mysqlbin
+
+# 需要复制的数据库
+binlog_do_db = include_database_name
+# 忽略的数据库
+binlog_ignore_db = mysql
 ```
-		
+
 
 1. 主数据库设置
-```
-	grant replication slave on *.* to 'repl'@'127.0.0.1' identified by '123456';
-	其中
-		'repl'：     用户名
-		'127.0.0.1'：从机数据库的IP地址
-		'123456'：   登录密码
+```mysql
+grant replication slave on *.* to 'repl'@'127.0.0.1' identified by '123456';
+其中
+'repl'：     用户名
+'127.0.0.1'：从机数据库的IP地址
+'123456'：   登录密码
 
-	flush privileges;
-	show master status;	#记录Position
+flush privileges;
+show master status;	#记录Position
 ```
-		
+
 
 2. 从数据库
-```
-	stop slave;		# 1 先停止
-	reset slave;	# 2 重置
-	change master to master_user='repl', master_password='123456', master_host='127.0.0.1',master_port=3301, master_log_file='mysql-bin-master.000001',master_log_pos=597;
+```mysql
+stop slave;		# 1 先停止
+reset slave;	# 2 重置
+change master to master_user='repl', master_password='123456', master_host='127.0.0.1',master_port=3301, master_log_file='mysql-bin-master.000001',master_log_pos=597;
 
-	start slave;
-	show slave status \G;    # 观察 Slave_IO_Running = YES   Slave_SQL_Running = YES
+start slave;
+show slave status \G;    # 观察 Slave_IO_Running = YES   Slave_SQL_Running = YES
 ```
 
 ##### 七 mysql 初始化 timestamp，提示 Invalid default value for 'xxx'
