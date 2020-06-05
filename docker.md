@@ -25,39 +25,48 @@ daemon.json添加阿里源,登录url:https://cr.console.aliyun.com/cn-beijing/in
 
 + 常用命令
 
-`docker images`                        查看镜像  
-`docker search mysql`                  搜索镜像  
-`docker pull mysql:5.7`                安装镜像(指定版本号)  
-`docker rmi -f IMAGE_ID`               删除镜像
-`docker run -d -p 80:80 --name=mynginx nginx`     容器运行   -d(指定容器运行于前台还是后台，默认为false);  -p (端口映射);  80:80 (: 之前是宿主机端口，之后是容器需暴露的端口);   --name=mynginx(为容器指定一个名字)  
-`docker run --name myz-mysql -v /data/docker-mysql/data:/var/lib/mysq -e MYSQL_USER="maoyz" l -e MYSQL_PASSWORD="123456" -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mysql:8.0 --character-set-server=UTF8MB4 --collation-server=utf8mb4_unicode_ci`   -v(挂载,本地/data/docker-mysql/data充当)  -e(配置信息，此处配置mysql的root用户的登陆密码)  
-`docker stop nginx`                    停止镜像  
-`docker container exec -it zookeeper bash`       进入容器  
-`docker container exec -it myz-mysql /usr/bin/bash`  
-`docker container ps`                            查看运行容器  
-`docker container ps -a`                         查看所有容器  
-`docker logs -f zookeeper(id/别名)`     查看日志  
-`docker rm zookeeper(id/别名)`          删除容器  
-`docker logs container-name`  查看日志 
+
+
+```shell
+docker images                        查看镜像  
+docker search mysql                  搜索镜像  
+docker pull mysql:5.7                安装镜像(指定版本号)  
+docker rmi -f IMAGE_ID               删除镜像
+docker run -d -p 80:80 --name=mynginx nginx     容器运行   -d(指定容器运行于前台还是后台，默认为false);  -p (端口映射);  80:80 (: 之前是宿主机端口，之后是容器需暴露的端口);   --name=mynginx(为容器指定一个名字)  
+docker run --name myz-mysql -v /data/docker-mysql/data:/var/lib/mysq -e MYSQL_USER="maoyz" l -e MYSQL_PASSWORD="123456" -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mysql:8.0 --character-set-server=UTF8MB4 --collation-server=utf8mb4_unicode_ci   -v(挂载,本地/data/docker-mysql/data充当)  -e(配置信息，此处配置mysql的root用户的登陆密码)  
+docker stop nginx                    停止镜像  
+docker container exec -it zookeeper bash       进入容器  
+docker container exec -it myz-mysql /usr/bin/bash  
+docker container ps                            查看运行容器  
+docker container ps -a                         查看所有容器  
+docker logs -f zookeeper(id/别名)     查看日志  
+docker rm zookeeper(id/别名)          删除容器  
+docker logs container-name  查看日志
+```
+
+
+
 
 docker inspect 容器名称 | grep Address 
 
 更新容器  
 
-`docker build -t name:v1.0.0 -f /home/maoyz/Dockerfile`                 镜像构建(指定目录)  
-`docker build -t name:v1.0.0 .`                                         镜像构建(当前目录)  
-`docker tag image_name:${version} my_registry/image_name:${version}`    镜像tag  
-`docker push my_registry/image_name:${version}`                         镜像推送  
+```shell
+docker build -t name:v1.0.0 -f /home/maoyz/Dockerfile                 镜像构建(指定目录)  
+docker build -t name:v1.0.0 .                                         镜像构建(当前目录)  
+docker tag image_name:${version} my_registry/image_name:${version}    镜像tag  
+docker push my_registry/image_name:${version}                         镜像推送  
 
-`docker pull registry`                                 创建本地仓库  
-`docker run -d -p 5000:5000 -v /data/docker registry`  运行容器,挂在本地/data/docker目录  
-`http://127.0.0.01:5000/v2/_catalog`                   查看仓库信息  
+docker pull registry                                 创建本地仓库  
+docker run -d -p 5000:5000 -v /data/docker registry  运行容器,挂在本地/data/docker目录  
+http://127.0.0.01:5000/v2/_catalog                   查看仓库信息  
 
 
+docker exec -it 9df70f9a0714 /bin/bash		进入终端
+docker exec -it 9df70f9a0714 bash		进入终端 
+```
 
 
-`docker exec -it 9df70f9a0714 /bin/bash`		进入终端
-`docker exec -it 9df70f9a0714 bash`		进入终端
 
 
 
@@ -179,7 +188,7 @@ mvn clean package -Dmaven.test.skip=true dockerfile:build
 ```
     1. sudo ls -l /var/run/docker.sock      # 这个文件的所有者和所属组是什么
     输出结果: srw-rw---- 1 root docker 0 Jul 12 22:41 /var/run/docker.sock   表示属于root用户和docker组的
-
+    
     2. sudo gpasswd -a ${USER} docker   # 加入到了用户组
 
 
@@ -224,3 +233,7 @@ sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 cpu.cfs_period_us
 
 cpu.cfs_quota_us
+
+```
+
+```
