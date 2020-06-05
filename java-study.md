@@ -159,3 +159,10 @@ System.out.println(new BigDecimal("0").equals(new BigDecimal("0.00")));    // fa
 setScale(int newScale, RoundingMode roundingMode)
 ```
 
+
+
+## 包装类型
+
+
+
+包装类型参与计算时，谨慎null，原因：xxxValue

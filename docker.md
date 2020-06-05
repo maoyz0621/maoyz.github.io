@@ -111,7 +111,7 @@ mvn clean package -Dmaven.test.skip=true dockerfile:build
 
 + maven插件
 
-```
+```xml
     <build>
         <plugins>
             <plugin>
@@ -158,22 +158,22 @@ mvn clean package -Dmaven.test.skip=true dockerfile:build
 - ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
 
 ```
-    FROM java:8
-    
-    VOLUME /tmp
-    
-    # Add Maven dependencies (not shaded into the artifact; Docker-cached)
-    #ADD target/lib  /usr/share/maoyz/lib
-    
-    # Add the service itself
-    ARG JAR_FILE
-    ADD ${JAR_FILE} app.jar
-    
-    RUN bash -c 'touch /app.jar'
-    
-    EXPOSE 8701
-    
-    ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
+FROM java:8
+
+VOLUME /tmp
+
+# Add Maven dependencies (not shaded into the artifact; Docker-cached)
+#ADD target/lib  /usr/share/maoyz/lib
+
+# Add the service itself
+ARG JAR_FILE
+ADD ${JAR_FILE} app.jar
+
+RUN bash -c 'touch /app.jar'
+
+EXPOSE 8701
+
+ENTRYPOINT ["/usr/bin/java", "-jar", "/app.jar"]
 ```
 
 开启远程访问
@@ -206,14 +206,14 @@ mvn clean package dockerfile:build -Dmaven.test.skip=true
 + 2. linux修改docker.service之后重新启动docker出错: `Job for docker.service failed because the control process exited with error code. See "systemctl status docker.service" and "journalctl -xe" for details`
 
 ```
-    cd /etc/docker/
-    
-    mv daemon.json daemon.conf
+cd /etc/docker/
+
+mv daemon.json daemon.conf
 ```
 
 docker-compose
 
-```
+```sh
 sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 ```
 
@@ -221,7 +221,7 @@ sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-
 
 使用　1.23.1　版本
 
-```
+```sh
 sudo chmod +x /usr/local/bin/docker-compose
 
 sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose

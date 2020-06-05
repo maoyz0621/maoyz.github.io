@@ -4,7 +4,7 @@
 
 在MyBatis中，是通过 SqlSessionFactoryBuilder 来创建 SqlSessionFactory 的。 而在 MyBatis-Spring 中，则使用 SqlSessionFactoryBean 来创建的。
 
-```
+```java
 public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, InitializingBean, ApplicationListener<ApplicationEvent> {
 
     // InitializingBean
@@ -217,7 +217,7 @@ public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, In
 
 在 MyBatis 中，你可以使用 SqlSessionFactory 来创建 SqlSession。一旦你获得一个 session 之后，你可以使用它来执行映射了的语句，提交或回滚连接，最后，当不再需要它的时候，你可以关闭 session。使用 MyBatis-Spring 之后，你不再需要直接使用 SqlSessionFactory 了，因为你的 bean 可以被注入一个线程安全的 SqlSession，它能基于 Spring 的事务配置来自动提交、回滚、关闭 session。线程安全的。
 
-```
+```java
 public class SqlSessionTemplate implements SqlSession, DisposableBean {
 
     private final SqlSessionFactory sqlSessionFactory;
@@ -295,7 +295,7 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
 
 
 
-```
+```java
     public static SqlSession getSqlSession(SqlSessionFactory sessionFactory, ExecutorType executorType, PersistenceExceptionTranslator exceptionTranslator) {
 
         notNull(sessionFactory, NO_SQL_SESSION_FACTORY_SPECIFIED);
