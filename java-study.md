@@ -166,3 +166,101 @@ setScale(int newScale, RoundingMode roundingMode)
 
 
 包装类型参与计算时，谨慎null，原因：xxxValue
+
+
+
+## String
+
+
+
+### 1. String创建实例
+
+```java
+String s = new String("xyz");
+```
+
+在运行时涉及几个String实例？
+
++ 答案：两个，一个是字符串字面量"xyz"所对应的、驻留（intern）在一个全局共享的字符串常量池中的实例，另一个是通过new String(String)创建并初始化的、内容与"xyz"相同的实例
+
+
+
+```java
+String s1 = new String("xyz");  
+String s2 = new String("xyz"); 
+```
+
+
+
+参考文章：https://www.iteye.com/blog/rednaxelafx-774673
+
+
+
+### 2. Java中，关于String类型的变量和常量做“+”运算时发生了什么？
+
+```java
+// 1
+String s1 = "a" + "bc";
+String s2 = "ab" + "c";
+System.out.println(s1 == s2);   // true, 其实只创建了一个 "abc" 字符串对象，且位于字符串常量池中。
+
+// 2
+String a = "a";
+String bc = "bc";
+
+// String s2 = new StringBuilder().append(a).append(b).toString();
+String s3 = a + bc;
+System.out.println(s3 == s2);   // false
+
+// 3
+final String a0 = "a";
+final String bc0 = "bc";
+
+String s4 = a0 + bc0;
+System.out.println(s4 == s2);   // true
+```
+
+1. 第一种情况：
+
+   编译优化，优化手段：常量折叠，
+
+   s1 = "a" + "bc" -> s1 = "abc" -> ldc "abc"
+
+   s2 = "ab" + "c" -> s2 = "abc" -> ldc "abc"
+
+   编译之后实则是：
+
+   ```java
+   String s1 = "abc";
+   String s2 = "abc";
+   ```
+
+2. 第二种情况：
+
+   优化手段，用StringBuilder来进行字符串拼接，
+
+   s2 = a+bc -> s2 = new StringBuilder(a).append(bc).toString()
+
+3. 第三种情况：
+
+   final修饰的String，
+
+   s4 = a0 + bc0 -> s4 = "abc" -> ldc "abc"
+
+参考文章：https://www.zhihu.com/question/35014775
+
+## 关键字
+
+### 1. final
+
+final域，编译器和处理器遵守两个重排序规则：
+
+1. 在构造函数内对一个 final 域的写入，与随后把这个被构造对象的引用赋值给一个引用变量，这两个操作之间不能重排序。
+2. 初次读一个包含 final 域的对象的引用，与随后初次读这个 final 域，这两个操作之间不能重排序。
+
+### volatile
+
+### sync
+
+### static
+
