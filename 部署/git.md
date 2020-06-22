@@ -30,7 +30,7 @@
 - git commit -am "add XXX"  
      写入信息，然后按esc : wq  
            完成后提示信息：On branch master, nothing to commit,working tree clean  
-           
+     
 - git log  查看日志
 - git log --oneline
 - git reflog  
@@ -75,3 +75,97 @@ git revert是用一次新的commit来回滚之前的commit，git reset是直接�
                git stash apply stash@{n}
 
 git diff (master..tag1/tag2)     (多用)
+
+
+
+## 同时同步至github和gitee(码云)
+
+### 方法一：命令
+
+1. 先删除已关联的名为origin的远程库：
+
+```shell
+git remote rm origin
+```
+
+2. 关联远程库
+
+```shell
+# 关联GitHub
+git remote add github git@github.com:chloneda/demo.git
+# 关联码云
+git remote add gitee git@gitee.com:chloneda/demo.git
+```
+
+
+
+### 方法二：配置文件
+
+修改.git文件夹内的config文件：
+
+```shell
+[core]
+    repositoryformatversion = 0
+    filemode = true
+    bare = false
+    logallrefupdates = true
+[remote "origin"]
+    url = git@github.com:chloneda/demo.git
+    fetch = +refs/heads/*:refs/remotes/github/*
+[branch "master"]
+    remote = origin
+    merge = refs/heads/master
+```
+
+将[remote "origin"]内容复制，修改origin名称，内容如下:
+
+```shell
+[core]
+    repositoryformatversion = 0
+    filemode = true
+    bare = false
+    logallrefupdates = true
+[remote "github"]
+    url = git@github.com:chloneda/demo.git
+    fetch = +refs/heads/*:refs/remotes/github/*
+[remote "gitee"]
+    url = git@gitee.com:chloneda/demo.git
+    fetch = +refs/heads/*:refs/remotes/gitee/*
+[branch "master"]
+    remote = origin
+    merge = refs/heads/master
+```
+
+
+
+### 提交
+
+```shell
+git push github master
+git push gitee master
+```
+
+
+
+### 更新
+
+```shell
+# 从github拉取更新
+git pull github
+
+# 从gitee拉取更新
+git pull gitee
+```
+
+
+
+##  git 中文文件名乱码
+
+git默认中文文件名是\xxx\xxx 等八进制形式，对0x80以上的字符进行quote（引用），正常显示中文：
+
+```shell
+git config --global core.quotepath false
+```
+
+
+
