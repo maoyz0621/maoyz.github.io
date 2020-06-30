@@ -264,3 +264,10 @@ final域，编译器和处理器遵守两个重排序规则：
 
 ### static
 
+
+
+## 枚举类
+
+### 枚举类线程安全
+
+枚举类编译为字节码后，**final**修饰的普通类，并且**extends java.lang.Enum<E extends Enum<E>>**，所有的属性被**static**和**final**修饰。在项目启动时，JVM加载并初始化。
