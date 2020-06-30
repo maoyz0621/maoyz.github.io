@@ -1,10 +1,26 @@
 ---
-typora-copy-images-to: ./
+typora-root-url: ..\images
 ---
 
 # Mysql
 
-## group by
+## 引擎
+
+查看存储引擎
+
+```mysql
+show engines;
+```
+
+查看默认存储引擎
+
+```mysql
+show variables like '%storage_engine%';
+```
+
+
+
+## Group by
 
 建表：
 
@@ -82,14 +98,14 @@ SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
 SELECT any_value(id) id, any_value(student) student, any_value(class) class, any_value(score) score FROM `courses` GROUP BY `class`;
 ```
 
-![image-20200316175352106](.\images\image-20200316175352106.png)
+![image-20200316175352106](..\images\image-20200316175352106.png)
 	
 
 ```mysql
 SELECT any_value(id) id, any_value(student) student, any_value(class) class, any_value(score) score FROM `courses` GROUP BY `score`;
 ```
 
-![image-20200316175445554](.\images\image-20200316175445554.png)
+![image-20200316175445554](..\images\image-20200316175445554.png)
 
 
 
@@ -107,7 +123,7 @@ GROUP BY
 
 |               group_concat(DISTINCT, ORDER BY)               |
 | :----------------------------------------------------------: |
-| ![image-20200319105005691](.\images\image-20200319105005691.png) |
+| ![image-20200319105005691](..\images\image-20200319105005691.png) |
 
 
 
@@ -115,14 +131,14 @@ GROUP BY
 SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` GROUP BY class, student;
 ```
 
-![image-20200316175635932](.\images\image-20200316175635932.png)
+![image-20200316175635932](..\images\image-20200316175635932.png)
 
 
 ```mysql
 SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` GROUP BY student, class;
 ```
 
-![image-20200316180009458](.\images\image-20200316180009458.png)
+![image-20200316180009458](..\images\image-20200316180009458.png)
 
 ```mysql
 -- 我们需要学生的成绩表，且每个学生每科的成绩按照由大到小的顺序排列
@@ -133,11 +149,11 @@ SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` G
 SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` GROUP BY `student`,`class` ORDER BY `student`,`score` DESC;
 ```
 
-![image-20200316181242659](.\images\image-20200316181242659.png)
+![image-20200316181242659](..\images\image-20200316181242659.png)
 
 
 
-![image-20200316181317503](.\images\image-20200316181317503.png)
+![image-20200316181317503](..\images\image-20200316181317503.png)
 
  
 
@@ -204,19 +220,118 @@ alter table test_01 modify create_time timestamp not null default CURRENT_TIMEST
 
 |                     更新字段前 查询结果                      |                     更新字段后 查询结果                      |
 | :----------------------------------------------------------: | :----------------------------------------------------------: |
-| ![image-20200320100020644](.\images\image-20200320100020644-1588128386148.png) | ![image-20200320100715305](.\images\image-20200320100715305.png) |
+| ![image-20200320100020644](..\images\image-20200320100020644-1588128386148.png) | ![image-20200320100715305](..\images\image-20200320100715305.png) |
 
 + NULL 和 '空值'的length
 
   |                                                              |
   | :----------------------------------------------------------: |
-  | ![image-20200320101126970](.\images\image-20200320101126970.png) |
+  | ![image-20200320101126970](..\images\image-20200320101126970.png) |
 
   
-
-
-
 ## 索引
+
+```mysql
+-- 查看表中index
+show index from table_name;
+```
+
+表索引user_id、create_at、order_status
+
+![](..\images\索引示例.png)
+
+#### 一个条件查询
+
+where条件中使用不等于操作符 <、>、 !=、 <>
+
+1. 使用等号
+
+```mysql
+-- 使用 '=' 走索引
+explain select * from orders where created_at = '2020-06-30 11:37:26';
+```
+
+
+![image-20200630163807049](..\images\image-20200630163807049.png)
+
+ 2.使用不等号
+
+```mysql
+-- 使用不等号，不走索引，全表扫描
+explain select * from orders where created_at != '2020-06-30 11:37:26';
+explain select * from orders where created_at < '2020-06-30 11:37:26';
+```
+
+
+
+![image-20200630163851991](..\images\image-20200630163851991.png)
+
+
+### OR查询
+
+#### 筛选条件包含2条件
+
+
+
+##### 两条等号非己条件，走索引
+
+```mysql
+explain select * from orders where id = 5476337 OR status = '2';
+explain select * from orders where id = 5476337 OR created_at = '2020-06-30 11:37:26';
+```
+
+![image-20200630165120920](..\images\image-20200630165120920.png)
+
+![image-20200630165152342](..\images\image-20200630165152342.png)
+
+
+
+##### 两条不等号非己条件，不走索引
+
+```mysql
+explain select * from orders where id = 5476337 OR status != '2';
+explain select * from orders where id = 5476337 OR created_at < '2020-06-30 11:37:26';
+```
+
+![image-20200630165232698](..\images\image-20200630165232698.png)
+
+![image-20200630165308229](..\images\image-20200630165308229.png)
+
+
+
+##### 两条等号自身条件，不走索引，全表扫描
+
+```mysql
+explain select * from orders where (status = 2 or status = 3);
+explain select * from orders where status in (2,3)
+```
+
+![image-20200630170832795](..\images\image-20200630170832795.png)
+
+
+
+##### UNION ALL，走索引，使用零时表
+
+```mysql
+explain 
+	select * from orders where status =2
+union all 
+	select * from orders where status =3;
+```
+
+![image-20200630170925702](..\images\image-20200630170925702.png)
+
+
+#### 筛选条件包含三个等号条件，不走索引，全表扫描
+
+```mysql
+explain select * from orders where id = 5476337 OR status = '2' OR created_at = '2020-06-30 11:37:26';
+```
+
+
+![image-20200630165515228](..\images\image-20200630165515228.png)
+
+
 
 ### 联合索引
 
@@ -253,6 +368,154 @@ NOT IN可以使用**NOT EXISTS代替**
 order by 和group by 类似，字段顺序与索引一致时，会使用索引排序；字段顺序与索引不一致时，不使用索引。
 
 索引也能用于分组和排序，分组要先排序，在计算平均值等等。所以在分组和排序中，如果字段顺序可以按照索引的字段顺序，即可利用索引的有序特性
+
+
+
+### IN（xxx,xxx）筛选字段过多，例如1w多条
+
+1. 不要在代码中直接传参数值，在SQL中关联子查询查出
+2. 如果筛选字段符合某种规则，可以使用`like` 模糊查询
+3. 如果筛选字段是连续数字，可以使用`between ... and ...`
+
+
+### UNION 和 UNION ALL
+
+union联表查询去重，union all不会去重
+
+
+
+## JOIN
+
+
+
+![sql join](..\images\sql join.png)
+
+
+
+#### INNER JOIN（内连接）
+
+
+```mysql
+SELECT * FORM TABLE_A A INNER JOIN TABLE_B B ON A.KEY = B.KEY
+```
+
+
+
+#### LEFT JOIN（左连接）
+
+```mysql
+SELECT * FORM TABLE_A A LEFT JOIN TABLE_B B ON A.KEY = B.KEY
+```
+
+
+
+#### RIGHT JOIN（右连接）
+
+```mysql
+SELECT * FORM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY
+```
+
+
+
+#### OUTER JOIN（外连接）
+
+```mysql
+SELECT * FORM TABLE_A A OUTER JOIN TABLE_B B ON A.KEY = B.KEY
+
+--  MySQL不支持OUTER JOIN
+SELECT * FORM TABLE_A A LEFT JOIN TABLE_B B ON A.KEY = B.KEY
+UNION
+SELECT * FORM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY
+```
+
+
+
+
+#### LEFT JOIN EXCLUDING INNER JOIN (左连接 - 内连接)
+
+```mysql
+SELECT * FROM TABLE_A A LEFT JOIN TABLE_B ON A.KEY = B.KEY WHERE B.KEY IS NULL
+```
+
+
+
+#### RIGHT JOIN EXCLUDING INNER JOIN (右连接 - 内连接)
+
+```mysql
+SELECT * FROM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY WHERE A.KEY IS NULL
+```
+
+
+
+#### OUTER JOIN EXCLUDING INNER JOIN (外连接 - 内连接)
+
+```mysql
+SELECT * FROM TABLE_A FULL OUTER JOIN TABLE_B B ON A.KEY = B.KEY WHERE A.KEY IS NULL OR B.KEY IS NULL
+--  MySQL不支持FULL OUTER JOIN
+SELECT * FROM TABLE_A A LEFT JOIN TABLE_B ON A.KEY = B.KEY WHERE B.KEY IS NULL
+UNION
+SELECT * FROM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY WHERE A.KEY IS NULL
+```
+
+
+
+## Explain
+
+select 语句的执行计划。表的读取顺序、哪些索引可以使用、哪些索引时机使用，表之间的引用、每张表有多少行被优化器查询。
+
+#### 1、id
+
+按照select出现的顺序。简单子查询、派生表（from语句中的子查询）、union查询
+
+
+
+#### 2、select_type 
+
+1. simple：简单查询
+2. primary：最外层的select
+3. subquery：select中的子查询（不在from子句中）
+4. deriverd：from子句中的子查询，存放在临时表
+5. union：
+6. union result：
+
+
+
+#### 3、table
+
+访问哪张表。from子查询时，<deriverd>，表示当前
+
+
+
+#### 4、type
+
+system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > range > index > ALL
+
+1. system、const：常量，primary key 或 union key 与常量比较，返回最多一条
+2. eq_ref：primary key 和 union key 连接使用，返回最多一条
+3. ref：不使用唯一索引，而是使用普通索引或者唯一性索引的部分前缀
+4. ref_or_null ：可以搜索值为null
+5. index_merge：索引合并， 例如：id是主键，tenant_id是普通索引。or 的时候没有用 primary key，而是使用了 primary key(id) 和 tenant_id 索引
+6. range：in(), between ,> ,<, >= 等操作中，使用一个索引来检索给定范围的行
+7. index：扫描索引树
+8. ALL：全表扫描
+
+
+
+#### 5、possible_key
+
+
+
+#### 6、key
+
+
+
+####  7、key_len
+
+#### 8、ref
+
+#### 9、rows
+
+#### 10、Extra
 
 
 
@@ -296,7 +559,7 @@ order by 和group by 类似，字段顺序与索引一致时，会使用索引�
 - 虽然可以达到可重复读取，但是会导致“幻像读”
 ```
 
-##### 4、 serializable 串行化 
+##### 4、serializable 串行化 
 
 ```
 - 事务A和事务B，事务A在操作数据库时，事务B只能排队等待
