@@ -242,7 +242,7 @@ show index from table_name;
 
 #### 一个条件查询
 
-where条件中使用不等于操作符 <、>、 !=、 <>
+where条件中使用不等于操作符 <、>、 !=、 <>，不等于操作符会限制索引，即使字段上有索引。
 
 1. 使用等号
 
@@ -320,7 +320,6 @@ union all
 ```
 
 ![image-20200630170925702](..\images\image-20200630170925702.png)
-
 
 #### 筛选条件包含三个等号条件，不走索引，全表扫描
 
@@ -459,7 +458,7 @@ SELECT * FROM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY WHERE A.KEY IS NUL
 
 
 
-## Explain
+## explain
 
 select 语句的执行计划。表的读取顺序、哪些索引可以使用、哪些索引时机使用，表之间的引用、每张表有多少行被优化器查询。
 
@@ -467,57 +466,60 @@ select 语句的执行计划。表的读取顺序、哪些索引可以使用、�
 
 按照select出现的顺序。简单子查询、派生表（from语句中的子查询）、union查询
 
-
-
 #### 2、select_type 
 
 1. simple：简单查询
-2. primary：最外层的select
+2. primary：子查询中最外层的select
 3. subquery：select中的子查询（不在from子句中）
 4. deriverd：from子句中的子查询，存放在临时表
-5. union：
-6. union result：
-
-
+5. union：union中第二个或后面的select语句
+6.  dependent  union：union中的第二个或后面的SELECT语句，取决于外面的查询
+7. union  result：union的结果，union语句中第二个select开始后面所有select
 
 #### 3、table
 
-访问哪张表。from子查询时，<deriverd>，表示当前
-
-
+访问哪张表。from子查询时，<derivenN>，表示当前查询依赖id = N的查询，先执行id = N的查询；有union时，union result的table值位<union1, 2>，1和2 表示参与union的select行id
 
 #### 4、type
 
-system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > range > index > ALL
+NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > **range** > index > ALL，一般来说，至少达到range级别，最好ref。
 
 1. system、const：常量，primary key 或 union key 与常量比较，返回最多一条
 2. eq_ref：primary key 和 union key 连接使用，返回最多一条
 3. ref：不使用唯一索引，而是使用普通索引或者唯一性索引的部分前缀
 4. ref_or_null ：可以搜索值为null
 5. index_merge：索引合并， 例如：id是主键，tenant_id是普通索引。or 的时候没有用 primary key，而是使用了 primary key(id) 和 tenant_id 索引
-6. range：in(), between ,> ,<, >= 等操作中，使用一个索引来检索给定范围的行
+6. **range**：in(), between ,> ,<, >= 等操作中，使用一个索引来检索给定范围的行
 7. index：扫描索引树
 8. ALL：全表扫描
 
+#### 5、possible_keys
 
-
-#### 5、possible_key
-
-
+查询时**可能**使用的索引。出现 `possible_keys` 有列，而`key` 显示NULL，因为表中数据不多，mysql认为索引对此查询帮助不大，选择全表查询；当该列是NULL，建议选择适当的索引。
 
 #### 6、key
 
-
+查询时**实际**使用的索引。
 
 ####  7、key_len
 
+索引使用的字节数
+
 #### 8、ref
+
+在 `key` 列索引中使用的列或常量。见的有：const（常量），func，NULL，字段名
 
 #### 9、rows
 
+查询时读取的行数，不是结果集的行数。
+
 #### 10、Extra
 
-
+1. distinct：一旦找到与行相匹配的行，不找搜索
+2. Using index：对
+3. Using where：先读取整行数据，在按照where条件筛选
+4. Using temporary：创建临时表，常见于排序和分组（group  by，order  by）一般需要优化
+5. Using filesort：文件排序，order  by，一般需要优化
 
 ## 事务特性
 
