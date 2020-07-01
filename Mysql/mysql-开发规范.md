@@ -59,6 +59,7 @@ Mysql开发规范
 5、建立索引时，把区分度高的字段放在前面，如 id 和 time id是唯一的。所以建索引的时候 id 须在前面
 
 6、避免对经常更新的表进行过多的索引，并且索引应保持较窄，就是说，列要尽可能少
+
 7、如果业务上某些字段有唯一性约束就必须建唯一索引
 
 8、经常被用作查询选择的字段、被用来作为排序基准（order by、group by、distinct后面的字段）的字段、在查询中用来连接表的字段、在union等集合操作的结果集字段，需要为其建立索引
@@ -224,6 +225,20 @@ Mysql开发规范
 
 30、分页查询，当limit起点较高时，可先用过滤条件进行过滤。如select a,b,c from t1 limit 10000,20;优化为: select a,b,c from t1 where id>10000 limit 20;
 
+31、in和 exists：
+
+SELECT  *  FROM A WHERE id IN (SELECT id FROM B);
+
+IN()查询适合B表数据比A表数据小的情况，IN()查询是从缓存中取数据，内循环次数减少，效率大大提升
+
+
+
+SELECT * FROM A WHERE EXISTS (SELECT 1 FROM B WHERE B.id  = A.id);
+
+exists()适合B表比A表数据大的情况
+
+当A表数据与B表数据一样大时,in与exists效率差不多,可任选一个使用
+
 # 六、优化建议
 
 1、利用查询缓存，相同的sql语句，不用重复解析，且从缓存中获取
@@ -246,11 +261,19 @@ Mysql开发规范
 
 10、程序设计必须考虑“数据库事务隔离级别”带来的影响，包括脏读、不可重复读和幻读。线上建议事务隔离级别为repeatable-read
 
-11、减少使用order by，和业务沟通能不排序就不排序，或将排序放到程序端去做。order by、group by、distinct这些语句较为耗费CPU，数据库的CPU资源是极其宝贵的
+11、减少使用order by，和业务沟通能不排序就不排序，或将排序放到程序端去做。order by、group by、distinct这些语句较为耗费CPU
 
-12、order by、group by、distinct这些SQL尽量利用索引直接检索出排序好的数据。如where a=1 order by可以利用key(a,b)
+12、order by、group by、distinct这些SQL尽量利用索引直接检索出排序好的数据。如where a=1 order by可以利用key(a, b)
 
 13、包含了order by、group by、distinct这些查询的语句，where条件过滤出来的结果集请保持在1000行以内，否则SQL会很慢
+
+14、where和order  by 设计的列建立索引
+
+15、避免在where中对字段进行 nul l判断，否则导致索引失效进行全表扫描
+
+16、避免在where中使用参数，或对字段进行表达式操作、函数操作
+
+
 
 # 七、数据库操作行为规范
 
