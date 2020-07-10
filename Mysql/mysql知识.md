@@ -523,6 +523,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 
 ## 事务特性
 
+
 ###  隔离性 - isolation
 
 #### 隔离性级别
