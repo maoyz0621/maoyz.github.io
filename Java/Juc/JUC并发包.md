@@ -12,7 +12,7 @@
 
 - 重要参数:  
 
-```
+```java
     // 排它锁，用于数据修改
     final transient ReentrantLock lock = new ReentrantLock();
  
@@ -26,7 +26,7 @@
 
 首先会进行加锁，保证只有一个线程能进行修改；然后会创建一个新数组（大小为n+1），并将原数组的值复制到新数组，新元素插入到新数组的最后；最后，将字段array指向新数组  
 
-```
+```java
     // this.lock 同一个对象引用同一把锁
     final ReentrantLock lock = this.lock;
     lock.lock();
@@ -48,14 +48,14 @@
 
 2）get()  
 
-```
+```java
     // 没有加锁，直接返回了内部数组对应索引位置的值：array[index]
     return (E) array[index];
 ```
 
 3）remove()  
 
-```
+```java
     final ReentrantLock lock = this.lock;
     lock.lock();
     try {
@@ -85,7 +85,7 @@
 `COWIterator`的迭代是在`旧数组`上进行的，当创建迭代器的那一刻就确定了，所以迭代过程中不会抛出并发修改异常——ConcurrentModificationException。
 另外，迭代器对象也不支持修改方法，全部会抛出UnsupportedOperationException异常。  
 
-```
+```java
     public void remove() {
         throw new UnsupportedOperationException();
     }
@@ -151,7 +151,7 @@ CopyOnWriteArraySet内部引用了一个CopyOnWriteArrayList对象，以“组�
 
 - 重要参数
 
-```
+```java
     // 内部数组
     final Object[] items;
 

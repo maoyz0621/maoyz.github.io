@@ -1,21 +1,118 @@
-## nginx
+# Nginx
+
+## 简介
 
 1. 是什么?  
     反向代理服务器, 负载均衡, 动静分离, 健康检查
-    
+
+
 2. 有什么功能?  
     项目部署在不同的服务器上，但是通过统一的域名进入，nginx则对请求进行分发，减轻服务器的压力
-    
-3. 目录所在?  
+
+> 1. 高并发。静态小文件
+> 2. 占用资源少。2万并发、10个线程，内存消耗几百M。
+> 3. 功能种类比较多。web,cache,proxy。每一个功能都不是特别强。
+> 4. 支持epoll模型，使得nginx可以支持高并发。
+> 5. nginx 配合动态服务和Apache有区别。（FASTCGI 接口）
+> 6. 利用nginx可以对IP限速，可以限制连接数。
+> 7. 配置简单，更灵活。
+
+
+3. 应用场合
+
+> 1. 静态服务器。（图片，视频服务）另一个lighttpd。并发几万，html，js，css，flv，jpg，gif等。
+> 2. 动态服务，nginx——fastcgi 的方式运行PHP，jsp。（PHP并发在500-1500，MySQL 并发在300-1500）。
+> 3. 反向代理，负载均衡。日pv2000W以下，都可以直接用nginx做代理。
+> 4. 缓存服务。类似 SQUID,VARNISH。
+
+
+4. 目录所在?  
 
 ```nginx
-    /usr/sbin/nginx       主程序
-    /etc/nginx            存放配置文件
-    /usr/share/nginx      存放静态文件
-    /var/log/nginx        存放日志
+/usr/sbin/nginx       主程序
+/etc/nginx            存放配置文件
+/usr/share/nginx      存放静态文件
+/var/log/nginx        存放日志
 ```
 
-4. 如何配置?
+## 安装
+
+1. 依赖包
+
+- nginx安装依赖GCC、openssl-devel、pcre-devel和zlib-devel软件库。
+- Pcre全称（Perl Compatible Regular Expressions）
+
+```
+yum install  pcre pcre-devel -y 
+yum install openssl openssl-devel -y 
+```
+
+   
+
+2. linux安装Nginx
+
+```nginx
+# 1.解压
+tar -zxvf nginx-1.18.0.tar.gz
+
+# 2.进入nginx目录
+cd nginx-1.18.0 
+
+# 3.配置
+./configure --prefix=/data/nginx-1.18 --user=nginx --group=nginx  --with-http_ssl_module  --with-http_stub_status_module
+
+useradd nginx -M -s /sbin/nologin 
+# 4.make
+make && make install
+
+ln -s /data/nginx-1.10.1 /data/nginx
+```
+
+如果出现错误：
+
+```nginx
+make: *** 没有规则可以创建“default”需要的目标“build”。 停止。
+```
+
+缺少依赖包：
+
+`yum install pcre-devel zlib zlib-devel openssl openssl-devel`
+
+## 启动
+
+#### 正常启动
+
+```nginx
+/data/nginx-1.18/sbin/nginx -t	## 检查配置文件
+/data/nginx-1.18/sbin/nginx     ## 确定nginx服务
+
+nginx: the configuration file /data/nginx-1.18/conf/nginx.conf syntax is ok
+nginx: configuration file /data/nginx-1.18/conf/nginx.conf test is successful
+
+netstat -lntup |grep nginx      ## 检查进程是否正常
+
+shell> curl -I http://localhost	## 确认结果
+HTTP/1.1 200 OK
+```
+
+
+
+#### 其他命令
+
+```nginx
+nginx -s signal
+signal：
+    stop — fast shutdown
+    quit — graceful shutdown
+    reload — reloading the configuration file
+    reopen — reopening the log files # 用来打开日志文件，这样nginx会把新日志信息写入这个新的文件中
+```
+
+
+
+## 配置
+
+1. 如何配置?
 
 ```
     1. 进入hosts文件:
@@ -116,11 +213,34 @@
 6. 配置负载均衡的服务, 在http模块中添加如下配置
 
 ```nginx
-    weight;   权重
-    ip_hash;　ip绑定
-    fair: 后端响应时间
-    
-    
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+    #                  '$status $body_bytes_sent "$http_referer" '
+    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+    #access_log  logs/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    # nacos配置
+    upstream nacos {
+          # ip地址
+          server 192.168.107.128:8848  weight=3;
+          server 192.168.107.129:8848;
+          server 192.168.107.130:8848;
+    }
+    # weight;   权重
+    # ip_hash;　ip绑定
+    # fair: 后端响应时间
     # 设置负载均衡-1, weight权重
     upstream tomcatserver1 {
         # ip地址
@@ -134,8 +254,21 @@
         server 127.0.0.1:8083;
         # ip绑定,访问一次, 固定到ip,　可以解决session问题
         ip_hash;
-        #fair
+        # fair
     }
+	server {
+        listen       80;
+        server_name  localhost;
+        #charset koi8-r;
+        #access_log  logs/host.access.log  main;
+        location = /nacos {
+            root   html;
+            index  index.html index.htm;
+            # 负载均衡upstream别名
+            proxy_pass   http://nacos;
+        }
+	}
+}
 ```
 
 参数说明:  
@@ -365,13 +498,12 @@ http {
 
 nginx宕机, keepalived, master和backup
 
-<<<<<<< HEAD
+
 ```
 yum install keepalived.x86_64 -y
-=======
-```nginx
+
+​```nginx
 yum install keepalived -y
->>>>>>> be53e6e32c4a4cc5bb1e0a46fb5eedfdd4b9d0b8
 #　配置文件
 /etc/keepalived/keepalived.conf
 
@@ -580,7 +712,7 @@ master和worker进程(nginx热部署),　每个worker是独立进程, worker数�
 
 语法规则： location [=|~|~*|^~] /uri/ { … }
 
-```nginx
+​```nginx
 	= 开头表示精确匹配
 	^~ 开头表示uri以某个常规字符串开头，理解为匹配 url路径即可。nginx不对url做编码，因此请求为/static/20%/aa，可以被规则^~ /static/ /aa匹配到（注意是空格）。
 	~ 开头表示区分大小写的正则匹配
