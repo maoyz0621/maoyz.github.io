@@ -395,4 +395,46 @@ docker run -d --name rocketmq-console-ng -e "JAVA_OPTS=-Drocketmq.namesrv.addr=1
 
 
 
-docker　搭建rocketmq集群
+## docker　搭建rocketmq集群
+
+
+
+## Docker安装Nginx
+
+```
+docker run -d -it -p 80:8849  --name nginx -v /opt/nginx-1.18.0/conf/nginx.conf:/etc/nginx/nginx.conf -v `pwd`/logs:/var/log/nginx nginx:1.19.1
+```
+
+## **Docker 安装Portainer**
+
+一款docker界面化UI
+
+#### 单机版运行
+
+输入执行命令：
+
+`docker run -d -p 9000:9000 --restart=always -v /var/run/docker.sock:/var/run/docker.sock --name prtainer portainer/portainer:latest`
+
+容器id生成，但是容器无法正常启动，出现如下错误：
+
+```shell
+docker: Error response from daemon: driver failed programming external connectivity on endpoint prtainer (25346ec8a2b4c3ecaa1d1c397af2282c68a8c5caf9e8b3077ce8fb0ee8223e06):  (iptables failed: iptables --wait -t nat -A DOCKER -p tcp -d 0/0 --dport 9000 -j DNAT --to-destination 172.17.0.2:9000 ! -i docker0: iptables: No chain/target/match by that name.
+```
+
+- 原因：
+
+docker服务启动时定义的自定义链DOCKER由于某种原因被清掉（启动过portainer容器，后来被删除了）
+
+- 解决：
+
+重启docker服务后再启动容器，重新生成自定义链DOCKER
+
+```shell
+systemctl restart docker
+```
+
+自己设置的用户名和密码：
+
+admin
+
+12345678
