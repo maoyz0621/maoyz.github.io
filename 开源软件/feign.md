@@ -105,7 +105,7 @@ private void registerClientConfiguration(BeanDefinitionRegistry registry, Object
 }
 ```
 
-### egisterFeignClients方法，注册feign客户端
+### registerFeignClients方法，注册feign客户端
 
 ```
 public void registerFeignClients(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {

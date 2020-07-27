@@ -9,30 +9,34 @@ https://blog.csdn.net/qq_27529917/article/details/79857207
 
 
 ## 启动Name Server
-    start mqnamesrv.cmd	(window)
-    
-    > nohup sh bin/mqnamesrv & 
-    > tail -f ~/logs/rocketmqlogs/namesrv.log	(linux)
-    
-    配置方式：使用-c configfile。即通过-c命令指定配置文件的路径。
-    命令样例：
-    nohup sh /opt/rocketmq-all-4.7.0-bin/bin/mqnamesrv -c /opt/rocketmq-conf/namesrv-9876.properties > /data/rocketmq/logs/namesrv_9876/mqnamesrv.log 2>&1 &
-    nohup sh /opt/rocketmq-all-4.7.0-bin/bin/mqnamesrv -c /opt/rocketmq-conf/namesrv-9877.properties > /data/rocketmq/logs/namesrv_9877/mqnamesrv.log 2>&1 &
-    
-    停止
-    > sh bin/mqshutdown namesrv
+```sh
+start mqnamesrv.cmd	(window)
+
+> nohup sh bin/mqnamesrv & 
+> tail -f ~/logs/rocketmqlogs/namesrv.log	(linux)
+
+配置方式：使用-c configfile。即通过-c命令指定配置文件的路径。
+命令样例：
+nohup sh /opt/rocketmq-all-4.7.0-bin/bin/mqnamesrv -c /opt/rocketmq-conf/namesrv-9876.properties > /data/rocketmq/logs/namesrv_9876/mqnamesrv.log 2>&1 &
+nohup sh /opt/rocketmq-all-4.7.0-bin/bin/mqnamesrv -c /opt/rocketmq-conf/namesrv-9877.properties > /data/rocketmq/logs/namesrv_9877/mqnamesrv.log 2>&1 &
+
+停止
+> sh bin/mqshutdown namesrv
+```
 ## 启动Broker
 
-	start mqbroker.cmd -n 127.0.0.1:9876 autoCreateTopicEnable=true	 (window)
-	> nohup sh bin/mqbroker -n localhost:9876 & 
-	> tail -f ~/logs/rocketmqlogs/broker.log	(linux)
-	
-	nohup sh /opt/rocketmq-all-4.7.0-bin/bin/mqbroker -c /opt/rocketmq-conf/broker-1_0_10911.properties > /data/rocketmq/logs/broker-1_0_10911/mqbroker.log 2>&1
-	
-	停止
-	> sh bin/mqshutdown broker
-	
-	注: nohup Command ... &  --> 不挂断的后台运行
+```shell
+start mqbroker.cmd -n 127.0.0.1:9876 autoCreateTopicEnable=true	 (window)
+> nohup sh bin/mqbroker -n localhost:9876 & 
+> tail -f ~/logs/rocketmqlogs/broker.log	(linux)
+
+nohup sh /opt/rocketmq-all-4.7.0-bin/bin/mqbroker -c /opt/rocketmq-conf/broker-1_0_10911.properties > /data/rocketmq/logs/broker-1_0_10911/mqbroker.log 2>&1
+
+停止
+> sh bin/mqshutdown broker
+
+注: nohup Command ... &  --> 不挂断的后台运行
+```
 
 ## Producer发送消息方式：
 
