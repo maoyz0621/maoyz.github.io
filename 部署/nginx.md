@@ -43,7 +43,7 @@
 - Pcre全称（Perl Compatible Regular Expressions）
 
 ```
-yum install  pcre pcre-devel -y 
+yum install pcre pcre-devel -y 
 yum install openssl openssl-devel -y 
 ```
 
