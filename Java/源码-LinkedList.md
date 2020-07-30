@@ -1,215 +1,396 @@
-# ArrayList
+# LinkedList
 
-## 特点
+## 简述
 
-1. ArrayList 底层是一个动态扩容的数组结构  
-2. 允许存放多个null 元素  
-3. 允许存放重复数据，存储顺序按照元素的添加顺序  
-4. ArrayList并不是一个线程安全的集合。如果集合的增删操作需要保证线程的安全性，可以考虑使用 CopyOnWriteArrayList 或者使用 collections.synchronizedList(List l)函数返回一个线程安全的ArrayList类.  
+> 1. `LinkedList` 集合底层实现的数据结构为双向链表
+> 2. `LinkedList` 集合中元素允许为 null
+> 3. `LinkedList` 允许存入重复的数据
+> 4. `LinkedList` 中元素存放顺序为存入顺序。
+> 5. `LinkedList` 是非线程安全的，如果想保证线程安全的前提下操作 `LinkedList`，可以使用 `List list = Collections.synchronizedList(new LinkedList(...));` 来生成一个线程安全的 `LinkedList`
 
 ## 继承关系
 
-```
-public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable
-```
+![](..\images\Java\Collection\LinkedList继承.png)
 
-
-一. 实现 `RandomAccess` 标记接口  
-
-1.表明List提供了随机访问功能，也就是通过下标获取元素对象的功能。之所以是标记接口，是该类本来就具有某项能力，使用接口对其进行标签化，便于其他的类对其进行识别（instanceof）
-
-2.ArrayList数组实现，本身就有通过下标随机访问任意元素的功能。那么需要细节上注意的就是随机下标访问和顺序下标访问（LinkedList）的不同了。也就是为什么LinkedList最好不要使用循环遍历，而是用迭代器遍历的原因。
-
-3.实现RandomAccess同时意味着一些算法可以通过类型判断进行一些针对性优化，例子有Collections的shuffle方法  
-
-简单说就是，如果实现RandomAccess接口就下标遍历，反之迭代器遍历
-
-
-二. 实现了Cloneable, java.io.Serializable意味着可以被克隆和序列化
-
-为什么ArrayList的elementData是用transient修饰的?
-
-elementData不总是满的，每次都序列化，会浪费时间和空间, 重写了writeObject 保证序列化的时候虽然不序列化全部, 但是有的元素都序列化
-所以说不是不序列化, 而是不全部序列化。
-
+实现了List接口和Deque接口的双端链表
 
 ```java
-    private void writeObject(java.io.ObjectOutputStream s)
-        throws java.io.IOException{
-        // Write out element count, and any hidden stuff
-        int expectedModCount = modCount;
-        s.defaultWriteObject();
+extends AbstractSequentialList<E> implements List<E>, Deque<E>, Cloneable, java.io.Serializable
+```
 
-        // Write out size as capacity for behavioural compatibility with clone()
-        s.writeInt(size);
+## Node
 
-        // Write out all elements in the proper order.
-        for (int i=0; i<size; i++) {
-            s.writeObject(elementData[i]);
-        }
+内部类
 
-        if (modCount != expectedModCount) {
-            throw new ConcurrentModificationException();
-        }
+```java
+private static class Node<E> {
+    E item;			// 当前节点元素
+    Node<E> next;	// 下一个节点索引
+    Node<E> prev;	// 上一个节点索引
+
+    Node(Node<E> prev, E element, Node<E> next) {
+        this.item = element;
+        this.next = next;
+        this.prev = prev;
     }
-
-   
-    private void readObject(java.io.ObjectInputStream s)
-        throws java.io.IOException, ClassNotFoundException {
-        elementData = EMPTY_ELEMENTDATA;
-
-        // Read in size, and any hidden stuff
-        s.defaultReadObject();
-
-        // Read in capacity
-        s.readInt(); // ignored
-
-        if (size > 0) {
-            // be like clone(), allocate array based upon size not capacity
-            int capacity = calculateCapacity(elementData, size);
-            SharedSecrets.getJavaOISAccess().checkArray(s, Object[].class, capacity);
-            ensureCapacityInternal(size);
-
-            Object[] a = elementData;
-            // Read in all elements in the proper order.
-            for (int i=0; i<size; i++) {
-                a[i] = s.readObject();
-            }
-        }
-    }
+}
 ```
 
 ## 成员变量
 
 ```java
-    // 无参构造时，默认10
-    private static final int DEFAULT_CAPACITY = 10;
-
-    // 共享的空的数组实例，当使用 ArrayList(0) 或者 ArrayList(Collection<? extends E> c), 并且 c.size() = 0 的时候讲 elementData 数组讲指向这个实例对象。
-    private static final Object[] EMPTY_ELEMENTDATA = {};
-
-    // 另一个共享空数组实例，再第一次 add 元素的时候将使用它来判断数组大小是否设置为 DEFAULT_CAPACITY
-    private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
-
-    transient Object[] elementData;
-
-    private int size;
-    
-    // 构造一个初始容量为10的空列表, 原因: 第一次添加元素肯定走进 if 判断中 minCapacity 将被赋值为 10
-    public ArrayList() {
-        this.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;
-    }
-    
-    public ArrayList(int initialCapacity) {
-        if (initialCapacity > 0) {
-            this.elementData = new Object[initialCapacity];
-        } else if (initialCapacity == 0) {
-            this.elementData = EMPTY_ELEMENTDATA;
-        } else {
-            throw new IllegalArgumentException("Illegal Capacity: "+ initialCapacity);
-        }
-    }
+transient int size = 0;		// 节点个数
+transient Node<E> first;	// 链表的第一个节点
+transient Node<E> last;		// 链表的最后一个节点
 ```
+
+## 构造函数
+
+```java
+// 空链表, first = last = null
+public LinkedList() {
+}
+
+public LinkedList(Collection<? extends E> c) {
+    this();
+    addAll(c);
+}
+```
+
+1. 检查索引值是否合法，不合法将抛出角标越界异常
+2. 保存 index 位置的节点，和 index-1 位置的节点，对于单链表熟悉的同学一定清楚对于链表的增删操作都需要两个指针变量完成。
+3. 将参数集合转化为数组，循环将数组中的元素封装为节点添加到链表中。
+4. 更新链表长度并返回添加 true 表示添加成功。
 
 ## 方法
 
-1. add()
+### 增加节点
+
+#### add
 
 ```java
-    public boolean add(E e) {
-        // 检查当前底层数组容量，如果容量不够则进行扩容
-        ensureCapacityInternal(size + 1);
-        elementData[size++] = e;
-        return true;
-    }
-    
-    // 1. 检查当前底层数组容量，如果容量不够则进行扩容
-    private void ensureCapacityInternal(int minCapacity) {
-        ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
-    }
-    
-    // 2 如果是无参构造方法构造的的集合，第一次添加元素的时候会满足这个条件 minCapacity 将会被赋值为 10
-    private static int calculateCapacity(Object[] elementData, int minCapacity) {
-        if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
-            return Math.max(DEFAULT_CAPACITY, minCapacity);
-        }
-        return minCapacity;
-    }
+// 链表尾部
+public boolean add(E e) {
+    linkLast(e);
+    return true;
+}
 
-    // 3. 将 size + 1 或 10 传入 ensureExplicitCapacity 进行扩容判断
-    private void ensureExplicitCapacity(int minCapacity) {
-        // 操作数加 1 用于保证并发访问 
-        modCount++;
+void linkLast(E e) {
+    // 保存之前链表尾部元素
+	final Node<E> l = last;
+    // 新建新节点,prev指向之前链表的last
+	final Node<E> newNode = new Node<>(l, e, null);
+    // last索引指向新建的节点
+	last = newNode;
+    // 如果之前链表为空，那么first也指向新节点
+	if (l == null)
+		first = newNode;
+	else
+		l.next = newNode;	// 将之前末节点的nect指向新节点
+	size++;
+	modCount++;
+}
 
-        // 如果当前数组的长度比添加元素后的长度要小则进行扩容 
-        if (minCapacity - elementData.length > 0)
-            grow(minCapacity);
-    }
-    
-    // 4. 扩容
-    private void grow(int minCapacity) {
-        // 获取当前 elementData 的大小，也就是 List 中当前的容量
-        int oldCapacity = elementData.length;
-        // 新容量为当前容量的 1.5 倍
-        int newCapacity = oldCapacity + (oldCapacity >> 1);
-        // 如果扩大1.5倍后仍旧比 minCapacity 小那么直接等于 minCapacity
-        if (newCapacity - minCapacity < 0)
-            newCapacity = minCapacity;
-        //如果新数组大小比  MAX_ARRAY_SIZE 就需要进一步比较 minCapacity 和 MAX_ARRAY_SIZE 的大小
-        if (newCapacity - MAX_ARRAY_SIZE > 0)
-            newCapacity = hugeCapacity(minCapacity);
-        // 使用 Arrays.copyOf 构建一个长度为 newCapacity 新数组 并将 elementData 指向新数组
-        elementData = Arrays.copyOf(elementData, newCapacity);
-    }
-    
-    // 5. 比较 minCapacity 与 Integer.MAX_VALUE-8(减少出错的几率) 的大小如果大则放弃-8的设定，设置为 Integer.MAX_VALUE 
-    private static int hugeCapacity(int minCapacity) {
-    if (minCapacity < 0) // overflow
-        throw new OutOfMemoryError();
-    return (minCapacity > MAX_ARRAY_SIZE) ?
-        Integer.MAX_VALUE :
-        MAX_ARRAY_SIZE;
-    }
+public void add(int index, E element) {
+	checkPositionIndex(index);
 
+	if (index == size)
+		linkLast(element);
+	else
+		linkBefore(element, node(index));
+}
+
+void linkBefore(E e, Node<E> succ) {
+	// assert succ != null;
+	final Node<E> pred = succ.prev;
+	final Node<E> newNode = new Node<>(pred, e, succ);
+	succ.prev = newNode;
+	if (pred == null)
+		first = newNode;
+	else
+		pred.next = newNode;
+	size++;
+	modCount++;
+}
 ```
 
-2. addAll()
+| ![](D:\Work\IDEA\maoyz.github.io\images\Java\Collection\LinkedList-add(E).gif) |
+| :----------------------------------------------------------: |
+| ![](D:\Work\IDEA\maoyz.github.io\images\Java\Collection\LinkedList-add(index, E).gif) |
+| ![](..\images\Java\Collection\LinkedList-add(index, E)-1.gif) |
+
+
+
+#### addAll
 
 ```java
-    public boolean addAll(Collection<? extends E> c) {
-        // 调用 c.toArray 将集合转化数组
-        Object[] a = c.toArray();
-        int numNew = a.length;
-        ensureCapacityInternal(size + numNew);  // Increments modCount
-        System.arraycopy(a, 0, elementData, size, numNew);
-        size += numNew;
-        return numNew != 0;
-    }
-    
-    private void rangeCheck(int index) {
-        if (index >= size)
-            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
-    }
+public boolean addAll(Collection<? extends E> c) {
+	return addAll(size, c);
+}
 
+public boolean addAll(int index, Collection<? extends E> c) {
+    // 检验索引  0 <= index <= size
+	checkPositionIndex(index);
+	// 转数组
+	Object[] a = c.toArray();
+    // 新数组长度
+	int numNew = a.length;
+	if (numNew == 0)
+		return false;
+	// 保存index当前的节点succ，当前节点的上一个节点pred
+	Node<E> pred, succ;
+    // 链表尾部插入
+	if (index == size) {
+		succ = null;
+		pred = last;
+	} else {
+		succ = node(index);
+		pred = succ.prev;
+	}
+	// 遍历数组
+	for (Object o : a) {
+		@SuppressWarnings("unchecked") E e = (E) o;
+		Node<E> newNode = new Node<>(pred, e, null);
+        // 表示链表中没有元素，元素赋值给第一个节点
+		if (pred == null)
+			first = newNode;
+		else
+			pred.next = newNode;
+		pred = newNode;
+	}
+	// index位置的元素为null
+	if (succ == null) {
+		last = pred;
+	} else {
+		pred.next = succ;
+		succ.prev = pred;
+	}
+
+	size += numNew;
+	modCount++;
+	return true;
+}
+
+Node<E> node(int index) {
+    // assert isElementIndex(index);
+    if (index < (size >> 1)) {
+        Node<E> x = first;
+        for (int i = 0; i < index; i++)
+            x = x.next;
+        return x;
+    } else {
+        Node<E> x = last;
+        for (int i = size - 1; i > index; i--)
+            x = x.prev;
+        return x;
+    }
+}
 ```
 
-3. toArray()
+#### addFirst
 
 ```java
-    public <T> T[] toArray(T[] a) {
-        // 1. 如果 a.length < size 即当前集合元素的个数与参数 a 数组元素的大小的时候将和 toArray() 一样返回一个新的数组
-        if (a.length < size)
-            return (T[]) Arrays.copyOf(elementData, size, a.getClass());
-        // 2. 将不会产生新的数组直接将集合中的元素调用 System.arraycopy 方法将元素复制到参数数组中，返回 a
-        System.arraycopy(elementData, 0, a, 0, size);
-        // 3. a.length > size 也不会产生新的数组,但是值得注意的是 a[size] = null; 改变了原数组中 index = size 位置的元素，被重新设置为 null 了
-        if (a.length > size)
-            a[size] = null;
-        return a;
-    }
+public void addFirst(E e) {
+    linkFirst(e);
+}
+
+private void linkFirst(E e) {
+	final Node<E> f = first;
+	final Node<E> newNode = new Node<>(null, e, f);
+	first = newNode;
+	if (f == null)
+		last = newNode;
+	else
+		f.prev = newNode;
+	size++;
+	modCount++;
+}
 ```
 
 
 
+#### addLast
 
-参考文章: [https://juejin.im/post/5ab548f75188257ddb0f8fa2#heading-32](https://note.youdao.com/)
+```java
+public void addLast(E e) {
+    linkLast(e);
+}
+```
+
+### 查询节点
+
+#### get
+
+```java
+public E get(int index) {
+    checkElementIndex(index);
+    return node(index).item;
+}
+```
+
+|  ![](..\images\Java\Collection\LinkedList-get(index).gif)  |
+| :--------------------------------------------------------: |
+| ![](..\images\Java\Collection\LinkedList-get(index)-1.gif) |
+
+
+
+#### getFirst
+
+```java
+public E getFirst() {
+	final Node<E> f = first;
+	if (f == null)
+		throw new NoSuchElementException();
+	return f.item;
+}
+```
+
+#### getLast
+
+```java
+public E getLast() {
+	final Node<E> l = last;
+	if (l == null)
+		throw new NoSuchElementException();
+	return l.item;
+}
+```
+
+### 修改节点
+
+#### set
+
+```java
+public E set(int index, E element) {
+    checkElementIndex(index);
+    Node<E> x = node(index);
+    E oldVal = x.item;
+    x.item = element;
+    return oldVal;
+}
+```
+
+### 删除节点
+
+#### remove
+
+```java
+public E remove() {
+    return removeFirst();
+}
+
+public E remove(int index) {
+	checkElementIndex(index);
+	return unlink(node(index));
+}
+
+public boolean remove(Object o) {
+	if (o == null) {
+		for (Node<E> x = first; x != null; x = x.next) {
+			if (x.item == null) {
+				unlink(x);
+				return true;
+			}
+		}
+	} else {
+		for (Node<E> x = first; x != null; x = x.next) {
+			if (o.equals(x.item)) {
+				unlink(x);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+E unlink(Node<E> x) {
+	// assert x != null;
+	final E element = x.item;
+	final Node<E> next = x.next;
+	final Node<E> prev = x.prev;
+
+	if (prev == null) {
+		first = next;
+	} else {
+		prev.next = next;
+		x.prev = null;
+	}
+
+	if (next == null) {
+		last = prev;
+	} else {
+		next.prev = prev;
+		x.next = null;
+	}
+
+	x.item = null;
+	size--;
+	modCount++;
+	return element;
+}
+```
+![](..\images\Java\Collection\LinkedList-remove(E).gif)
+
+#### removeFirst
+
+```java
+public E removeFirst() {
+    final Node<E> f = first;
+    if (f == null)
+        throw new NoSuchElementException();
+    return unlinkFirst(f);
+}
+
+private E unlinkFirst(Node<E> f) {
+	// assert f == first && f != null;
+	final E element = f.item;
+	final Node<E> next = f.next;
+	f.item = null;
+	f.next = null; // help GC
+	first = next;
+	if (next == null)
+		last = null;
+	else
+		next.prev = null;
+	size--;
+	modCount++;
+	return element;
+}
+```
+
+#### removeLast
+
+```java
+public E removeLast() {
+    final Node<E> l = last;
+    if (l == null)
+        throw new NoSuchElementException();
+    return unlinkLast(l);
+}
+
+private E unlinkLast(Node<E> l) {
+	// assert l == last && l != null;
+	final E element = l.item;
+	final Node<E> prev = l.prev;
+	l.item = null;
+	l.prev = null; // help GC
+	last = prev;
+	if (prev == null)
+		first = null;
+	else
+		prev.next = null;
+	size--;
+	modCount++;
+	return element;
+}
+```
+
+
+
+参考文章：
+
+https://github.com/Snailclimb/JavaGuide/blob/master/docs/java/collection/LinkedList.md
+
+https://github.com/Snailclimb/JavaGuide/blob/master/docs/java/collection/LinkedList.md
+
+https://www.cnblogs.com/xdecode/p/9321848.html

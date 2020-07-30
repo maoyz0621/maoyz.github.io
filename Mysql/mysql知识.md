@@ -218,6 +218,45 @@ count(distinct col_name)
 
 如果查询不重复的记录，可以使用group by
 
+## case
+
+条件查询
+
+```mysql
+// 简单
+CASE case_value
+    WHEN when_value THEN statement_list
+    [WHEN when_value THEN statement_list] ...
+    [ELSE statement_list]
+END CASE
+
+// 搜索    
+CASE
+    WHEN search_condition THEN statement_list
+    [WHEN search_condition THEN statement_list] ...
+    [ELSE statement_list]
+END CASE
+```
+
+```mysql
+select id, `name`, 
+(case `gender`
+    when 1 then '男'
+    when 2 then '女'
+    else '未知'
+end) as gender,
+
+country_code,
+
+(case 
+    when country_code = 100 then '中国'
+    when country_code = 110 then '英国'
+    when country_code = 120 then '法国'
+	else '美国' 
+end) as country
+from test_user;
+```
+
 
 
 ## 多表update

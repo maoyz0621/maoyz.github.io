@@ -14,6 +14,8 @@
 public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable
 ```
 
+![](..\images\Java\Collection\ArrayList继承.png)
+
 - 实现 `RandomAccess` 标记接口  
 
 1. 表明List提供了随机访问功能，也就是通过下标获取元素对象的功能。之所以是标记接口，是该类本来就具有某项能力，使用接口对其进行标签化，便于其他的类对其进行识别（instanceof）
@@ -190,7 +192,7 @@ private static int calculateCapacity(Object[] elementData, int minCapacity) {
 }
 ```
 
-![](..\images\Java\ArrayList-add1.gif)
+![](..\images\Java\Collection\ArrayList-add1.gif)
 
 总结：
 
@@ -222,7 +224,7 @@ private void rangeCheck(int index) {
 }
 ```
 
-![](..\images\Java\ArrayList-add.gif)
+![](..\images\Java\Collection\ArrayList-add.gif)
 
 ### addAll
 
@@ -311,7 +313,7 @@ public E remove(int index) {
 
 删除指定位置的元素，将任何后续元素移动到左侧（从其索引中减去一个元素）
 
-![](..\images\Java\ArrayList-remove.gif)
+![](..\images\Java\Collection\ArrayList-remove.gif)
 
 ```java
 public boolean remove(Object o) {
@@ -347,7 +349,7 @@ private void fastRemove(int index) {
 
 从列表中删除指定元素的第一个出现（如果存在）。 如果列表不包含该元素，则它不会更改。
 
-### toArray()
+### toArray
 
 ```java
 /**
@@ -379,9 +381,7 @@ public <T> T[] toArray(T[] a) {
 }
 ```
 
-`System.arraycopy()` 和`Arrays.copyOf()`联系和区别：
-
- 
+`System.arraycopy()` （浅拷贝）和`Arrays.copyOf()`联系和区别：
 
 ```java
 # System.arraycopy()
@@ -389,7 +389,7 @@ src - the source array.                               源数组
 srcPos - starting position in the source array.       从源数组的起始位置开始
 dest - the destination array.                         目标数组
 destPos - starting position in the destination data.  目标数组的开始起始位置
-length - the number of array elements to be copied.   要copy的数组的长度 
+length - the number of array elements to be copied.   要copy的数组的长度
 
 # Arrays
 public static <T,U> T[] copyOf(U[] original, int newLength, Class<? extends T[]> newType) {
@@ -417,31 +417,39 @@ public static <T,U> T[] copyOf(U[] original, int newLength, Class<? extends T[]>
 public void list2Array() {
 	List<Integer> lists = Lists.newArrayList(1, 2, 3, 4);
 	// 注意：强制转换异常 java.lang.ClassCastException: [Ljava.lang.Object; cannot be cast to [Ljava.lang.Integer;
-	// Integer[] array = (Integer[]) lists.toArray();
-	Object[] objects = lists.toArray();
-    // [1, 2, 3, 4]
+	// List<Integer> lists = Lists.newArrayList(1, 2, 3, 4);
+    Object[] objects = lists.toArray();
     System.out.println(Arrays.toString(objects));
-    
-	// toArray(T[] a)指定类型
-    Integer[] array0 = lists.toArray(new Integer[2]);
-    // [1, 2, 3, 4]
-    System.out.println(Arrays.toString(array0));
-    
-    Integer[] array = lists.toArray(new Integer[lists.size()]);
-    // [1, 2, 3, 4]
-    System.out.println(Arrays.toString(array));
 
-    Integer[] array1 = lists.toArray(new Integer[6]);
-    // [1, 2, 3, 4, null, null]
-    System.out.println(Arrays.toString(array1));
-    
+    ///////////////////////////////// toArray(T[] a)指定类型 ////////////////////////////////////
+    Integer[] lenLess = new Integer[2];
+    Integer[] array0 = lists.toArray(lenLess);
+    // 传入数组长度 < list的长度，新建数组：false [1, 2, 3, 4]
+    System.out.println("是否新数组:" + (lenLess == array0) + "  " + Arrays.toString(array0));
+
+    // len相同
+    Integer[] lenEqual = new Integer[lists.size()];
+    Integer[] array = lists.toArray(lenEqual);
+    // 传入数组长度 = list的长度，数组copy：true [1, 2, 3, 4]
+    System.out.println("是否新数组:" + (lenEqual == array) + " " + Arrays.toString(array));
+
+    // 数组 > list
+    Integer[] lenMore = new Integer[6];
+    Integer[] array1 = lists.toArray(lenMore);
+    // 传入数组长度 > list的长度，数组copy：true [1, 2, 3, 4, null, null]
+    System.out.println("是否新数组:" + (lenMore == array1) + " " + Arrays.toString(array1));
+
+    // length < list长度，新建数组
     Integer[] i0 = {1, 1};
-	// [1, 2, 3, 4]
-	System.out.println(Arrays.toString(lists.toArray(i0)));
-    
+    Integer[] toArray = lists.toArray(i0);
+    // false [1, 2, 3, 4]
+    System.out.println((i0 == toArray) + " " + Arrays.toString(toArray));
+
+    // length > list长度，数组copy
     Integer[] i = {1, 1, 1, 1, 1, 1, 5, 6};
-    // [1, 2, 3, 4, null, 1, 5, 6]
-    System.out.println(Arrays.toString(lists.toArray(i)));
+    Integer[] array2 = lists.toArray(i);
+    // true [1, 2, 3, 4, null, 1, 5, 6]
+    System.out.println((i == array2) + " " + Arrays.toString(array2));
 }
 
 /**
@@ -454,9 +462,77 @@ public void list2ArrayPrimitive() {
 }
 ```
 
+## 迭代器Iterator
 
-参考文章: [https://juejin.im/post/5ab548f75188257ddb0f8fa2#heading-32](https://note.youdao.com/)
+- 元素：
+
+```java
+int cursor;       // index of next element to return 游标
+int lastRet = -1; // index of last element returned; -1 if no such
+int expectedModCount = modCount;	// 初始化的时候将其赋值为当前集合中的操作数
+```
+
+- 方法：
+
+```java
+// 
+public boolean hasNext() {
+    return cursor != size;
+}
+
+@SuppressWarnings("unchecked")
+public E next() {
+    // 验证期望操作数和当前的操作数是否相同 ConcurrentModificationException
+    checkForComodification();
+    // 初始cursor = 0
+    int i = cursor;
+    // 索引大于数组的长度 NoSuchElementException
+    if (i >= size)
+        throw new NoSuchElementException();
+    // 指向当前ArrayList对象，而不是this，this指向了Iterator
+    Object[] elementData = ArrayList.this.elementData;
+    // 判断是否越界
+    if (i >= elementData.length)
+        throw new ConcurrentModificationException();
+    // 索引+1
+    cursor = i + 1;
+    // 返回集合对应位置的元素，并将索引赋值给lastRet,其初始为-1，游标cursor比lastRet少1
+    return (E) elementData[lastRet = i];
+}
+
+public void remove() {
+    // 如果Iterator没有调用netx()方法，就直接使用remove()，由于lastRet=-1，抛出异常
+    if (lastRet < 0)
+        throw new IllegalStateException();
+    // 验证期望操作数和当前的操作数
+    checkForComodification();
+    try {
+        // 移除上次next的元素
+        ArrayList.this.remove(lastRet);
+        // 集合中少一个元素，游标cursor向前移动一个位置（next()中cursor = lastRet + 1）
+        cursor = lastRet;
+        // 删除元素之后，赋值-1，确保第一步的判断 lastRet < 0
+        lastRet = -1;
+        // 由于实际删除操作remove(lastRet)中，modCount++，所有需要修改期望操作数
+        expectedModCount = modCount;
+    } catch (IndexOutOfBoundsException ex) {
+        throw new ConcurrentModificationException();
+    }
+}
+
+final void checkForComodification() {
+    if (modCount != expectedModCount)
+        throw new ConcurrentModificationException();
+}
+```
+
+
+
+参考文章:
+
+[https://juejin.im/post/5ab548f75188257ddb0f8fa2#heading-32](https://note.youdao.com/)
 
 https://www.cnblogs.com/xdecode/p/9321848.html
 
 https://segmentfault.com/a/1190000009922279
+
