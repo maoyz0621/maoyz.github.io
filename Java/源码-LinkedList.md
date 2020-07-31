@@ -10,7 +10,7 @@
 
 ## 继承关系
 
-![](..\images\Java\Collection\LinkedList继承.png)
+![](image\Java\Collection\LinkedList继承.png)
 
 实现了List接口和Deque接口的双端链表
 
@@ -117,7 +117,7 @@ void linkBefore(E e, Node<E> succ) {
 | ![](D:\Work\IDEA\maoyz.github.io\images\Java\Collection\LinkedList-add(E).gif) |
 | :----------------------------------------------------------: |
 | ![](D:\Work\IDEA\maoyz.github.io\images\Java\Collection\LinkedList-add(index, E).gif) |
-| ![](..\images\Java\Collection\LinkedList-add(index, E)-1.gif) |
+| ![](image\\Java\Collection\LinkedList-add(index, E)-1.gif) |
 
 
 
@@ -228,9 +228,9 @@ public E get(int index) {
 }
 ```
 
-|  ![](..\images\Java\Collection\LinkedList-get(index).gif)  |
+|  ![](image\\Java\Collection\LinkedList-get(index).gif)  |
 | :--------------------------------------------------------: |
-| ![](..\images\Java\Collection\LinkedList-get(index)-1.gif) |
+| ![](image\\Java\Collection\LinkedList-get(index)-1.gif) |
 
 
 
@@ -329,7 +329,7 @@ E unlink(Node<E> x) {
 	return element;
 }
 ```
-![](..\images\Java\Collection\LinkedList-remove(E).gif)
+![](image\\Java\Collection\LinkedList-remove(E).gif)
 
 #### removeFirst
 

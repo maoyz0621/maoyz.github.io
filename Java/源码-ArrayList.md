@@ -14,7 +14,7 @@
 public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable
 ```
 
-![](..\images\Java\Collection\ArrayList继承.png)
+![](image\Java\Collection\ArrayList继承.png)
 
 - 实现 `RandomAccess` 标记接口  
 
@@ -192,7 +192,7 @@ private static int calculateCapacity(Object[] elementData, int minCapacity) {
 }
 ```
 
-![](..\images\Java\Collection\ArrayList-add1.gif)
+![](image\Java\Collection\ArrayList-add1.gif)
 
 总结：
 
@@ -224,7 +224,7 @@ private void rangeCheck(int index) {
 }
 ```
 
-![](..\images\Java\Collection\ArrayList-add.gif)
+![](image\\Java\Collection\ArrayList-add.gif)
 
 ### addAll
 
@@ -313,7 +313,7 @@ public E remove(int index) {
 
 删除指定位置的元素，将任何后续元素移动到左侧（从其索引中减去一个元素）
 
-![](..\images\Java\Collection\ArrayList-remove.gif)
+![](image\\Java\Collection\ArrayList-remove.gif)
 
 ```java
 public boolean remove(Object o) {

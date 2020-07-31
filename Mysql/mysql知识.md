@@ -1,7 +1,3 @@
----
-typora-root-url: ..\images
----
-
 # Mysql
 
 ## 引擎
@@ -98,14 +94,13 @@ SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
 SELECT any_value(id) id, any_value(student) student, any_value(class) class, any_value(score) score FROM `courses` GROUP BY `class`;
 ```
 
-![image-20200316175352106](..\images\MySQL示例\MySQL示例\image-20200316175352106.png)
-	
+![](image\MySQL示例\image-20200316175352106.png)
 
 ```mysql
 SELECT any_value(id) id, any_value(student) student, any_value(class) class, any_value(score) score FROM `courses` GROUP BY `score`;
 ```
 
-![image-20200316175445554](..\images\MySQL示例\image-20200316175445554.png)
+![image-20200316175445554](image\MySQL示例\image-20200316175445554.png)
 
 
 
@@ -123,7 +118,7 @@ GROUP BY
 
 |               group_concat(DISTINCT, ORDER BY)               |
 | :----------------------------------------------------------: |
-| ![image-20200319105005691](..\images\MySQL示例\image-20200319105005691.png) |
+| ![image-20200319105005691](image\MySQL示例\image-20200319105005691.png) |
 
 
 
@@ -131,14 +126,14 @@ GROUP BY
 SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` GROUP BY class, student;
 ```
 
-![image-20200316175635932](..\images\MySQL示例\image-20200316175635932.png)
+![image-20200316175635932](image\MySQL示例\image-20200316175635932.png)
 
 
 ```mysql
 SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` GROUP BY student, class;
 ```
 
-![image-20200316180009458](..\images\MySQL示例\image-20200316180009458.png)
+![image-20200316180009458](MySQL示例\image-20200316180009458.png)
 
 ```mysql
 -- 我们需要学生的成绩表，且每个学生每科的成绩按照由大到小的顺序排列
@@ -149,11 +144,11 @@ SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` G
 SELECT any_value(id) id, student, class, any_value(score) score FROM `courses` GROUP BY `student`,`class` ORDER BY `student`,`score` DESC;
 ```
 
-![image-20200316181242659](..\images\MySQL示例\image-20200316181242659.png)
+![image-20200316181242659](image\MySQL示例\image-20200316181242659.png)
 
 
 
-![image-20200316181317503](..\images\MySQL示例\image-20200316181317503.png)
+![image-20200316181317503](image\MySQL示例\image-20200316181317503.png)
 
  
 
@@ -303,13 +298,13 @@ alter table test_01 modify create_time timestamp not null default CURRENT_TIMEST
 
 |                     更新字段前 查询结果                      |                     更新字段后 查询结果                      |
 | :----------------------------------------------------------: | :----------------------------------------------------------: |
-| ![image-20200320100020644](..\images\MySQL示例\image-20200320100020644-1588128386148.png) | ![image-20200320100715305](..\images\MySQL示例\image-20200320100715305.png) |
+| ![image-20200320100020644](image\MySQL示例\image-20200320100020644-1588128386148.png) | ![image-20200320100715305](image\MySQL示例\image-20200320100715305.png) |
 
 + NULL 和 '空值'的length
 
-  |                                                              |
-  | :----------------------------------------------------------: |
-  | ![image-20200320101126970](..\images\MySQL示例\image-20200320101126970.png) |
+  |                                                  |
+  | :----------------------------------------------: |
+  | ![](image\MySQL示例\image-20200320101126970.png) |
 
   
 ## 索引
@@ -321,7 +316,7 @@ show index from table_name;
 
 表索引user_id、create_at、order_status
 
-![](..\images\索引示例.png)
+![](image\索引示例.png)
 
 #### 一个条件查询
 
@@ -335,7 +330,7 @@ explain select * from orders where created_at = '2020-06-30 11:37:26';
 ```
 
 
-![image-20200630163807049](..\images\MySQL示例\image-20200630163807049.png)
+![image-20200630163807049](image\MySQL示例\image-20200630163807049.png)
 
  2.使用不等号
 
@@ -347,7 +342,7 @@ explain select * from orders where created_at < '2020-06-30 11:37:26';
 
 
 
-![image-20200630163851991](..\images\MySQL示例\image-20200630163851991.png)
+![image-20200630163851991](image\MySQL示例\image-20200630163851991.png)
 
 
 ### OR查询
@@ -363,9 +358,9 @@ explain select * from orders where id = 5476337 OR status = '2';
 explain select * from orders where id = 5476337 OR created_at = '2020-06-30 11:37:26';
 ```
 
-![image-20200630165120920](..\images\MySQL示例\image-20200630165120920.png)
+![image-20200630165120920](image\MySQL示例\image-20200630165120920.png)
 
-![image-20200630165152342](..\images\MySQL示例\image-20200630165152342.png)
+![image-20200630165152342](image\MySQL示例\image-20200630165152342.png)
 
 
 
@@ -376,9 +371,9 @@ explain select * from orders where id = 5476337 OR status != '2';
 explain select * from orders where id = 5476337 OR created_at < '2020-06-30 11:37:26';
 ```
 
-![image-20200630165232698](..\images\MySQL示例\image-20200630165232698.png)
+![image-20200630165232698](image\MySQL示例\image-20200630165232698.png)
 
-![image-20200630165308229](..\images\MySQL示例\image-20200630165308229.png)
+![image-20200630165308229](image\MySQL示例\image-20200630165308229.png)
 
 
 
@@ -389,7 +384,7 @@ explain select * from orders where (status = 2 or status = 3);
 explain select * from orders where status in (2,3)
 ```
 
-![image-20200630170832795](..\images\MySQL示例\image-20200630170832795.png)
+![image-20200630170832795](image\MySQL示例\image-20200630170832795.png)
 
 
 
@@ -402,7 +397,7 @@ union all
 	select * from orders where status =3;
 ```
 
-![image-20200630170925702](..\images\MySQL示例\image-20200630170925702.png)
+![image-20200630170925702](image\MySQL示例\image-20200630170925702.png)
 
 #### 筛选条件包含三个等号条件，不走索引，全表扫描
 
@@ -411,7 +406,7 @@ explain select * from orders where id = 5476337 OR status = '2' OR created_at = 
 ```
 
 
-![image-20200630165515228](..\images\MySQL示例\image-20200630165515228.png)
+![image-20200630165515228](image\MySQL示例\image-20200630165515228.png)
 
 
 
@@ -470,7 +465,7 @@ union联表查询去重，union all不会去重
 
 
 
-![sql join](..\images\MySQL\sql join.png)
+![sql join](image\MySQL\sql join.png)
 
 
 

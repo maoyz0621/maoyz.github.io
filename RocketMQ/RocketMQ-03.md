@@ -4145,7 +4145,7 @@ if (DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval() > 0) 
 
 ##### 4.消息拉取总结
 
-![](img/消息拉取流程总结.png)
+<img src="img/消息拉取流程总结.png" style="zoom:80%;" />
 
 #### 4）消息拉取长轮询机制分析
 
