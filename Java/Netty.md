@@ -12,7 +12,7 @@
 
 #### 传统阻塞IO
 
-![传统IO](image\netty\\传统IO.png)
+<img src="image/netty/传统IO.png" alt="传统IO" style="zoom:80%;" />
 
 #### Reactor模式
 
@@ -26,7 +26,7 @@ Reactor模式中的三种角色：
 
 ##### 1) 单Reactor单线程
 
-![单Reactor单线程](image\netty\\单Reactor单线程.png)
+<img src="image/netty/单Reactor单线程.png" alt="单Reactor单线程" style="zoom:80%;" />
 
 其中Reactor和Handler处于同一条线程执行，Acceptor可以看作是特殊的Handler．
 
@@ -38,7 +38,7 @@ Reactor模式中的三种角色：
 
 ##### 2) 单Reactor多线程
 
-![单Reactor多线程](image\netty\\单Reactor多线程.png)
+<img src="image/netty/单Reactor多线程.png" alt="单Reactor多线程" style="zoom:80%;" />
 
 Handler处理器的执行放在线程池中，多线程处理业务；Reactor独立的线程．
 
@@ -53,14 +53,14 @@ Handler处理器的执行放在线程池中，多线程处理业务；Reactor独
 
 
 
-![主从Reactor多线程](image\netty\\主从Reactor多线程.png)
+<img src="image/netty/主从Reactor多线程.png" alt="主从Reactor多线程" style="zoom:80%;" />
 
 **mainReactor**负责监听ServerSocket，用来处理client新连接的建立，将建立的SocketChannel指定注册subReactor其中一个线程上。
 **subReactor**维护自己的Selector, 基于mainReactor 注册的socketChannel多路分离IO读写事件，读写网络数据，对业务处理的功能，另其扔给worker线程池来完成。
 
 Netty基于此，做了改进
 
-![](image\netty\\Netty.png)
+![](image/netty/Netty.png)
 
 其工作原理
 
@@ -84,7 +84,7 @@ work NioEventLoop循环任务：
 
 work NioEventLoop处理业务时，使用Pipeline（管道），通过Pipeline可以获取到对应的Channel，Pipeline维护了很多的Handler
 
-![](image\netty\\Netty具体线程模型
+![](image/netty/Netty具体线程模型
 .png)
 
 
@@ -189,13 +189,13 @@ ChannelPipeline
 
 
 
-![](image\netty\\ChannelPipeline.png)
+![](image/netty/ChannelPipeline.png)
 
 ChannelPipeline 中维护的，是一个由 ChannelHandlerContext 组成的双向链表。这个链表的头是 HeadContext, 链表的尾是 TailContext。而无状态的Handler，作为Context的成员，关联在ChannelHandlerContext 中。在对应关系上，每个 ChannelHandlerContext 中仅仅关联着一个 ChannelHandler。
 
 
 
-![](image\netty\\ChannelHandlerContext.png)
+![](image/netty/ChannelHandlerContext.png)
 
 执行流程：
 

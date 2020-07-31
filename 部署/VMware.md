@@ -2,18 +2,18 @@
 
 ## 克隆
 
-| ![](image\VMware\克隆1.jpg) |
+| ![](image/VMware/克隆1.jpg) |
 | :-----------------------------: |
-| ![](image\VMware\克隆2.jpg) |
-| ![](image\VMware\克隆3.jpg) |
+| ![](image/VMware/克隆2.jpg) |
+| ![](image/VMware/克隆3.jpg) |
 
 
 
 ## 修改linux参数
 
-| ![](image\VMware\修改1.jpg) |
+| ![](image/VMware/修改1.jpg) |
 | :-----------------------------: |
-| ![](image\VMware\修改2.jpg) |
+| ![](image/VMware/修改2.jpg) |
 
 首先从VMware获取新的mac地址：00:50:56:38:53:6F，也就是step 3的值。
 
