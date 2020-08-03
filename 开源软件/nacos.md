@@ -1,5 +1,32 @@
 # Nacos
 
+## 微服务注册中心
+
+<img src="image/Nacos/注册中心.jpg" style="zoom:60%;" />
+
+- 各注册中心对比
+
+|| Nacos           | **Eureka**                 | **Consul**  | **CoreDNS**       | **Zookeeper** |
+| :-------------- | :------------------------- | :---------- | :---------------- | :------------ | :--------- |
+| 一致性协议      | CP+AP                      | AP          | CP                | —             | CP         |
+| 健康检查        | TCP/HTTP/MYSQL/Client Beat | Client Beat | TCP/HTTP/gRPC/Cmd | —             | Keep Alive |
+| 负载均衡策略    | 权重/ metadata/Selector    | Ribbon      | Fabio             | RoundRobin    | —          |
+| 雪崩保护        | 有                         | 有          | 无                | 无            | 无         |
+| 自动注销实例    | 支持                       | 支持        | 不支持            | 不支持        | 支持       |
+| 访问协议        | HTTP/DNS                   | HTTP        | HTTP/DNS          | DNS           | TCP        |
+| 监听支持        | 支持                       | 支持        | 支持              | 不支持        | 支持       |
+| 多数据中心      | 支持                       | 支持        | 支持              | 不支持        | 不支持     |
+| 跨注册中心同步  | 支持                       | 不支持      | 支持              | 不支持        | 不支持     |
+| SpringCloud集成 | 支持                       | 支持        | 支持              | 不支持        | 不支持     |
+| Dubbo集成       | 支持                       | 不支持      | 不支持            | 不支持        | 支持       |
+| K8S集成         | 支持                       | 不支持      | 支持              | 支持          | 不支持     |
+
+## Nacos简介
+
+<img src="image/Nacos/Nacos-服务发现模型.jpg" style="zoom:60%;" />
+
+Nacos的 **服务-集群-实例** 三层模型
+
 ## Nacos启动
 
 ununtu系统启动Nacos，`sh startup.sh -m standalone` 报java.io.FileNotFoundException: /opt/nacos/conf/cluster.conf (没有那个文件或目录)
@@ -51,6 +78,41 @@ export JAVA_HOME CLASSPATH PATH
 ```shell
 sh startup.sh -m standalone
 ```
+
+启动success，**Running in stand alone mode**
+
+```
+        ,--.
+       ,--.'|
+   ,--,:  : |                                           Nacos 1.3.1
+,`--.'`|  ' :                       ,---.               Running in stand alone mode, All function modules
+|   :  :  | |                      '   ,'\   .--.--.    Port: 8848
+:   |   \ | :  ,--.--.     ,---.  /   /   | /  /    '   Pid: 13528
+|   : '  '; | /       \   /     \.   ; ,. :|  :  /`./   Console: http://192.168.107.100:8848/nacos/index.html
+'   ' ;.    ;.--.  .-. | /    / ''   | |: :|  :  ;_
+|   | | \   | \__\/: . ..    ' / '   | .; : \  \    `.      https://nacos.io
+'   : |  ; .' ," .--.; |'   ; :__|   :    |  `----.   \
+|   | '`--'  /  /  ,.  |'   | '.'|\   \  /  /  /`--'  /
+'   : |     ;  :   .'   \   :    : `----'  '--'.     /
+;   |.'     |  ,     .-./\   \  /            `--'---'
+'---'        `--`---'     `----'
+
+2020-07-29 23:42:18,029 INFO Bean 'org.springframework.security.config.annotation.configuration.ObjectPostProcessorConfiguration' of type [org.springframework.security.config.annotation.configuration.ObjectPostProcessorConfiguration$$EnhancerBySpringCGLIB$$22465265] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+
+...
+
+2020-07-29 23:42:19,313 INFO Tomcat initialized with port(s): 8848 (http)
+2020-07-29 23:42:19,575 INFO Root WebApplicationContext: initialization completed in 5550 ms
+2020-07-29 23:42:23,813 INFO Initializing ExecutorService 'applicationTaskExecutor'
+2020-07-29 23:42:24,015 INFO Adding welcome page: class path resource [static/index.html]
+2020-07-29 23:42:24,585 INFO Creating filter chain: Ant [pattern='/**'], []
+
+...
+
+2020-07-29 23:42:24,941 INFO Nacos started successfully in stand alone mode. use embedded storage
+```
+
+
 
 ### 集群启动
 
@@ -104,10 +166,33 @@ db.user=root
 db.password=root
 ```
 
-出现如下提示，表示Success
+出现如下提示，表示Success  **Running in cluster mode**
 
 ```
 
+         ,--.
+       ,--.'|
+   ,--,:  : |                                           Nacos 1.3.1
+,`--.'`|  ' :                       ,---.               Running in cluster mode, All function modules
+|   :  :  | |                      '   ,'\   .--.--.    Port: 8848
+:   |   \ | :  ,--.--.     ,---.  /   /   | /  /    '   Pid: 17965
+|   : '  '; | /       \   /     \.   ; ,. :|  :  /`./   Console: http://192.168.107.128:8848/nacos/index.html
+'   ' ;.    ;.--.  .-. | /    / ''   | |: :|  :  ;_
+|   | | \   | \__\/: . ..    ' / '   | .; : \  \    `.      https://nacos.io
+'   : |  ; .' ," .--.; |'   ; :__|   :    |  `----.   \
+|   | '`--'  /  /  ,.  |'   | '.'|\   \  /  /  /`--'  /
+'   : |     ;  :   .'   \   :    : `----'  '--'.     /
+;   |.'     |  ,     .-./\   \  /            `--'---'
+'---'        `--`---'     `----'
+
+2020-07-29 23:37:03,609 INFO The server IP list of Nacos is [192.168.107.128:8848, 192.168.107.129:8848, 192.168.107.130:8848]
+
+2020-07-29 23:37:20,042 INFO Nacos is starting...
+2020-07-29 23:37:20,346 INFO Nacos Log files: /opt/nacos/logs
+2020-07-29 23:37:20,348 INFO Nacos Log files: /opt/nacos/conf
+2020-07-29 23:37:20,348 INFO Nacos Log files: /opt/nacos/data
+
+2020-07-29 23:37:20,348 INFO Nacos started successfully in cluster mode. use external storage
 ```
 
 
@@ -174,15 +259,15 @@ spring:
 
 - `file-extension` 文件后缀名
 
-  ![](..\images\Nacos\Nacos Config.jpg)
+  
 
 - 创建命名空间namespace
 
-![](..\images\Nacos\Nacos-namespace.png)
+![](image/Nacos/Nacos-namespace.png)
 
 - 不同命名空间下的配置文件
 
-![](..\images\Nacos\Nacos-env.png)
+![](image/Nacos/Nacos-env.png)
 
 
 
@@ -220,7 +305,7 @@ spring:
 # 扩展配置优先级是 ext-config[n].data-id 其中 n 的值越大，优先级越高。通过内部相关规则(应用名、扩展名 )自动生成相关的 Data Id 配置的优先级最大。
 ```
 
-![](..\images\Nacos\Nacos-config-ext.png)
+![](image/Nacos/Nacos-config-ext.png)
 
 ## 命名空间
 
@@ -233,3 +318,11 @@ Nacos 中的某个配置集的 ID。配置集 ID 是组织划分配置的维度�
 ## 配置分组
 
 Nacos 中的一组配置集，是组织配置的维度之一。通过一个有意义的字符串（如 Buy 或 Trade ）对配置集进行分组，从而区分 Data ID 相同的配置集。当您在 Nacos 上创建一个配置时，如果未填写配置分组的名称，则配置分组的名称默认采用 DEFAULT_GROUP 。配置分组的常见场景：**不同的应用或组件使用了相同的配置类型**，如 database_url 配置和 MQ_topic 配置。
+
+
+
+
+
+参考文章：
+
+https://developer.aliyun.com/article/698930
