@@ -73,9 +73,9 @@ static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
 static final int MAXIMUM_CAPACITY = 1 << 30;
 // 默认加载因子
 static final float DEFAULT_LOAD_FACTOR = 0.75f;
-// 当桶(bucket)上的结点数大于这个值时会转成红黑树
+// 当桶(bucket)上的结点数大于这个值（8）时会转成红黑树
 static final int TREEIFY_THRESHOLD = 8;
-// 当桶(bucket)上的结点数小于这个值时树转链表
+// 当桶(bucket)上的结点数小于这个值（6）时树转链表
 static final int UNTREEIFY_THRESHOLD = 6;
 // 桶中结构转化为红黑树对应的table的最小大小
 static final int MIN_TREEIFY_CAPACITY = 64;
@@ -187,38 +187,39 @@ static final int hash(Object key) {
 ```java
 final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
     Node<K,V>[] tab; Node<K,V> p; int n, i;	// tab 存放当前的哈希桶; p 临时链表节点
-    // 当前哈希桶是空的，初始化
+    // 1 如果当前哈希桶是空的，初始化
     if ((tab = table) == null || (n = tab.length) == 0)
         n = (tab = resize()).length;  // 扩容，新数组的长度赋值给n
     // 当前节点的index = 数组长度-1 & hash值
-    // 如果当前节点是空，说明没有发生hash碰撞，直接存放在index位置处
+    // 2 如果当前节点是空，说明没有发生hash碰撞，直接存放在index位置处
     if ((p = tab[i = (n - 1) & hash]) == null)
         tab[i] = newNode(hash, key, value, null);
     else {  // 发生hash碰撞
         Node<K,V> e; K k;
-        // 如果hash值相等，且key也相等，覆盖val
+        // 3 如果hash值相等，且key也相等，覆盖val
         if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
             e = p;  // 将当前节点赋值给e
-        else if (p instanceof TreeNode)  // 红黑树
+        else if (p instanceof TreeNode)  // 4 红黑树
             e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
-        else {  // 插入普通链表
+        else {  // 5 插入普通链表
             for (int binCount = 0; ; ++binCount) {
                 // 遍历到尾部，追加新节点到尾部;注意这个地方跟Java7不一样，是插在链表尾部！！！
                 if ((e = p.next) == null) {
                     p.next = newNode(hash, key, value, null);
-                    // 如果追加节点之后，链表数量>=8
+                    // 6 如果追加节点之后，链表数量>=8
                     if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
                         treeifyBin(tab, hash);
                     break;
                 }
-                // 链表中已存在且hash值和key值都相等，先获取引用，后面用来替换值
+                // 7 链表中已存在且hash值和key值都相等，先获取引用，后面用来替换值
                 if (e.hash == hash && ((k = e.key) == key || (key != null && key.equals(k))))
                     break;
+                // 如果链表中遍历到尾部，此时e = null
                 p = e;
             }
         }
         
-        // 说明有需要覆盖的节点
+        // 8 说明有需要覆盖的节点
         if (e != null) { // existing mapping for key
             // 覆盖节点值，返回旧值
             V oldValue = e.value;
@@ -234,13 +235,23 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
     
     
     ++modCount;
-    // 更新size，并判断是否需要扩容
+    // 9 更新size，并判断是否需要扩容
     if (++size > threshold)
         resize();
     afterNodeInsertion(evict);
     return null;
 }
 ```
+
+1. 判断当前桶是否为空，空就初始化，resize判断是否进行初始化
+2. 根据当前key的hashcode定位到具体的桶位置并判断是否为空，为空说明没有hash冲突，直接在该位置新建一个Node
+3. 如果当前桶位置有值（Hash冲突），比较当前的key、key的hashcode，相同旧覆盖
+4. 如果当前桶位置是红黑树，按照红黑树的方式写入数据
+5. 如果是链表，封装new Node插入当前同位置的尾部
+6. 接着判断当前链表的大小是否大于预设的阀值（8），大于就需要转换为红黑树
+7. 在遍历过程中如果找到key相同时就退出遍历
+8. 如果 e != null，说明存在相同的key，就需要覆盖
+9. 最后判断是否需要扩容
 
 - 扩容
 
@@ -275,8 +286,7 @@ final Node<K,V>[] resize() {
     if (newThr == 0) {
         float ft = (float)newCap * loadFactor;	// 根据新容量和新加载因子计算阀值
         // 越界修复
-        newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
-                  (int)ft : Integer.MAX_VALUE);
+        newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ? (int)ft : Integer.MAX_VALUE);
     }
     threshold = newThr;	  // 更新阀值
     
@@ -290,7 +300,7 @@ final Node<K,V>[] resize() {
             Node<K,V> e;  // 取出当前的节点
             if ((e = oldTab[j]) != null) {
                 oldTab[j] = null;  // 置空
-                // 当前链表只有一个元素（没有发生哈希碰撞）
+                // 当前index位置链表只有一个元素（没有发生哈希碰撞）
                 if (e.next == null)
                     newTab[e.hash & (newCap - 1)] = e;
                 // 发生哈希碰撞，且节点数超过8个，转为红黑树
@@ -343,7 +353,7 @@ final Node<K,V>[] resize() {
 }
 ```
 
-**初始化或加倍哈希桶大小。如果是当前哈希桶是null,分配符合当前阈值的初始容量目标。否则，因为我们扩容成以前的两倍。**
+**初始化或加倍哈希桶大小。如果当前哈希桶是null,分配符合当前阈值的初始容量目标。否则，扩容成以前的两倍。**
 
 **在扩容时，要注意区分以前在哈希桶相同index的节点，现在是在以前的index里，还是index+oldCap里**
 
@@ -413,6 +423,20 @@ final Node<K,V> getNode(int hash, Object key) {
     return null;
 }
 ```
+
+1. 首先将key hash之后获取桶位置
+
+2. 如果桶为空则直接返回null
+
+3. 判断桶的第一个位置的key是否为查询的key，是就直接返回val
+
+4. 如果第一个不匹配，判断下一个是红黑树还是链表
+
+5. 红黑树就按照树的查询方式
+
+6. 链表按照链表的方式遍历匹配值返回
+
+   O(logn)
 
 #### getOrDefault
 
@@ -534,3 +558,7 @@ https://juejin.im/post/599652796fb9a0249975a318#heading-6
 https://www.cnblogs.com/xdecode/p/9321848.html
 
 https://juejin.im/post/5a23f82ff265da432003109b#heading-12
+
+https://juejin.im/post/5dee6f54f265da33ba5a79c8
+
+https://zhuanlan.zhihu.com/p/28501879

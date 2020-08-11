@@ -169,6 +169,14 @@ SQL执行顺序：
 
 数据库编码需要使用utf8mb4 ，排序规则需要使用 utf8mb4_general_ci
 
+- MySQL查询重复出现次数最多的记录
+
+```mysql
+SELECT keyword, count( * ) AS count  FROM table  GROUP BY keyword  HAVING count > 1 ORDER BY count DESC  LIMIT 20
+```
+
+
+
 ## distinct
 
 distinct去重，首先distinct必须放在查询字段的开头，如果放在中间或末尾，mysql会报错。
