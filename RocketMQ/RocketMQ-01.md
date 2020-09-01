@@ -4,7 +4,7 @@
 
 消息队列是一种“先进先出”的数据结构
 
-![](img/queue1.png)
+<img src="img/queue1.png" style="zoom:80%;" />
 
 其应用场景主要包含以下3个方面
 
@@ -111,7 +111,7 @@ RocketMQ最新版本：4.5.1
 
 ```shell
 # 1.启动NameServer
-nohup sh bin/mqnamesrv &
+nohup sh bin/mqnamesrv -n 192.168.107.130:9876 &
 # 2.查看启动日志
 tail -f ~/logs/rocketmqlogs/namesrv.log
 ```
@@ -120,7 +120,8 @@ tail -f ~/logs/rocketmqlogs/namesrv.log
 
 ```shell
 # 1.启动Broker
-nohup sh bin/mqbroker -n localhost:9876 &
+nohup sh bin/mqbroker -n 你的公网IP:9876 &   
+nohup sh bin/mqbroker -n 192.168.107.130:9876 -c conf/broker.conf autoCreateTopicEnable=true &   # 自动创建topic
 # 2.查看启动日志
 tail -f ~/logs/rocketmqlogs/broker.log 
 ```
@@ -138,6 +139,54 @@ vi runserver.sh
 * 参考设置：
 
 ```JAVA_OPT="${JAVA_OPT} -server -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m  -XX:MaxMetaspaceSize=320m"```
+
+- 创建topic
+
+```
+sh mqadmin updateTopic –n 192.168.107.130:9876 –c DefaultCluster –t topicWarning
+```
+
+##### 启动错误一
+
+```shell
+OpenJDK 64-Bit Server VM warning: Using the DefNew young collector with the CMS collector is deprecated and will likely be removed in a future release
+OpenJDK 64-Bit Server VM warning: UseCMSCompactAtFullCollection is deprecated and will likely be removed in a future release.
+错误: 找不到或无法加载主类 org.apache.rocketmq.namesrv.NamesrvStartup
+```
+
+原因：由于下载使用的是rocketmq-source源码包，需要编译。
+
+##### rocketmq-console后台错误
+
+```sh
+Caused by: org.apache.rocketmq.remoting.exception.RemotingConnectException: connect to 172.17.0.1:10911 failed
+```
+
+- 原因：
+
+1. 使用RocketMq的时候，出现这种错误，按照官网的启动broker的命令启动broker时，总是使用的是内网ip启动了broker，导致远程链接链接不上，但是本地连接不报错。
+2. broker使用的IP一般是本机IP地址，默认系统自动识别，但是某些多网卡机器会存在识别错误的情况，导致无法识别到正确的本地IP地址，从而导致broker启动是使用了内网IP。
+3. 虽然启动时已经配置了本地IP地址，但是并为通过配置文件启动broker，导致配置文件没有生效。
+
+- 解决办法
+
+  `conf/broker.conf`文件添加
+
+```
+brokerIP1 = 192.168.107.130
+```
+
+##### 查看进程错误
+
+使用jps查看java进程：**bash: jps: 未找到命令...**
+
+```
+yum list *openjdk-devel*
+# 安装
+yum install java-1.8.0-openjdk-devel.x86_64
+```
+
+
 
 ## 2.4 测试RocketMQ
 
@@ -164,9 +213,15 @@ sh bin/tools.sh org.apache.rocketmq.example.quickstart.Consumer
 ```shell
 # 1.关闭NameServer
 sh bin/mqshutdown namesrv
+sh mqshutdown namesrv
 # 2.关闭Broker
 sh bin/mqshutdown broker
+sh mqshutdown broker
 ```
+
+conf/broker.conf
+
+brokerId = 192.168.107.130
 
 # 3. RocketMQ集群搭建
 
@@ -236,10 +291,10 @@ sh bin/mqshutdown broker
 
 ### 3.3.3 服务器环境
 
-| **序号** | **IP**         | **角色**                 | **架构模式**    |
-| -------- | -------------- | ------------------------ | --------------- |
-| 1        | 192.168.25.135 | nameserver、brokerserver | Master1、Slave2 |
-| 2        | 192.168.25.138 | nameserver、brokerserver | Master2、Slave1 |
+| **序号** | **IP**          | **角色**                 | **架构模式**    |
+| -------- | --------------- | ------------------------ | --------------- |
+| 1        | 192.168.107.128 | nameserver、brokerserver | Master1、Slave2 |
+| 2        | 192.168.107.129 | nameserver、brokerserver | Master2、Slave1 |
 
 ### 3.3.4 Host添加信息
 
@@ -251,13 +306,13 @@ vim /etc/hosts
 
 ```bash
 # nameserver
-192.168.25.135 rocketmq-nameserver1
-192.168.25.138 rocketmq-nameserver2
+192.168.107.128 rocketmq-nameserver1
+192.168.107.129 rocketmq-nameserver2
 # broker
-192.168.25.135 rocketmq-master1
-192.168.25.135 rocketmq-slave2
-192.168.25.138 rocketmq-master2
-192.168.25.138 rocketmq-slave1
+192.168.107.128 rocketmq-master1
+192.168.107.128 rocketmq-slave2
+192.168.107.129 rocketmq-master2
+192.168.107.129 rocketmq-slave1
 ```
 
 配置完成后, 重启网卡
@@ -308,7 +363,7 @@ vim /etc/profile
 
 ```bash
 #set rocketmq
-ROCKETMQ_HOME=/usr/local/rocketmq/rocketmq-all-4.4.0-bin-release
+ROCKETMQ_HOME=/opt/rocketmq-all-4.7.1
 PATH=$PATH:$ROCKETMQ_HOME/bin
 export ROCKETMQ_HOME PATH
 ```
@@ -322,20 +377,20 @@ source /etc/profile
 ### 3.3.7 创建消息存储路径
 
 ```bash
-mkdir /usr/local/rocketmq/store
-mkdir /usr/local/rocketmq/store/commitlog
-mkdir /usr/local/rocketmq/store/consumequeue
-mkdir /usr/local/rocketmq/store/index
+mkdir -p /data/rocketmq/store
+mkdir -p /data/rocketmq/store/commitlog
+mkdir -p /data/rocketmq/store/consumequeue
+mkdir -p /data/rocketmq/store/index
 ```
 
 ### 3.3.8 broker配置文件
 
 #### 1）master1
 
-服务器：192.168.25.135
+服务器：192.168.107.128
 
 ```sh
-vi /usr/soft/rocketmq/conf/2m-2s-sync/broker-a.properties
+vi /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-a.properties
 ```
 
 修改配置如下：
@@ -370,17 +425,17 @@ mapedFileSizeConsumeQueue=300000
 #检测物理文件磁盘空间
 diskMaxUsedSpaceRatio=88
 #存储路径
-storePathRootDir=/usr/local/rocketmq/store
+storePathRootDir=/data/rocketmq/broker-a/store
 #commitLog 存储路径
-storePathCommitLog=/usr/local/rocketmq/store/commitlog
+storePathCommitLog=/data/rocketmq/broker-a/store/commitlog
 #消费队列存储路径存储路径
-storePathConsumeQueue=/usr/local/rocketmq/store/consumequeue
+storePathConsumeQueue=/data/rocketmq/broker-a/store/consumequeue
 #消息索引存储路径
-storePathIndex=/usr/local/rocketmq/store/index
+storePathIndex=/data/rocketmq/broker-a/store/index
 #checkpoint 文件存储路径
-storeCheckpoint=/usr/local/rocketmq/store/checkpoint
+storeCheckpoint=/data/rocketmq/broker-a/store/checkpoint
 #abort 文件存储路径
-abortFile=/usr/local/rocketmq/store/abort
+abortFile=/data/rocketmq/broker-a/store/abort
 #限制的消息大小
 maxMessageSize=65536
 #flushCommitLogLeastPages=4
@@ -395,20 +450,21 @@ brokerRole=SYNC_MASTER
 #刷盘方式
 #- ASYNC_FLUSH 异步刷盘
 #- SYNC_FLUSH 同步刷盘
-flushDiskType=SYNC_FLUSH
+flushDiskType=ASYNC_FLUSH
 #checkTransactionMessageEnable=false
 #发消息线程池数量
 #sendMessageThreadPoolNums=128
 #拉消息线程池数量
 #pullMessageThreadPoolNums=128
+brokerIP1=192.168.107.128
 ```
 
 #### 2）slave2
 
-服务器：192.168.25.135
+服务器：192.168.107.128
 
 ```sh
-vi /usr/soft/rocketmq/conf/2m-2s-sync/broker-b-s.properties
+vi /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-b-s.properties
 ```
 
 修改配置如下：
@@ -443,17 +499,17 @@ mapedFileSizeConsumeQueue=300000
 #检测物理文件磁盘空间
 diskMaxUsedSpaceRatio=88
 #存储路径
-storePathRootDir=/usr/local/rocketmq/store
+storePathRootDir=/data/rocketmq/broker-b-s/store
 #commitLog 存储路径
-storePathCommitLog=/usr/local/rocketmq/store/commitlog
+storePathCommitLog=/data/rocketmq/broker-b-s/store/commitlog
 #消费队列存储路径存储路径
-storePathConsumeQueue=/usr/local/rocketmq/store/consumequeue
+storePathConsumeQueue=/data/rocketmq/broker-b-s/store/consumequeue
 #消息索引存储路径
-storePathIndex=/usr/local/rocketmq/store/index
+storePathIndex=/data/rocketmq/broker-b-s/store/index
 #checkpoint 文件存储路径
-storeCheckpoint=/usr/local/rocketmq/store/checkpoint
+storeCheckpoint=/data/rocketmq/broker-b-s/store/checkpoint
 #abort 文件存储路径
-abortFile=/usr/local/rocketmq/store/abort
+abortFile=/data/rocketmq/broker-b-s/store/abort
 #限制的消息大小
 maxMessageSize=65536
 #flushCommitLogLeastPages=4
@@ -474,14 +530,15 @@ flushDiskType=ASYNC_FLUSH
 #sendMessageThreadPoolNums=128
 #拉消息线程池数量
 #pullMessageThreadPoolNums=128
+brokerIP1=192.168.107.128
 ```
 
 #### 3）master2
 
-服务器：192.168.25.138
+服务器：192.168.107.129
 
 ```sh
-vi /usr/soft/rocketmq/conf/2m-2s-sync/broker-b.properties
+vi /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-b.properties
 ```
 
 修改配置如下：
@@ -516,17 +573,17 @@ mapedFileSizeConsumeQueue=300000
 #检测物理文件磁盘空间
 diskMaxUsedSpaceRatio=88
 #存储路径
-storePathRootDir=/usr/local/rocketmq/store
+storePathRootDir=/data/rocketmq/broker-b/store
 #commitLog 存储路径
-storePathCommitLog=/usr/local/rocketmq/store/commitlog
+storePathCommitLog=/data/rocketmq/broker-b/store/commitlog
 #消费队列存储路径存储路径
-storePathConsumeQueue=/usr/local/rocketmq/store/consumequeue
+storePathConsumeQueue=/data/rocketmq/broker-b/store/consumequeue
 #消息索引存储路径
-storePathIndex=/usr/local/rocketmq/store/index
+storePathIndex=/data/rocketmq/broker-b/store/index
 #checkpoint 文件存储路径
-storeCheckpoint=/usr/local/rocketmq/store/checkpoint
+storeCheckpoint=/data/rocketmq/broker-b/store/checkpoint
 #abort 文件存储路径
-abortFile=/usr/local/rocketmq/store/abort
+abortFile=/data/rocketmq/broker-b/store/abort
 #限制的消息大小
 maxMessageSize=65536
 #flushCommitLogLeastPages=4
@@ -541,20 +598,21 @@ brokerRole=SYNC_MASTER
 #刷盘方式
 #- ASYNC_FLUSH 异步刷盘
 #- SYNC_FLUSH 同步刷盘
-flushDiskType=SYNC_FLUSH
+flushDiskType=ASYNC_FLUSH
 #checkTransactionMessageEnable=false
 #发消息线程池数量
 #sendMessageThreadPoolNums=128
 #拉消息线程池数量
 #pullMessageThreadPoolNums=128
+brokerIP1=192.168.107.129
 ```
 
 #### 4）slave1
 
-服务器：192.168.25.138
+服务器：192.168.107.129
 
 ```sh
-vi /usr/soft/rocketmq/conf/2m-2s-sync/broker-a-s.properties
+vi /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-a-s.properties
 ```
 
 修改配置如下：
@@ -589,17 +647,17 @@ mapedFileSizeConsumeQueue=300000
 #检测物理文件磁盘空间
 diskMaxUsedSpaceRatio=88
 #存储路径
-storePathRootDir=/usr/local/rocketmq/store
+storePathRootDir=/data/rocketmq/broker-a-s/store
 #commitLog 存储路径
-storePathCommitLog=/usr/local/rocketmq/store/commitlog
+storePathCommitLog=/data/rocketmq/broker-a-s/store/commitlog
 #消费队列存储路径存储路径
-storePathConsumeQueue=/usr/local/rocketmq/store/consumequeue
+storePathConsumeQueue=/data/rocketmq/broker-a-s/store/consumequeue
 #消息索引存储路径
-storePathIndex=/usr/local/rocketmq/store/index
+storePathIndex=/data/rocketmq/broker-a-s/store/index
 #checkpoint 文件存储路径
-storeCheckpoint=/usr/local/rocketmq/store/checkpoint
+storeCheckpoint=/data/rocketmq/broker-a-s/store/checkpoint
 #abort 文件存储路径
-abortFile=/usr/local/rocketmq/store/abort
+abortFile=/data/rocketmq/broker-a-s/store/abort
 #限制的消息大小
 maxMessageSize=65536
 #flushCommitLogLeastPages=4
@@ -620,6 +678,7 @@ flushDiskType=ASYNC_FLUSH
 #sendMessageThreadPoolNums=128
 #拉消息线程池数量
 #pullMessageThreadPoolNums=128
+brokerIP1=192.168.107.129
 ```
 
 ### 3.3.9 修改启动脚本文件
@@ -627,7 +686,7 @@ flushDiskType=ASYNC_FLUSH
 #### 1）runbroker.sh
 
 ```sh
-vi /usr/local/rocketmq/bin/runbroker.sh
+vi /opt/rocketmq-all-4.7.1/bin/runbroker.sh
 ```
 
 需要根据内存大小进行适当的对JVM参数进行调整：
@@ -638,10 +697,10 @@ vi /usr/local/rocketmq/bin/runbroker.sh
 JAVA_OPT="${JAVA_OPT} -server -Xms256m -Xmx256m -Xmn128m"
 ```
 
-####2）runserver.sh
+#### 2）runserver.sh
 
 ```sh
-vim /usr/local/rocketmq/bin/runserver.sh
+vim /opt/rocketmq-all-4.7.1/bin/runserver.sh
 ```
 
 ```bash
@@ -652,50 +711,64 @@ JAVA_OPT="${JAVA_OPT} -server -Xms256m -Xmx256m -Xmn128m -XX:MetaspaceSize=128m 
 
 #### 1）启动NameServe集群
 
-分别在192.168.25.135和192.168.25.138启动NameServer
+分别在192.168.107.128和192.168.107.129启动NameServer
 
 ```bash
-cd /usr/local/rocketmq/bin
+cd /opt/rocketmq-all-4.7.1/bin
 nohup sh mqnamesrv &
 ```
 
 #### 2）启动Broker集群
 
-* 在192.168.25.135上启动master1和slave2
+* 在192.168.107.128上启动master1和slave2
 
 master1：
 
 ```bash
-cd /usr/local/rocketmq/bin
-nohup sh mqbroker -c /usr/local/rocketmq/conf/2m-2s-syncbroker-a.properties &
+cd /opt/rocketmq-all-4.7.1/bin
+nohup sh mqbroker -c /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-a.properties &
 ```
 
 slave2：
 
 ```sh
-cd /usr/local/rocketmq/bin
-nohup sh mqbroker -c /usr/local/rocketmq/conf/2m-2s-sync/broker-b-s.properties &
+cd /opt/rocketmq-all-4.7.1/bin
+nohup sh mqbroker -c /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-b-s.properties &
 ```
 
-* 在192.168.25.138上启动master2和slave2
+* 在192.168.107.129上启动master2和slave1
 
 master2
 
 ```sh
-cd /usr/local/rocketmq/bin
-nohup sh mqbroker -c /usr/local/rocketmq/conf/2m-2s-sync/broker-b.properties &
+cd /opt/rocketmq-all-4.7.1/bin
+nohup sh mqbroker -c /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-b.properties &
 ```
 
 slave1
 
 ```sh
-cd /usr/local/rocketmq/bin
-nohup sh mqbroker -c /usr/local/rocketmq/conf/2m-2s-sync/broker-a-s.properties &
+cd /opt/rocketmq-all-4.7.1/bin
+nohup sh mqbroker -c /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-a-s.properties &
 ```
 
 ### 3.3.11 查看进程状态
 
 启动后通过JPS查看启动进程
+
+java.lang.RuntimeException: Lock failed,MQ already started
+	at org.apache.rocketmq.store.DefaultMessageStore.start(DefaultMessageStore.java:227)
+	at org.apache.rocketmq.broker.BrokerController.start(BrokerController.java:853)
+	at org.apache.rocketmq.broker.BrokerStartup.start(BrokerStartup.java:64)
+	at org.apache.rocketmq.broker.BrokerStartup.main(BrokerStartup.java:58)
+
+
+
+出现如下问题 是因为我们在集群中master和slave共用一个storePath造成的，这个时候 我们要启动的每一个broker要指定不一样的storePath 路径就行，也就是在我们的配置文件中修改即可 。。。。完美解决。。。
+
+
+
+
 
 ![](img/jps1.png)
 
@@ -714,9 +787,9 @@ tail -500f ~/logs/rocketmqlogs/broker.log
 
 进入RocketMQ安装位置，在bin目录下执行```./mqadmin {command} {args}``` 
 
-###3.4.2 命令介绍
+### 3.4.2 命令介绍
 
-####1）Topic相关
+#### 1）Topic相关
 
 <table border=0 cellpadding=0 cellspacing=0 width=714>
  <col width=177>
@@ -950,8 +1023,7 @@ tail -500f ~/logs/rocketmqlogs/broker.log
   <td class=xl66 width=159 style='width:119pt'>指定topic</td>
  </tr>
 </table>
-
-####2）集群相关
+#### 2）集群相关
 
 <table border=0 cellpadding=0 cellspacing=0 width=714>
  <col width=177>
@@ -1024,8 +1096,7 @@ tail -500f ~/logs/rocketmqlogs/broker.log
   <td class=xl66 width=185 style='width:139pt'>NameServer 服务地址，格式 ip:port</td>
  </tr>
 </table>
-
-####3）Broker相关
+#### 3）Broker相关
 
 <table border=0 cellpadding=0 cellspacing=0 width=714>
  <col width=177>
@@ -1205,8 +1276,7 @@ tail -500f ~/logs/rocketmqlogs/broker.log
   <td class=xl68 width=87 style='width:65pt'>发送次数</td>
  </tr>
 </table>
-
-####4）消息相关
+#### 4）消息相关
 
 <table border=0 cellpadding=0 cellspacing=0 width=714>
  <col width=177>
@@ -1930,7 +2000,8 @@ rocketmq.config.namesrvAddr=192.168.25.135:9876;192.168.25.138:9876
 启动rocketmq-console：
 
 ```sh
-java -jar rocketmq-console-ng-1.0.0.jar
+java -jar rocketmq-console-ng-2.0.0.jar --rocketmq.config.namesrvAddr=rocketmq-nameserver:9876  # 单机
+java -jar rocketmq-console-ng-2.0.0.jar --rocketmq.config.namesrvAddr=rocketmq-nameserver1:9876;rocketmq-nameserver2:9876  # 集群
 ```
 
 启动成功后，我们就可以通过浏览器访问`http://localhost:8080`进入控制台界面了，如下图：
@@ -2389,7 +2460,7 @@ public class ScheduledMessageProducer {
 }
 ```
 
-###4.3.3 验证
+### 4.3.3 验证
 
 您将会看到消息的消费比存储时间晚10秒
 
@@ -2571,7 +2642,7 @@ consumer.start();
 
 ## 4.6 事务消息
 
-###4.6.1 流程分析
+### 4.6.1 流程分析
 
 ![](img/事务消息.png)
 
@@ -2579,9 +2650,9 @@ consumer.start();
 
 上图说明了事务消息的大致方案，其中分为两个流程：正常事务消息的发送及提交、事务消息的补偿流程。
 
-####1）事务消息发送及提交
+#### 1）事务消息发送及提交
 
-(1) 发送消息（half消息）。
+(1) 发送半消息（half消息）。
 
 (2) 服务端响应消息写入结果。
 
@@ -2607,7 +2678,7 @@ consumer.start();
 * TransactionStatus.RollbackTransaction: 回滚事务，它代表该消息将被删除，不允许被消费。
 * TransactionStatus.Unknown: 中间状态，它代表需要检查消息队列来确定状态。
 
-###4.6.1 发送事务消息
+### 4.6.1 发送事务消息
 
 #### 1) 创建事务性生产者
 

@@ -187,7 +187,7 @@ public class MyConsumer implements RocketMQListener<String> {
 
 > 注意:
 >
-> 默认情况下 Producer 和 Consumer 的消息轨迹功能是开启的且 trace-topic 为 RMQ_SYS_TRACE_TOPIC Consumer 端的消息轨迹 trace-topic 可以在配置文件中配置 `rocketmq.consumer.customized-trace-topic` 配置项，不需要为在每个 `@RocketMQMessageListener` 配置。
+> 默认情况下 Producer 和 Consumer 的消息轨迹功能是开启的且 trace-topic 为 RMQ_SYS_TRACE_TOPIC ，Consumer 端的消息轨迹 trace-topic 可以在配置文件中配置 `rocketmq.consumer.customized-trace-topic` 配置项，不需要为在每个 `@RocketMQMessageListener` 配置。
 
 # ACL功能
 
@@ -469,6 +469,145 @@ public class ConsumerApplication{
        ...
     }
     ```
+
+
+
+# SpringCloud Stream
+
+依赖
+
+
+
+```xml
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+    <version>${spring-cloud-alibaba.version}</version>
+    <type>pom</type>
+    <scope>import</scope>
+</dependency>
+dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-stream-binder-rocketmq</artifactId>
+</dependency>
+
+<dependency>
+	<groupId>com.alibaba.cloud</groupId>
+	<artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
+</dependency>
+```
+
+文件配置
+
+com.alibaba.cloud.stream.binder.rocketmq.config.RocketMQComponent4BinderAutoConfiguration加载
+
+spring.cloud.stream.rocketmq.binder.*
+
+```yaml
+spring:
+  cloud:
+    stream:
+      default-binder: rocketmq
+      rocketmq:
+        binder:
+          name-server: 192.168.107.130:9876
+          access-key: AK
+          secret-key: SK
+          enable-msg-trace: true
+          customized-trace-topic: ${spring.application.name}-trace-topic
+```
+
+加载rocketMQ配置信息：
+
+com.alibaba.cloud.stream.binder.rocketmq.properties.RocketMQBinderConfigurationProperties
+
+```yaml
+spring:
+  cloud:
+    stream:
+      default-binder: rocketmq
+      rocketmq:
+        binder:
+          name-server: 192.168.107.130:9876
+          access-key: AK
+          secret-key: SK
+          enable-msg-trace: true
+          customized-trace-topic: ${spring.application.name}-trace-topic
+        # rocketmq bindings
+        bindings:
+          my-input:
+            consumer:
+              enable: true
+              contentType: application/json
+              broadcasting: false
+              ordlerly: false
+              delayLevelWhenNextConsume: 3
+              suspendCurrentQueueTimeMillis: 3000
+          my-output:
+            producer:
+              enable: true
+              maxMessageSize: 8249344
+              transactional: false
+              sync: false
+              vipChannelEnabled: true
+              sendMessageTimeout: 3000
+              compressMessageBodyThreshold: 4096
+              retryTimesWhenSendFailed: 2
+              retryTimesWhenSendAsyncFailed: 2
+              retryNextServer: true
+```
+
+
+
+```yaml
+spring:
+  cloud:
+    stream:
+      bindings:
+        # 消费者
+        input:  # 通道名
+          destination: test-topic-1  # 主题名
+          group: test-topic-1  # 消费组名
+		  consumer:
+            partitioned: true  # 开启分区消费
+        # 生产者
+        output:
+          destination: test-topic-1  # 主题名
+          producer:
+            partitionKeyExpress: <分区键>
+            partitionCount: 3
+```
+
+绑定：
+
+```java
+# spring.cloud.stream.bindings:
+org.springframework.cloud.stream.config.BindingServiceProperties
+    # spring.cloud.stream.bindings.input/output
+    org.springframework.cloud.stream.config.BindingProperties
+    # spring.cloud.stream.bindings.input/output.consumer/producer
+        org.springframework.cloud.stream.binder.ConsumerProperties
+        org.springframework.cloud.stream.binder.ProducerProperties
+```
+
+
+
+
+
+```yaml
+spring:
+  cloud:
+    stream:
+      default-binder: rocketmq
+      default:  # RocketMQExtendedBindingProperties
+        # 默认生产者属性
+        producer:
+        # 默认消费者属性
+        consumer:
+          maxAttempts: 3
+```
+
+
 
 
 
