@@ -2,7 +2,7 @@
 
 <img src="image/Java/Map/java8_concurrenthashmap.png" style="zoom:80%;" />
 
-其中抛弃了原有的 Segment 分段锁，而采用了 `CAS + synchronized` 来保证并发安全性
+其中抛弃了原有的 Segment 分段锁，而采用了 `CAS + synchronized` 来保证并发安全性，底层采用数组+链表+红黑树的存储结构。
 
 ```java
 static class Node<K,V> implements Map.Entry<K,V> {
@@ -55,9 +55,66 @@ static class Node<K,V> implements Map.Entry<K,V> {
 
 其中的 `val`  和 `next` 都用了 volatile 修饰，保证了可见性。
 
+```java
+static final class ForwardingNode<K,V> extends Node<K,V> {
+    final Node<K,V>[] nextTable;
+    ForwardingNode(Node<K,V>[] tab) {
+        super(MOVED, null, null, null);
+        this.nextTable = tab;
+    }
+
+    Node<K,V> find(int h, Object k) {
+        // loop to avoid arbitrarily deep recursion on forwarding nodes
+        outer: for (Node<K,V>[] tab = nextTable;;) {
+            Node<K,V> e; int n;
+            if (k == null || tab == null || (n = tab.length) == 0 ||
+                (e = tabAt(tab, (n - 1) & h)) == null)
+                return null;
+            for (;;) {
+                int eh; K ek;
+                if ((eh = e.hash) == h &&
+                    ((ek = e.key) == k || (ek != null && k.equals(ek))))
+                    return e;
+                if (eh < 0) {
+                    if (e instanceof ForwardingNode) {
+                        tab = ((ForwardingNode<K,V>)e).nextTable;
+                        continue outer;
+                    }
+                    else
+                        return e.find(h, k);
+                }
+                if ((e = e.next) == null)
+                    return null;
+            }
+        }
+    }
+}
+```
 
 
 
+```java
+// 默认为null，初始化发生在第一次插入操作，默认大小为16的数组，用来存储Node节点数据，扩容时大小总是2的幂次方。
+transient volatile Node<K,V>[] table;
+// 默认为null，扩容时新生成的数组，其大小为原数组的两倍。
+private transient volatile Node<K,V>[] nextTable;
+
+
+private transient volatile long baseCount;
+
+// 默认为0，用来控制table的初始化和扩容操作
+// -1 代表table正在初始化
+// -N 表示有N-1个线程正在进行扩容操作
+// 其余情况：
+// 1、如果table未初始化，表示table需要初始化的大小。
+// 2、如果table初始化完成，表示table的容量，默认是table大小的0.75倍，居然用这个公式算0.75（n - (n >>> 2)）。
+private transient volatile int sizeCtl;
+
+
+private transient volatile int transferIndex;
+
+private transient volatile int cellsBusy;
+```
 
 ```java
 public V put(K key, V value) {
