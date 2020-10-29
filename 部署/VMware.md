@@ -54,7 +54,7 @@ HWADDR=00:50:56:38:53:6F	# mac地址
 
 #### 修改hostname
 
-- `vim /etc/sysconfig/network   `
+- `vim /etc/sysconfig/network `
 
 ```
 NETWORKING=yes

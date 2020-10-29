@@ -159,7 +159,50 @@ System.out.println(new BigDecimal("0").equals(new BigDecimal("0.00")));    // fa
 setScale(int newScale, RoundingMode roundingMode)
 ```
 
+> ROUND_HALF_UP  向（距离）最近的一边舍入，除非两边（的距离）是相等，如果是这样，向上舍入, 1.55保留一位小数结果为1.6
+> ROUND_HALF_DOWN   向（距离）最近的一边舍入，除非两边（的距离）是相等，如果是这样，向下舍入, 例如1.55 保留一位小数结果为1.5
+> ROUND_HALF_EVEN  奇进偶不进，除非两边（的距离）是相等，如果是这样，如果保留位上的数字是奇数，使用ROUND_HALF_UP ，如果是偶数，使用ROUND_HALF_DOWN
+> ROUND_UP    向远离0的方向舍入
 
+
+
+```java
+/**
+ * 银行家算法
+ * 舍去位数值 < 5 直接舍去
+ * 舍去位数值 > 5 直接进位
+ * 舍去位数值 = 5
+ * 1、5后面还有其他非0数值，进位
+ * 2、5后面 = 0，看前一位是偶数舍，奇数进位
+ */
+BigDecimal a = new BigDecimal("5.54");
+System.out.println(a.setScale(1, RoundingMode.HALF_EVEN));  // 5.5
+
+BigDecimal a2 = new BigDecimal("1.66");
+System.out.println(a2.setScale(1, RoundingMode.HALF_EVEN));   // 1.7
+
+BigDecimal a4 = new BigDecimal("1.06");
+
+System.out.println(a4.setScale(1, RoundingMode.HALF_EVEN));  // 1.1
+
+
+BigDecimal a1 = new BigDecimal("2.450");
+System.out.println(a1.setScale(1, RoundingMode.HALF_EVEN));   // 2.4
+
+BigDecimal a10 = new BigDecimal("2.550");
+System.out.println(a10.setScale(1, RoundingMode.HALF_EVEN));  // 2.6
+
+BigDecimal a11 = new BigDecimal("2.551");
+System.out.println(a11.setScale(1, RoundingMode.HALF_EVEN));  // 2.6
+BigDecimal a12 = new BigDecimal("2.555");
+System.out.println(a12.setScale(1, RoundingMode.HALF_EVEN));  // 2.6
+
+
+BigDecimal a3 = new BigDecimal("1.25");
+System.out.println(a3.setScale(1, RoundingMode.HALF_EVEN));  // 1.2
+BigDecimal a5 = new BigDecimal("1.55");
+System.out.println(a5.setScale(1, RoundingMode.HALF_EVEN));  // 1.6
+```
 
 ## 包装类型
 
@@ -271,3 +314,25 @@ final域，编译器和处理器遵守两个重排序规则：
 ### 枚举类线程安全
 
 枚举类编译为字节码后，**final**修饰的普通类，并且**extends java.lang.Enum<E extends Enum<E>>**，所有的属性被**static**和**final**修饰。在项目启动时，JVM加载并初始化。
+
+
+
+Could not transfer artifact com.google.zxing:core:pom:3.3.2 from/to alimaven (https://maven.aliyun.com/repository/public): java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+
+InvalidAlgorithmParameterException：无效的算法参数异常
+
+
+
+open-jdk会出现这样的问题，将jdk8中的cacerts文件拷贝到\security中
+
+maven相关
+
+1. 清除所有的lasted文件
+
+```
+#进入cmd命令行
+
+cd /repo
+for /r %i in (*.lastUpdated) do del %i
+```
+

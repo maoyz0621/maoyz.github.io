@@ -186,7 +186,9 @@ yum list *openjdk-devel*
 yum install java-1.8.0-openjdk-devel.x86_64
 ```
 
+##### lock failed, MQ already started
 
+出现如下问题 是因为我们在集群中master和slave共用一个storePath造成的，这个时候 我们要启动的每一个broker要指定不一样的storePath 路径就行，也就是在我们的配置文件中修改即可 。。。。完美解决。。。。
 
 ## 2.4 测试RocketMQ
 

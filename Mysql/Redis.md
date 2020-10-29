@@ -2,9 +2,11 @@
 
 #### 使用Pipeline或者Lua脚本减少请求次数
 
-(1) 批量操作的命令，如mget，mset等 (2) pipeline方式 (3) Lua脚本
+(1) 批量操作的命令，如mget，mset等
 
+ (2) pipeline方式 
 
+(3) Lua脚本
 
 
 
