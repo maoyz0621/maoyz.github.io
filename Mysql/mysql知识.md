@@ -211,7 +211,7 @@ WHERE
 
 查询结果：还是出现2条重复的wechat_pay_serial。
 
-![](/MySQL示例/distinct-1.png)
+![](image/MySQL示例/distinct-1.png)
 
 所以一般distinct用来查询不重复记录的条数。
 
@@ -542,6 +542,8 @@ UNION
 SELECT * FROM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY WHERE A.KEY IS NULL
 ```
 
+ MySQL 表关联的算法是 Nest Loop Join，是通过驱动表的结果集作为循环基础数据，然后一条一条地通过该结果集中的数据作为过滤条件到下一个表中查询数据，然后合并结果。
+
 
 
 ## explain
@@ -684,6 +686,25 @@ mysql> SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED；
 •   设置全局级隔离级别为READ COMMITTED ： 
 mysql> SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED；
 ```
+
+## 乐观锁和悲观锁
+
+
+
+## 分解关联查询
+
+> 关联查询对于少量数据查询是没有问题的，但对于数据量多的情况，以及后续的表结构发生变化，或分库分表的时候就不利于优化
+>
+
+高性能MySQL
+
+![](image\MySQL\分解关联查询.jpg)
+
+
+
+FIND_IN_SET(str, strlist)，是精确匹配，strlist以英文”,”分隔，Find_IN_SET查询的结果要小于like查询的结果
+
+MATCH (title,body)   AGAINST ('+apple -banana' IN BOOLEAN MODE)
 
 https://www.jianshu.com/p/c189439fb32e
 

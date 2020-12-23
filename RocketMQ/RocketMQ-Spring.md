@@ -539,7 +539,7 @@ spring:
           customized-trace-topic: ${spring.application.name}-trace-topic
         # rocketmq bindings
         bindings:
-          my-input:
+          my-input:  # 消费者名称  com.alibaba.cloud.stream.binder.rocketmq.properties.RocketMQConsumerProperties
             consumer:
               enable: true
               contentType: application/json
@@ -547,11 +547,12 @@ spring:
               ordlerly: false
               delayLevelWhenNextConsume: 3
               suspendCurrentQueueTimeMillis: 3000
-          my-output:
+          my-output:  # 生产者名称 com.alibaba.cloud.stream.binder.rocketmq.properties.RocketMQProducerProperties
             producer:
               enable: true
+              group: **
               maxMessageSize: 8249344
-              transactional: false
+              transactional: false  # 事务
               sync: false
               vipChannelEnabled: true
               sendMessageTimeout: 3000
@@ -572,11 +573,13 @@ spring:
         input:  # 通道名
           destination: test-topic-1  # 主题名
           group: test-topic-1  # 消费组名
+          contentType: application/json
 		  consumer:
             partitioned: true  # 开启分区消费
         # 生产者
         output:
           destination: test-topic-1  # 主题名
+          contentType: application/json
           producer:
             partitionKeyExpress: <分区键>
             partitionCount: 3
@@ -611,8 +614,24 @@ spring:
           maxAttempts: 3
 ```
 
+Producer Group 标识发送同一类消息的Producer，通常发送逻辑一致。发送普通消息时，仅标识使用，并无特别用处。若事务消息，如果发送某条消息的producer-A宕机，使得事务消息一直处于PREPARED状态并超时，则broker会回查同一个group的其他producer，确认这条消息应该commit 还是 rollback。
 
+Consumer Group标识一类Consumer的集合名称，这类Consumer通常消费一类消息，且消费逻辑一致。同一个Consumer Group下的各个实例将共同消费topic的消息，起到负载均衡的作用。
 
+注：RocketMQ要求同一个Consumer Group的消费者必须要拥有相同的注册信息，即必须要听一样的topic（并且tag也一样）。
 
+Topic 标识一类消息的逻辑名称，消息的逻辑管理单位。无论消息生产还是消费，都需要指定Topic。
+
+在发送的时候topic用的是destination，但是进入重试队列或者死信队列时却用的是%RETRY%group 和 %DLQ%group，根据group作为topic名称的构造依据，来新建重试和死信队列。
+
+Topic列表：
+
+死信列表：%DLQ%xxx-group
+
+消费者列表：
+
+消费模式：CLUSTERING
+
+生产者列表：主题（Topic）；生产组（Topic）
 
 https://github.com/apache/rocketmq-spring
