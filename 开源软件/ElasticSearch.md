@@ -1399,11 +1399,9 @@ kibana-7.6.1-linux-x86_64/bin
 
 操作报错问题排查：
 1、出现如下错误，请检查集群是否添加remote白名单。可以在节点操作界面修改配置，并重启节点生效。
-![284.err.1.png](http://prod-console.cloud.oppoer.me/cloud-oppoer-me/2937e927607841a2913ad2ddcc4e2bb5.err)
+
 2、出现同步setting失败错误，如下图所示。请检查目标索引是否已经关闭。
-![284.err.2.png](http://prod-console.cloud.oppoer.me/cloud-oppoer-me/dccd5fdae6c64c4c954657aadd376af9.err)
-![284.err.3.png](http://prod-console.cloud.oppoer.me/cloud-oppoer-me/02127f46fea54196ab9461ae8173dd0a.err)
+
 3、如果数据源索引setting有设置tokenizer的min_gram与max_gram，同步setting时根据ES版本不同可能会出现如下错误。解决办法是，若目标索引不存在，先手动创建目标索引，然后修改目标索引setting的index.max_ngram_diff为需要的数值，然后再尝试同步。
-![284.err.4.png](http://prod-console.cloud.oppoer.me/cloud-oppoer-me/4753b500d9954e93b56bb14de587d4b8.err)
+
 4、如果数据源索引setting设置了index.blocks.read_only_allow_delete属性为true，那么同步完setting后，目标索引也会延续这一设置。若继续同步mapping，则会失败，如下图所示。若不同步mapping且reindex完成后，需要重新打开索引，index.blocks.read_only_allow_delete属性为true会使打开索引失败，需要设置目标索引index.blocks.read_only_allow_delete属性为false。
-![284.err.5.png](http://prod-console.cloud.oppoer.me/cloud-oppoer-me/d53b18dfdccd44b39cc654ca2bd37c2f.err)
