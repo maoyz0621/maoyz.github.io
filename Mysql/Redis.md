@@ -14,9 +14,20 @@ redis确实不是单线程的,更确切地说法是redis的核心业务线程只
 
 
 
+持久化配置
 
+快照（RDB文件）和追加式文件（AOF文件），可以同时存在的，但是当Redis重启时，AOF文件会被优先用于重建数据。
 
-aof
+启用AOF
+
+> appendonly yes
+
+**设置Redis调用fsync的频率**
+推荐使用每秒fsync一次的方式（默认的方式），因为它速度快，安全性也不错。相关配置如下：
+
+> \#appendfsync always
+> appendfsync everysec
+> \#appendfsync no
 
 pdb
 
