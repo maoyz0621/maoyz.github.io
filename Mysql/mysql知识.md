@@ -173,6 +173,21 @@ SQL执行顺序：
 
 ```mysql
 SELECT keyword, count( * ) AS count  FROM table  GROUP BY keyword  HAVING count > 1 ORDER BY count DESC  LIMIT 20
+
+SELECT
+	id
+FROM
+	o_marketing.omkt_my_task
+WHERE
+	task_type = 5
+AND business_type = 11
+GROUP BY
+	task_id,
+	approve_id
+HAVING
+	COUNT(*) > 1
+ORDER BY
+	created_time
 ```
 
 
