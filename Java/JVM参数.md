@@ -32,16 +32,16 @@ string pool，在类加载完成，经过验证，准备阶段之后在堆中生
 
 1.布尔类型参数值
 
--XX:+<option> '+'表示启用该选项  
--XX:-<option> '-'表示关闭该选项  
+`-XX:+<option> '+'`表示启用该选项  
+`-XX:-<option> '-'`表示关闭该选项  
 
 2.数字类型参数值：
 
--XX:<option>=<number> 给选项设置一个数字类型值，可跟随单位，例如：'m'或'M'表示兆字节;'k'或'K'千字节;'g'或'G'千兆字节。32K与32768是相同大小的。
+`-XX:<option>=<number>` 给选项设置一个数字类型值，可跟随单位，例如：'m'或'M'表示兆字节;'k'或'K'千字节;'g'或'G'千兆字节。32K与32768是相同大小的。
 
 3.字符串类型参数值：
 
--XX:<option>=<string> 给选项设置一个字符串类型值，通常用于指定一个文件、路径或一系列命令列表。 例如：-XX:HeapDumpPath=./dump.core
+`-XX:<option>=<string>` 给选项设置一个字符串类型值，通常用于指定一个文件、路径或一系列命令列表。 例如：-XX:HeapDumpPath=./dump.core
 
 
 1. 堆设置
@@ -457,7 +457,7 @@ https://segmentfault.com/a/1190000019910501
 
 
 
-![](..\images\Java\GC.jpg)
+![](.\image\Java\GC.jpg)
 
 ### G1
 

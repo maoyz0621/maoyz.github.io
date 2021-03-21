@@ -52,7 +52,7 @@ public class PersonInfo {
 }
 ```
 
-+ 入参格式化，将String转换成Date，一般是前后到后台的时间格式的转换
++ 入参格式化，将String转换成Date，一般是前台到后台的时间格式的转换
 
 ```java
 @DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss")

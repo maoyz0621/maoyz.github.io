@@ -366,3 +366,19 @@ User selectById(Integer id, String lastName) throws SQLException;
 对应的xml同名id只能有一个
 
 `Available parameters are [arg1, arg0, param1, param2]`
+
+
+
+## 插件使用
+
+```java
+// 执行器
+Executor (update, query, flushStatements, commit, rollback, getTransaction, close, isClosed)
+// 请求参数处理
+ParameterHandler (getParameterObject, setParameters)
+// 返回结果集处理
+ResultSetHandler (handleResultSets, handleOutputParameters)
+// SQL语句构建
+StatementHandler (prepare, parameterize, batch, update, query)
+```
+
