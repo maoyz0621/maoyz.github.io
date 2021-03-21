@@ -345,9 +345,28 @@ foreach元素的属性主要有 item，index，collection，open，[separator](h
 
 ## 插件
 
+- Executor (update, query, flushStatements, commit, rollback, getTransaction, close, isClosed)
+- ParameterHandler (getParameterObject, setParameters)
+- ResultSetHandler (handleResultSets, handleOutputParameters)
+- StatementHandler (prepare, parameterize, batch, update, query)
 
+```
+Interceptor
+Invocation
+```
 
+```
+@Intercepts({
+        @Signature(type=Executor.class, method="update", args={MappedStatement.class, Object.class}),
+        @Signature(type=Executor.class, method="query", args={MappedStatement.class, Object.class,RowBounds.class,ResultHandler.class})
+})
 
+invocation.getArgs() 与 args参数对应;
+
+type=Executor,ParameterHandler,ResultSetHandler,StatementHandler
+method对应type指定类中的方法
+args对应method方法中的参数值
+```
 
 
 mapper接口方法重载，无法映射到java的重载，不支持

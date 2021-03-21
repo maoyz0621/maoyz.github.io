@@ -279,7 +279,7 @@ brokerId = 192.168.107.130
 
 ### 3.3.1 总体架构
 
-消息高可用采用2m-2s（同步双写）方式：2主2从，3个NameServer
+消息高可用采用2m-2s（同步双写）方式
 
 ![](img/RocketMQ集群.png)
 
@@ -2411,6 +2411,17 @@ public class ConsumerInOrder {
 
 ## 4.3 延时消息
 
+延时消息（延迟队列）是指消息发送到broker后，不会立即被消费，等待特定时间投递给真正的topic。
+broker有配置项messageDelayLevel，默认值为“1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h”，18个level。可以配置自定义messageDelayLevel。注意，messageDelayLevel是broker的属性，不属于某个topic。发消息时，设置delayLevel等级即可：msg.setDelayLevel(level)。level有以下三种情况：
+
+- level == 0，消息为非延迟消息
+- 1<=level<=maxLevel，消息延迟特定时间，例如level==1，延迟1s
+- level > maxLevel，则level== maxLevel，例如level==20，延迟2h
+
+定时消息会暂存在名为SCHEDULE_TOPIC_XXXX的topic中，并根据delayTimeLevel存入特定的queue，queueId = delayTimeLevel – 1，即一个queue只存相同延迟的消息，保证具有相同发送延迟的消息能够顺序消费。broker会调度地消费SCHEDULE_TOPIC_XXXX，将消息写入真实的topic。
+
+需要注意的是，定时消息会在第一次写入和调度写入真实topic时都会计数，因此发送数量、tps都会变高。
+
 比如电商里，提交了一个订单就可以发送一个延时消息，1h后去检查这个订单的状态，如果还是未付款就取消订单释放库存。
 
 ### 4.3.1 启动消息消费者
@@ -2559,7 +2570,7 @@ while (splitter.hasNext()) {
 
 ## 4.5 过滤消息
 
-在大多数情况下，TAG是一个简单而有用的设计，其可以来选择您想要的消息。例如：
+在大多数情况下，TAG是一个简单而有用的设计，其可以来选择您想要的消息。`\* 代表所有类型消息，xxx||yyy 用||分隔消费不同类型的消息`，例如：
 
 ```java
 DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("CID_EXAMPLE");
@@ -2751,3 +2762,5 @@ public class TransactionListenerImpl implements TransactionListener {
 4. 事务性消息可能不止一次被检查或消费。
 5. 提交给用户的目标主题消息可能会失败，目前这依日志的记录而定。它的高可用性通过 RocketMQ 本身的高可用性机制来保证，如果希望确保事务消息不丢失、并且事务完整性得到保证，建议使用同步的双重写入机制。
 6. 事务消息的生产者 ID 不能与其他类型消息的生产者 ID 共享。与其他类型的消息不同，事务消息允许反向查询、MQ服务器能通过它们的生产者 ID 查询到消费者。
+
+## 4.7 回溯消息
