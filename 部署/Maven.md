@@ -113,3 +113,7 @@ mvn package -Dmaven.test.skip=true
 </plugin>
 ```
 
+mvn clean package -pl ${PACKAGE} -am -Dmaven.test.skip=true -U
+
+-pl  --projects   选项后可跟随{groupId}:{artifactId}或者所选模块的相对路径(多个模块以逗号分隔)
+-am  --also-make  表示同时处理选定模块所依赖的模块
