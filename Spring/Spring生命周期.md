@@ -1,8 +1,8 @@
 # Bean生命周期
 
-|                                          |
-| :--------------------------------------: |
-| ![Bean生命周期](\image\Bean生命周期.jpg) |
+|                                           |
+| :---------------------------------------: |
+| ![Bean生命周期](.\image\Bean生命周期.jpg) |
 
 ## ApplicationContextInitializer
 
@@ -14,11 +14,11 @@ Spring容器刷新之前初始化`ConfigurableApplicationContext`的回调接口
 
 源码：
 
-|                                                             |
-| ----------------------------------------------------------- |
-| ![Bean生命周期](\image\ApplicationContextInitializer-1.png) |
-| ![Bean生命周期](\image\ApplicationContextInitializer-2.png) |
-| ![Bean生命周期](\image\ApplicationContextInitializer-3.png) |
+|                                                              |
+| ------------------------------------------------------------ |
+| ![Bean生命周期](.\image\ApplicationContextInitializer-1.png) |
+| ![Bean生命周期](.\image\ApplicationContextInitializer-2.png) |
+| ![Bean生命周期](.\image\ApplicationContextInitializer-3.png) |
 
 扩展的生效，有以下三种方式：
 

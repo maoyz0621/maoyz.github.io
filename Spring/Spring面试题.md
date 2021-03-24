@@ -2,45 +2,49 @@
 
 ## Spring容器
 
-1. 谈谈对IOC的理解？
+1. 谈谈对IoC的理解？
 
-   控制反转、依赖注入。创建对象实例交由Spring框架进行管理，由Spring框架进行对象创建和管理各实例之间的依赖关系。IOC容器实际上是一个Map。
+   Inversion of Control控制反转、依赖注入。创建对象实例交由Spring框架进行管理，由Spring框架进行对象创建和管理各实例之间的依赖关系。IOC容器实际上是一个Map。
 
    使用java的反射机制，运行时动态的创建和管理对象。
 
    
 
-2. 注入方式？
+2. 手动注入方式？
 
    - 构造器注入：不允许创建bean对象之间的循环依赖关系
 
    - setter方法注入：Spring会通过默认的空参构造方法来实例化对象，没有在初始化的时候就注入，如果使用基于constructor注入，CGLIB不能创建代理；对象不能设置成final
 
-   - 属性注入
-
    - 工厂方法注入
 
-   > 注：在Spring 4.3 以后，如果我们的类中只有单个构造函数，那么Spring就会实现一个隐式的自动注入
-
+   
+> 注：在Spring 4.3 以后，如果我们的类中只有单个构造函数，那么Spring就会实现一个隐式的自动注入
    
 
-3. 注入autowire属性？
+   
+3. 自动注入autowiring属性模型？
+
+   仅只对于xml配置文件
 
    - byType：按类型装配，可以根据属性的类型，在容器中寻找跟该类型匹配的bean。如果发现多个，那么将会抛出异常。如果没有找到，即属性值为null
    - byName：按名称装配，可以根据属性的名称，在容器中寻找跟该属性名相同的bean，如果没有找到，即属性值为null。
    - constructor：与byType的方式类似，不同之处在于它应用于构造器参数。如果在容器中没有找到与构造器参数类型一致的bean，那么将会抛出异常。
-   - default
    - no
-
    
 
+   
 4. 基于注解的自动装配方式：@Resource 和 @Autowired？
 
-   @Resource：默认byName，当找不到与名称匹配的bean时byType，可以配合@Qualifier使用指定具体名称的bean
+   @Resource：默认按照name，当找不到与名称匹配的bean时按照type，可以配合@Qualifier使用指定具体名称的bean
 
-   @Autowired：默认byType，默认情况下它要求依赖对象必须存在（可以设置它required属性为false），不能存在相同类型的bean
+   > 实现原理：CommonAnnotationBeanPostProcessor
+
+   @Autowired：默认按照type，当找不到或找到多个同类型的按照name，默认情况下它要求依赖对象必须存在（可以设置它required属性为false），不能存在相同类型的bean
 
    > 实现原理：后置处理器AutowiredAnnotationBeanPostProcessor
+   >
+   > 注：@Autowired  !=  default-autowire="byType"
 
    
 
@@ -100,7 +104,9 @@
 
     session
 
-    global-session
+    application
+
+    websocket
 
     
 
@@ -119,10 +125,10 @@
     1）实例化Bean：
         对于BeanFactory容器，当客户向容器请求一个尚未初始化的bean时，或初始化bean的时候需要注入另一个尚未初始化的依赖时，容器就会调用createBean进行实例化。
         对于ApplicationContext容器，当容器启动结束后，通过获取BeanDefinition对象中的信息，实例化所有的bean。
-    
+
     2）设置属性（依赖注入）：
         实例化后的对象被封装在BeanWrapper对象中，紧接着，Spring根据BeanDefinition中的信息以及通过BeanWrapper提供的设置属性的接口完成属性设置与依赖注入。
-    
+
     3）处理Aware接口：
         实现了BeanNameAware接口，会调用它实现的setBeanName(String beanId)方法，传入Bean的名字；
         实现了BeanClassLoaderAware接口，调用setBeanClassLoader()方法，传入ClassLoader对象的实例。
@@ -133,23 +139,23 @@
         实现了ApplicationEventPublisherAware接口，会调用setApplicationEventPublisher()
         实现了MessageSourceAware接口，会调用setMessageSource()
         实现了ApplicationContextAware接口，会调用setApplicationContext(ApplicationContext)方法，传入Spring上下文；
-    
+
     4）BeanPostProcessor前置处理：
        postProcessBeforeInitialization(Object obj, String s)
-    
+
     5）InitializingBean：
       初始化阶段，afeterPropertiesSet() 
-    
+
     6）init-method：自定义初始化方法
-    
+
     7）BeanPostProcessor后置处理：
       postProcessAfterInitialization(Object obj, String s)方法；由于这个方法是在Bean初始化结束时调用的，所以可以被应用于内存或缓存技术 
-    
+
     **Bean创建完成，可以使用** 
-    
+
     8）DisposableBean：
       清理阶段destroy() 
-    
+
     9）destroy-method：
 
 
@@ -175,7 +181,6 @@
 
     （8）桥接模式：可以根据客户的需求能够动态切换不同的数据源。比如我们的项目需要连接多个数据库，客户在每次访问中根据需要会去访问不同的数据库
     
-
 15. @Component 和 @Bean的区别？
 
     1）使用对象不同：@Component作用于类，@Bean作用于方法
