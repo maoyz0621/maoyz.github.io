@@ -2,7 +2,8 @@
 
 
 
-DefaultSingletonBeanRegistry.java
+> DefaultSingletonBeanRegistry
+>
 
 ```java
 private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
@@ -32,7 +33,8 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 
 
 
-AbstractAutowireCapableBeanFactory.java
+> AbstractAutowireCapableBeanFactor
+>
 
 ```java
 protected Object doCreateBean(final String beanName, final RootBeanDefinition mbd, final @Nullable Object[] args)
