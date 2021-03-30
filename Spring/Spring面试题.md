@@ -58,9 +58,12 @@
 
    @Service：主要用于注册服务层的bean
 
-   
 
-6. bean的配置方法？
+> 默认autowireMode == 0
+
+
+
+5. bean的配置方法？
 
    - 基于xml
 
@@ -70,7 +73,7 @@
 
      
 
-7. Spring解决循环依赖问题？
+6. Spring解决循环依赖问题？
 
    1）通过构造方法依赖注入：@Lazy
 
@@ -80,7 +83,7 @@
 
    
 
-8. 谈谈对AOP的理解？
+7. 谈谈对AOP的理解？
 
    Spring AOP是基于动态代理的，如果要代理的对象实现了某个接口，那么Spring AOP就会使用JDK动态代理去创建代理对象，可以强制使用CGLIB实现AOP；而对于没有实现接口的对象，就无法使用JDK动态代理，转而使用CGlib动态代理生成一个被代理对象的子类来作为代理。
 
@@ -88,29 +91,29 @@
 
    
 
-9. Spring AOP 和 AspectJ AOP有什么区别？
+8. Spring AOP 和 AspectJ AOP有什么区别？
 
    Spring AOP运行时增强，基于动态代理；AspectJ AOP编译时增强，基于字节码操作
 
    
 
-10. Spring的bean的作用域有哪些？
+9. Spring的bean的作用域有哪些？
 
-    singleton
+   singleton
 
-    prototype
+   prototype
 
-    request
+   request
 
-    session
+   session
 
-    application
+   application
 
-    websocket
+   websocket
 
-    
+   
 
-11. 单例bean线程安全问题？
+10. 单例bean线程安全问题？
 
     不安全。
 
@@ -120,7 +123,7 @@
 
     
 
-12. bean的生命周期？
+11. bean的生命周期？
 
     1）实例化Bean：
         对于BeanFactory容器，当客户向容器请求一个尚未初始化的bean时，或初始化bean的时候需要注入另一个尚未初始化的依赖时，容器就会调用createBean进行实例化。
@@ -219,9 +222,19 @@
 
     BeanFactory以编程方式创建，ApplicationContext以声明方式创建，如使用ContextLoader
 
-17. 
-
     
+
+17. Spring生命周期回调Lifecycle Callbacks？
+
+    - @PostConstruct
+    - InitializingBean -> afterPropertiesSet()
+    - 指定@Bean初始化方法initMethod
+    
+18. 把第三方对象放入Spring容器中
+
+    - @Bean配置
+    - BeanFactory容器
+    - getBeanFactory().registerSingleton(String beanName, Object singletonObject)注册为单例模式
 
 ## Spring事务
 

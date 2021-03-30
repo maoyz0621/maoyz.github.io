@@ -76,3 +76,10 @@ HOSTNAME=node1
 
 重启系统`reboot`或重启网络服务`systemctl restart network.service`
 
+## Docker与VMware不兼容，启动报错
+
+![](.\image\VMware\VMware_error_1.png)
+
+- 当使用Docker For Window，且不使用VMware时，请以管理员身份运行PowerShell，并输入 命令：bcdedit /set hypervisorlaunchtype auto回车，然后重启电脑；此时Docker For Window运行Ok。
+
+- 当需要WMware而不是用Docker For WIndow时，请以管理员身份运行PowerShell，并输入 命令：bcdedit /set hypervisorlaunchtype off 回车，然后重启电脑；此时WMware运行Ok。
