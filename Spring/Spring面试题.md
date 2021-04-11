@@ -20,9 +20,9 @@
 
    
 > 注：在Spring 4.3 以后，如果我们的类中只有单个构造函数，那么Spring就会实现一个隐式的自动注入
-   
 
-   
+
+
 3. 自动注入autowiring属性模型？
 
    仅只对于xml配置文件
@@ -79,7 +79,7 @@
 
    2）通过setter方法依赖注入prototype
 
-   3）**通过setter方法依赖注入singleton**：三级缓存
+   3）**通过setter方法依赖注入singleton**：三级缓存；**原型（prototype）不支持循环依赖**
 
    
 
@@ -200,7 +200,15 @@
 
     
 
-16. Beanfactory和ApplicationContext区别？
+16. BeanFactoryPostProcessor和BeanPostProcessor的区别？
+
+    BeanFactoryPostProcessor 初始化
+
+    BeanPostProcessor  实例化？
+
+
+
+15. Beanfactory和ApplicationContext区别？
 
     Spring的容器
 
@@ -224,13 +232,13 @@
 
     
 
-17. Spring生命周期回调Lifecycle Callbacks？
+16. Spring生命周期回调Lifecycle Callbacks？
 
     - @PostConstruct
     - InitializingBean -> afterPropertiesSet()
     - 指定@Bean初始化方法initMethod
-    
-18. 把第三方对象放入Spring容器中
+
+17. 把第三方对象放入Spring容器中
 
     - @Bean配置
     - BeanFactory容器
