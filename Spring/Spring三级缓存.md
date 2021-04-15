@@ -230,6 +230,7 @@ protected Object doCreateBean(final String beanName, final RootBeanDefinition mb
 
    // Register bean as disposable.
    try {
+      // 注册bean的销毁方法
       registerDisposableBeanIfNecessary(beanName, bean, mbd);
    }
    catch (BeanDefinitionValidationException ex) {
@@ -428,11 +429,21 @@ protected void addSingleton(String beanName, Object singletonObject) {
 
 
 
+singletonFactories -> earlySingletonObjects -> singletonObjects
+
+1. getSingleton()：存放二级缓存，删除三级缓存
+
+2. addSingletonFactory()：存放三级缓存，删除二级缓存
+
+3. addSingleton()：存放一级缓存，删除二级缓存、三级缓存
+
+
+
 A，B循环依赖，先初始化A，先暴露一个半成品A，再去初始化依赖的B，初始化B时如果发现B依赖A，也就是循环依赖，就注入半成品A，之后初始化完毕B，再回到A的初始化过程时就解决了循环依赖，在这里只需要一个Map能缓存半成品A就行了，也就是二级缓存就够了，但是这个二级缓存存的是Bean对象，如果这个对象存在代理，那应该注入的是代理，而不是Bean，此时二级缓存无法既缓存Bean，又缓存代理，因此三级缓存做到了缓存 工厂 ，也就是生成代理。二级缓存就能解决缓存依赖，三级缓存解决的是代理。
 
 
 
-
+总结：
 
 1、调用 doGetBean() 方法，想要获取 beanA ，于是调用 getSingleton() 方法从缓存中查找 beanA
 
