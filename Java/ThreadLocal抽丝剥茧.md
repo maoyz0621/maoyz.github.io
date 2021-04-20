@@ -130,9 +130,9 @@ public class MyDemo01 {
 
 我们发现不会出现上面的情况了，也就是当前线程只能获取线程线程存储的对象
 
-## ThreadLocal类和Synchronized关键字
+## ThreadLocal类和synchronized关键字
 
-### Synchronized同步方式
+### synchronized同步方式
 
 对于上述的例子，我们完全可以通过加锁的方式来实现这个功能，我们来看一下用Synchronized代码块实现的效果：
 
@@ -166,9 +166,9 @@ public class MyDemo01 {
 1	  1的数据
 ```
 
-### ThreadLocal与Synchronized的区别
+### ThreadLocal与synchronized的区别
 
-虽然ThreadLocal模式与Synchronized关键字都用于处理多线程并发访问变量的问题，不过两者处理问题的角度和思路不同。
+虽然ThreadLocal模式与synchronized关键字都用于处理多线程并发访问变量的问题，不过两者处理问题的角度和思路不同。
 
 |        | Synchronized                                                 | ThreadLocal                                                  |
 | ------ | ------------------------------------------------------------ | ------------------------------------------------------------ |

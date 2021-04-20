@@ -250,6 +250,138 @@ public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException 
 
 实现了AOP之后，执行方法之前进入**JdkDynamicAopProxy#invoke**或**CglibAopProxy.DynamicAdvisedInterceptor#intercept**，都会获取调用链**advised.getInterceptorsAndDynamicInterceptionAdvice()**，之后执行方法proceed()，拦截器的触发过程，
 
+
+
+基于JDK实现的动态代理
+
+> org.springframework.aop.framework.JdkDynamicAopProxy#invoke
+
+```
+@Override
+@Nullable
+public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+   Object oldProxy = null;
+   boolean setProxyContext = false;
+
+   TargetSource targetSource = this.advised.targetSource;
+   Object target = null;
+
+   try {
+      ...
+      else if (method.getDeclaringClass() == DecoratingProxy.class) {
+         // There is only getDecoratedClass() declared -> dispatch to proxy config.
+         return AopProxyUtils.ultimateTargetClass(this.advised);
+      }
+      else if (!this.advised.opaque && method.getDeclaringClass().isInterface() &&
+            method.getDeclaringClass().isAssignableFrom(Advised.class)) {
+         // Service invocations on ProxyConfig with the proxy config...
+         return AopUtils.invokeJoinpointUsingReflection(this.advised, method, args);
+      }
+
+      Object retVal;
+
+      if (this.advised.exposeProxy) {
+         // Make invocation available if necessary.
+         oldProxy = AopContext.setCurrentProxy(proxy);
+         setProxyContext = true;
+      }
+
+      ...
+
+      // Get the interception chain for this method.
+      List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+
+   
+      if (chain.isEmpty()) {
+         Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+         retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
+      }
+      else {
+         MethodInvocation invocation =
+               new ReflectiveMethodInvocation(proxy, target, method, args, targetClass, chain);
+         retVal = invocation.proceed();
+      }
+
+      // Massage return value if necessary.
+      Class<?> returnType = method.getReturnType();
+      if (retVal != null && retVal == target &&
+            returnType != Object.class && returnType.isInstance(proxy) &&
+            !RawTargetAccess.class.isAssignableFrom(method.getDeclaringClass())) {
+         // Special case: it returned "this" and the return type of the method
+         // is type-compatible. Note that we can't help if the target sets
+         // a reference to itself in another returned object.
+         retVal = proxy;
+      }
+      ...
+      return retVal;
+   }
+   finally {
+      if (target != null && !targetSource.isStatic()) {
+         // Must have come from TargetSource.
+         targetSource.releaseTarget(target);
+      }
+      if (setProxyContext) {
+         // Restore old proxy.
+         AopContext.setCurrentProxy(oldProxy);
+      }
+   }
+}
+```
+
+
+
+基于CGLIB实现的动态代理
+
+> org.springframework.aop.framework.CglibAopProxy.DynamicAdvisedInterceptor#intercept
+
+```java
+public Object intercept(Object proxy, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
+   Object oldProxy = null;
+   boolean setProxyContext = false;
+   Object target = null;
+   TargetSource targetSource = this.advised.getTargetSource();
+   try {
+      if (this.advised.exposeProxy) {
+         // Make invocation available if necessary.
+         oldProxy = AopContext.setCurrentProxy(proxy);
+         setProxyContext = true;
+      }
+      // Get as late as possible to minimize the time we "own" the target, in case it comes from a pool...
+      target = targetSource.getTarget();
+      Class<?> targetClass = (target != null ? target.getClass() : null);
+      List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+      Object retVal;
+      // Check whether we only have one InvokerInterceptor: that is,
+      // no real advice, but just reflective invocation of the target.
+      if (chain.isEmpty() && Modifier.isPublic(method.getModifiers())) {
+         // We can skip creating a MethodInvocation: just invoke the target directly.
+         // Note that the final invoker must be an InvokerInterceptor, so we know
+         // it does nothing but a reflective operation on the target, and no hot
+         // swapping or fancy proxying.
+         Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+         retVal = methodProxy.invoke(target, argsToUse);
+      }
+      else {
+         // We need to create a method invocation...
+         retVal = new CglibMethodInvocation(proxy, target, method, args, targetClass, chain, methodProxy).proceed();
+      }
+      retVal = processReturnType(proxy, target, method, retVal);
+      return retVal;
+   }
+   finally {
+      if (target != null && !targetSource.isStatic()) {
+         targetSource.releaseTarget(target);
+      }
+      if (setProxyContext) {
+         // Restore old proxy.
+         AopContext.setCurrentProxy(oldProxy);
+      }
+   }
+}
+```
+
+都使用了this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass)
+
 ![](.\image\Aspect调用链.png)
 
 > org.springframework.aop.framework.DefaultAdvisorChainFactory

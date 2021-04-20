@@ -64,6 +64,8 @@ static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
 }
 ```
 
+
+
 ## 成员变量
 
 ```java
@@ -85,11 +87,11 @@ transient Node<K,V>[] table;
 transient Set<Map.Entry<K,V>> entrySet;
 // 存放元素的个数，不是数组的长度
 transient int size;
-
+// 迭代器，failfast
 transient int modCount;
 // 临界值，当实际大小(容量*加载因子)超过临界值时，会进行扩容
 int threshold;
-// 加载因子
+// 加载因子，默认0.75
 final float loadFactor;
 ```
 
@@ -102,10 +104,6 @@ final float loadFactor;
 - 临界值threshold
 
   threshold = capacity \* loadFactor，当Size>=threshold的时候，那么就要考虑对数组的扩增了，也就是说，这个的意思就是 衡量数组是否需要扩增的一个标准。
-
-
-
-
 
 
 
@@ -143,6 +141,8 @@ public HashMap(Map<? extends K, ? extends V> m) {
 }
 ```
 
+
+
 ## 方法
 
 ### 新增
@@ -174,7 +174,7 @@ public void putAll(Map<? extends K, ? extends V> m) {
 - 计算hash值
 
 ```java
-// hashcode的低位参与 与 操作 ；位异或^ 相同为1，否则为0 ； >>> 无符号右移，忽略符号位，空位都以0补齐
+// hashcode的低位参与 与 操作 ；位（异或）^ 相同为0，否则为1 ； >>> 无符号右移，忽略符号位，空位都以0补齐
 // hash碰撞几率增大
 static final int hash(Object key) {
     int h;
@@ -182,31 +182,43 @@ static final int hash(Object key) {
 }
 ```
 
+| Y    | B = 0 | B = 1 |
+| :--- | :---: | :---: |
+| A = 0 |   0   | 1    |
+| A = 1 |   1   | 0    |
 
+1. 拿到 key 的 hashCode 值
+
+2. 将 hashCode 的高位参与异或运算，重新计算 hash 值
+
+3. 将计算出来的 hash 值与 (table.length - 1) 进行 & 运算
+
+   
 
 ```java
 final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
     Node<K,V>[] tab; Node<K,V> p; int n, i;	// tab 存放当前的哈希桶; p 临时链表节点
-    // 1 如果当前哈希桶是空的，初始化
+    // 1 如果当前哈希桶是空的，或者length=0，进行初始化，并设置哈希桶数组的长度
     if ((tab = table) == null || (n = tab.length) == 0)
         n = (tab = resize()).length;  // 扩容，新数组的长度赋值给n
-    // 当前节点的index = 数组长度-1 & hash值
+    // 计算索引位置：当前节点的index = 数组长度-1 & hash值
     // 2 如果当前节点是空，说明没有发生hash碰撞，直接存放在index位置处
     if ((p = tab[i = (n - 1) & hash]) == null)
         tab[i] = newNode(hash, key, value, null);
-    else {  // 发生hash碰撞
+    else {  // 发生hash碰撞，说明当前数组已经被占
         Node<K,V> e; K k;
-        // 3 如果hash值相等，且key也相等，覆盖val
+        // 3 如果hash值相等，且key也相等，覆盖当前桶val
         if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
             e = p;  // 将当前节点赋值给e
         else if (p instanceof TreeNode)  // 4 红黑树
             e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
-        else {  // 5 插入普通链表
+        else {  // 5 插入普通链表，使用binCount统计链表的节点数
             for (int binCount = 0; ; ++binCount) {
                 // 遍历到尾部，追加新节点到尾部;注意这个地方跟Java7不一样，是插在链表尾部！！！
                 if ((e = p.next) == null) {
+                    // 追加新节点到尾部
                     p.next = newNode(hash, key, value, null);
-                    // 6 如果追加节点之后，链表数量>=8
+                    // 6 校验节点数，如果追加节点之后，（TREEIFY_THRESHOLD=8）链表长度>=8
                     if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
                         treeifyBin(tab, hash);
                     break;
@@ -227,13 +239,13 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
             // 如果evict是false,那么表示是在初始化时调用的
             if (!onlyIfAbsent || oldValue == null)
                 e.value = value;
-            afterNodeAccess(e);
+            afterNodeAccess(e);	  // 用于LinkedHashMap
             return oldValue;
         }
     }
+    
+    
     //如果执行到了这里，说明插入了一个新的节点，所以会修改modCount，以及返回null。
-    
-    
     ++modCount;
     // 9 更新size，并判断是否需要扩容
     if (++size > threshold)
@@ -243,7 +255,7 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
 }
 ```
 
-1. 判断当前桶是否为空，空就初始化，resize判断是否进行初始化
+1. 判断当前桶是否为空，空就初始化，resize()判断是否进行初始化
 2. 根据当前key的hashcode定位到具体的桶位置并判断是否为空，为空说明没有hash冲突，直接在该位置新建一个Node
 3. 如果当前桶位置有值（Hash冲突），比较当前的key、key的hashcode，相同旧覆盖
 4. 如果当前桶位置是红黑树，按照红黑树的方式写入数据
@@ -261,7 +273,7 @@ final Node<K,V>[] resize() {
     int oldCap = (oldTab == null) ? 0 : oldTab.length;	// 当前哈希桶容量，旧数组的长度
     int oldThr = threshold;	// 旧数组的阀值
     int newCap, newThr = 0;	 // 定义新数组长度，新阀值
-    // 旧数组长度 > 0
+    // Node数组已经初始化，旧数组长度 > 0
     if (oldCap > 0) {        
         if (oldCap >= MAXIMUM_CAPACITY) {	// 极端情况，超过最大容量,不在扩容，直接返回
             threshold = Integer.MAX_VALUE;
@@ -277,7 +289,7 @@ final Node<K,V>[] resize() {
     else if (oldThr > 0) // initial capacity was placed in threshold
         newCap = oldThr;
     // 如果当前表是空的，而且也没有阈值。初始化时没有任何容量/阈值参数的情况
-    // 对应构造函数HashMap()
+    // 进行数组的初始化，对应构造函数HashMap()
     else {               // zero initial threshold signifies using defaults
         newCap = DEFAULT_INITIAL_CAPACITY;	// 默认容量16
         newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);		// 默认阀值:16 * 0.75 = 12
