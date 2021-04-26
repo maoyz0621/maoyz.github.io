@@ -374,6 +374,51 @@ getActivateExtension(URL url, String key)
 ```
 
 - ExtensionFactory
-- AdaptiveExtensionFactory
-- SpiExtensionFactory
+
+  实现类：
+
+- AdaptiveExtensionFactory       **@Adaptive**
+
+- SpiExtensionFactory                  **@SPI**
+
 - SpringExtensionFactory
+
+
+
+> org.apache.dubbo.config.spring.extension.SpringExtensionFactory
+
+```java
+public <T> T getExtension(Class<T> type, String name) {
+
+    //SPI should be get from SpiExtensionFactory
+    // 如果接口上存在@SPI注解，就不从Spring获取对象实例了
+    if (type.isInterface() && type.isAnnotationPresent(SPI.class)) {
+        return null;
+    }
+	// 从Spring中获取bean，byName
+    for (ApplicationContext context : CONTEXTS) {
+        T bean = BeanFactoryUtils.getOptionalBean(context, name, type);
+        if (bean != null) {
+            return bean;
+        }
+    }
+    return null;
+}
+```
+
+
+
+> org.apache.dubbo.common.extension.factory.SpiExtensionFactory
+
+```java
+public <T> T getExtension(Class<T> type, String name) {
+    // SPI注解
+    if (type.isInterface() && type.isAnnotationPresent(SPI.class)) {
+        ExtensionLoader<T> loader = ExtensionLoader.getExtensionLoader(type);
+        if (!loader.getSupportedExtensions().isEmpty()) {
+            return loader.getAdaptiveExtension();
+        }
+    }
+    return null;
+}
+```
