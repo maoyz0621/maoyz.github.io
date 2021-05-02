@@ -642,15 +642,13 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 ##### 2、read committed 读已提交
 
 ```
-- 事务A和事务B，事务A提交的数据，事务B才能读取到
+- 事务A和事务B，事务A提交了数据，事务B才能读取到
 - 这种隔离级别高于读未提交
-- 换句话说，对方事务提交之后的数据，我当前事务才能读取到
+- 换句话说，对方事务提交之后的数据，当前事务才能读取到
 - 这种级别可以避免“脏数据”
 - 这种隔离级别会导致“不可重复读取”
 - Oracle默认隔离级别
 ```
-
-
 
 ##### 3、repeatable read 可重复读
 

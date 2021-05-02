@@ -129,8 +129,6 @@ save 60 10000		# 60秒内有10000个更改
 
 
 
-
-
 原因：
 
 内存存储，没有磁盘IO开销
@@ -142,65 +140,38 @@ save 60 10000		# 60秒内有10000个更改
 好的数据结构
 
 
+## 过期删除策略
 
-1. 缩短键值对的存储长度；**序列化我们可以使用 protostuff 或 kryo，压缩我们可以使用 snappy。**
+- 惰性删除
 
-2. 使用 lazy free（延迟删除）特性；
+  在客户端访问这个key的时候，对key的过期时间进行检查，如果过期了就立即删除，不会给你返回任何东西。这样会导致很多过期key到了时间并没有被删除掉，除非你的系统去查一下那个 key，才会被Redis给删除掉
 
-   4.0版本
+- 定期删除
 
-   ```
-   lazyfree-lazy-eviction no
-   lazyfree-lazy-expire no
-   lazyfree-lazy-server-del no
-   slave-lazy-flush no
-   ```
+  Redis 会将每个设置了过期时间的 key 放入到一个独立的字典中，以后会定期遍历这个字典来删除到期的 key。
 
-   
+  Redis默认是每隔 100ms就**随机抽取**一些设置了过期时间的key，检查其是否过期，如果过期就删除。为什么要随机呢？你想一想假如 redis 存了几十万个 key ，每隔100ms就遍历所有的设置过期时间的 key 的话，就会给 CPU 带来很大的负载。而是采用了一种简单的贪心策略。
 
-3. 设置键值的过期时间；
+> 总结：定期删除是集中处理，惰性删除是零散处理。
 
-4. 禁用长耗时的查询命令；
+- 在RDB持久化模式中：可以使用*save*和*bgsave*命令进行数据持久化操作
+- 在AOF持久化模式中：使用*rewriteaof*和*bgrewriteaof*命令进行持久化操作
 
-5. 使用 slowlog 优化耗时命令；
+删除的时候建议采用渐进式的方式来完成：hscan、ltrim、sscan、zscan。
 
-   ```
-   slowlog-log-slower-than ：用于设置慢查询的评定时间，也就是说超过此配置项的命令，将会被当成慢操作记录在慢查询日志中，它执行单位是微秒 (1 秒等于 1000000 微秒)；
-   slowlog-max-len ：用来配置慢查询日志的最大记录数。
-   ```
-
-6. 使用 Pipeline 批量操作数据；
-
-7. 避免大量数据同时失效；**过期时间的基础上添加一个指定范围的随机数**
-
-8. 客户端使用优化；**Pipeline和连接池**
-
-9. 限制 Redis 内存大小；
-
-10. 使用物理机而非虚拟机安装 Redis 服务；
-
-11. 检查数据持久化策略；
-    - RDB 快照 内存快照
-    - AOF 文件追加 文件形式
-    - 混合 在写入的时候，先把当前的数据以 RDB 的形式写入文件的开头，再将后续的操作命令以 AOF 的格式存入文件，这样既能保证 Redis 重启时的速度，又能减低数据丢失的风险。
-
-```
-aof-use-rdb-preamble  4.0版本提供
-```
-
-12. 禁用 THP 特性；
-
-13. 使用分布式架构来增加读写速度。
+如果你使用Redis 4.0+，一条异步删除unlink就解决
 
 
+
+有了以上过期策略的说明后，就很容易理解为什么需要淘汰策略了，因为不管是定期采样删除还是惰性删除都不是一种完全精准的删除，就还是会存在key没有被删除掉的场景，所以就需要内存淘汰策略进行补充。
 
 
 
 ## 内存淘汰策略
 
-LRU（Least Recently Used）：最久最少使用
+LRU（Least Recently Used）：最近最少使用，其核心思想是“**如果数据最近被访问过，那么将来被访问的几率也更高**”。
 
-LFU（Least Frequently Used）：最不经常使用
+LFU（Least Frequently Used）：最不经常使用，使用频率最少，其核心思想是“**如果数据过去被访问多次，那么将来被访问的频率也更高**”。
 
 策略种类：
 
@@ -220,24 +191,118 @@ LFU（Least Frequently Used）：最不经常使用
 
 - **volatile-lfu**：淘汰所有设置了过期时间的键值中，使用频率最低的键值；（4.0之后）
 
-  
+
+> 其中 allkeys-xxx 表示从所有的键值中淘汰数据，而 volatile-xxx 表示从设置了过期键的键值中淘汰数据。
+> 过期键值：贪心策略
 
 
 
-## 过期键删除策略
+```
+############################## MEMORY MANAGEMENT ################################
 
-- 惰性删除
-- 定期删除
+# Set a memory usage limit to the specified amount of bytes.
+# When the memory limit is reached Redis will try to remove keys
+# according to the eviction policy selected (see maxmemory-policy).
+#
+# If Redis can't remove keys according to the policy, or if the policy is
+# set to 'noeviction', Redis will start to reply with errors to commands
+# that would use more memory, like SET, LPUSH, and so on, and will continue
+# to reply to read-only commands like GET.
+#
+# This option is usually useful when using Redis as an LRU or LFU cache, or to
+# set a hard memory limit for an instance (using the 'noeviction' policy).
+#
+# WARNING: If you have replicas attached to an instance with maxmemory on,
+# the size of the output buffers needed to feed the replicas are subtracted
+# from the used memory count, so that network problems / resyncs will
+# not trigger a loop where keys are evicted, and in turn the output
+# buffer of replicas is full with DELs of keys evicted triggering the deletion
+# of more keys, and so forth until the database is completely emptied.
+#
+# In short... if you have replicas attached it is suggested that you set a lower
+# limit for maxmemory so that there is some free RAM on the system for replica
+# output buffers (but this is not needed if the policy is 'noeviction').
+#
+# maxmemory <bytes>
 
-删除的时候建议采用渐进式的方式来完成：hscan、ltrim、sscan、zscan。
+# MAXMEMORY POLICY: how Redis will select what to remove when maxmemory
+# is reached. You can select one from the following behaviors:
+#
+# volatile-lru -> Evict using approximated LRU, only keys with an expire set.
+# allkeys-lru -> Evict any key using approximated LRU.
+# volatile-lfu -> Evict using approximated LFU, only keys with an expire set.
+# allkeys-lfu -> Evict any key using approximated LFU.
+# volatile-random -> Remove a random key having an expire set.
+# allkeys-random -> Remove a random key, any key.
+# volatile-ttl -> Remove the key with the nearest expire time (minor TTL)
+# noeviction -> Don't evict anything, just return an error on write operations.
+#
+# LRU means Least Recently Used
+# LFU means Least Frequently Used
+#
+# Both LRU, LFU and volatile-ttl are implemented using approximated
+# randomized algorithms.
+#
+# Note: with any of the above policies, Redis will return an error on write
+#       operations, when there are no suitable keys for eviction.
+#
+#       At the date of writing these commands are: set setnx setex append
+#       incr decr rpush lpush rpushx lpushx linsert lset rpoplpush sadd
+#       sinter sinterstore sunion sunionstore sdiff sdiffstore zadd zincrby
+#       zunionstore zinterstore hset hsetnx hmset hincrby incrby decrby
+#       getset mset msetnx exec sort
+# Redis默认内存淘汰策略
+# The default is:
+# maxmemory-policy noeviction
 
-如果你使用Redis 4.0+，一条异步删除unlink就解决
+# LRU, LFU and minimal TTL algorithms are not precise algorithms but approximated
+# algorithms (in order to save memory), so you can tune it for speed or
+# accuracy. For default Redis will check five keys and pick the one that was
+# used less recently, you can change the sample size using the following
+# configuration directive.
+#
+# The default of 5 produces good enough results. 10 Approximates very closely
+# true LRU but costs more CPU. 3 is faster but not very accurate.
+#
+# maxmemory-samples 5
 
+# Starting from Redis 5, by default a replica will ignore its maxmemory setting
+# (unless it is promoted to master after a failover or manually). It means
+# that the eviction of keys will be just handled by the master, sending the
+# DEL commands to the replica as keys evict in the master side.
+#
+# This behavior ensures that masters and replicas stay consistent, and is usually
+# what you want, however if your replica is writable, or you want the replica
+# to have a different memory setting, and you are sure all the writes performed
+# to the replica are idempotent, then you may change this default (but be sure
+# to understand what you are doing).
+#
+# Note that since the replica by default does not evict, it may end using more
+# memory than the one set via maxmemory (there are certain buffers that may
+# be larger on the replica, or data structures may sometimes take more memory
+# and so forth). So make sure you monitor your replicas and make sure they
+# have enough memory to never hit a real out-of-memory condition before the
+# master hits the configured maxmemory setting.
+#
+# replica-ignore-maxmemory yes
 
-
-其中 allkeys-xxx 表示从所有的键值中淘汰数据，而 volatile-xxx 表示从设置了过期键的键值中淘汰数据。
-
-过期键值：贪心策略
+# Redis reclaims expired keys in two ways: upon access when those keys are
+# found to be expired, and also in background, in what is called the
+# "active expire key". The key space is slowly and interactively scanned
+# looking for expired keys to reclaim, so that it is possible to free memory
+# of keys that are expired and will never be accessed again in a short time.
+#
+# The default effort of the expire cycle will try to avoid having more than
+# ten percent of expired keys still in memory, and will try to avoid consuming
+# more than 25% of total memory and to add latency to the system. However
+# it is possible to increase the expire "effort" that is normally set to
+# "1", to a greater value, up to the value "10". At its maximum value the
+# system will use more CPU, longer cycles (and technically may introduce
+# more latency), and will tollerate less already expired keys still present
+# in the system. It's a tradeoff betweeen memory, CPU and latecy.
+#
+# active-expire-effort 1
+```
 
 
 
@@ -250,6 +315,8 @@ watch机制（乐观锁）监控key发生变化
 - MULTI：标记事务的开始；
 - EXEC：执行事务的commands队列；
 - DISCARD：结束事务，并清除commands队列；
+
+
 
 ## 删除bigKey
 
@@ -525,4 +592,56 @@ Reactor模式，非阻塞IO多路复用机制
 
 - 内存队列
 - 读写锁（分布式）
-- 
+
+
+
+
+
+1. 缩短键值对的存储长度；**序列化我们可以使用 protostuff 或 kryo，压缩我们可以使用 snappy。**
+
+2. 使用 lazy free（延迟删除）特性；
+
+   4.0版本
+
+   ```
+   lazyfree-lazy-eviction no
+   lazyfree-lazy-expire no
+   lazyfree-lazy-server-del no
+   slave-lazy-flush no
+   ```
+
+   
+
+3. 设置键值的过期时间；
+
+4. 禁用长耗时的查询命令；
+
+5. 使用 slowlog 优化耗时命令；
+
+   ```
+   slowlog-log-slower-than ：用于设置慢查询的评定时间，也就是说超过此配置项的命令，将会被当成慢操作记录在慢查询日志中，它执行单位是微秒 (1 秒等于 1000000 微秒)；
+   slowlog-max-len ：用来配置慢查询日志的最大记录数。
+   ```
+
+6. 使用 Pipeline 批量操作数据；
+
+7. 避免大量数据同时失效；**过期时间的基础上添加一个指定范围的随机数**
+
+8. 客户端使用优化；**Pipeline和连接池**
+
+9. 限制 Redis 内存大小；
+
+10. 使用物理机而非虚拟机安装 Redis 服务；
+
+11. 检查数据持久化策略；
+    - RDB 快照         内存快照
+    - AOF 文件追加  文件形式
+    - 混合 在写入的时候，先把当前的数据以 RDB 的形式写入文件的开头，再将后续的操作命令以 AOF 的格式存入文件，这样既能保证 Redis 重启时的速度，又能减低数据丢失的风险。
+
+```
+aof-use-rdb-preamble  4.0版本提供
+```
+
+12. 禁用 THP 特性；
+
+13. 使用分布式架构来增加读写速度。

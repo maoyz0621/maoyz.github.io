@@ -4,7 +4,7 @@
 
 ### 1. 全局字符串池
 
-string pool，在类加载完成，经过验证，准备阶段之后在堆中生成字符串对象实例，然后将该字符串对象实例的引用值存到string pool中（**记住：string pool中存的是引用值而不是具体的实例对象，具体的实例对象是在堆中开辟的一块空间存放的**）。
+string pool，在类加载完成，经过验证，准备阶段之后在堆中生成字符串对象实例，然后将该字符串对象实例的引用值存到string pool中（**记住：String Pool中存的是引用值而不是具体的实例对象，具体的实例对象是在堆中开辟的一块空间存放的**）。
 
 在每个JVM中只有一份，存放的是字符串常量和引用值。
 
@@ -44,39 +44,660 @@ string pool，在类加载完成，经过验证，准备阶段之后在堆中生
 `-XX:<option>=<string>` 给选项设置一个字符串类型值，通常用于指定一个文件、路径或一系列命令列表。 例如：-XX:HeapDumpPath=./dump.core
 
 
-1. 堆设置
-2. -Xms:初始堆大小，默认物理内存的1/64
-3. -Xmx:最大堆大小，默认物理内存的1/4，设置与-Xms一样
-2. -XX:NewSize=n:设置年轻代大小
-3. -XX:NewRatio=n:设置年轻代和年老代的比值。如:为3，表示年轻代与年老代比值为1：3，年轻代占整个年轻代年老代和的1/4
-6.  -XX:SurvivorRatio=n:年轻代中Eden区与两个Survivor区的比值。注意Survivor区有两个。如：3，表示Eden：Survivor=3：2，一个Survivor区占整个年轻代的1/5
-7. -XX:MaxPermSize=n:设置持久代大小
+
+- 堆设置
+
+1. -Xms:初始堆大小，默认物理内存的1/64
+2. -Xmx:最大堆大小，默认物理内存的1/4，设置与-Xms一样
+3. -XX:NewSize=n:设置年轻代大小
+4. -XX:NewRatio=n:设置年轻代和年老代的比值。如:为3，表示年轻代与年老代比值为1：3，年轻代占整个年轻代年老代和的1/4
+5. -XX:SurvivorRatio=n:年轻代中Eden区与两个Survivor区的比值。注意Survivor区有两个。如：3，表示Eden：Survivor=3：2，一个Survivor区占整个年轻代的1/5
+6. -XX:MaxPermSize=n:设置持久代大小
+
+- 收集器设置
+
+1. -XX:+UseSerialGC:设置串行收集器o -XX:+UseParallelGC:设置并行收集器
+2. -XX:+UseParalledlOldGC:设置并行年老代收集器
+3. -XX:+UseConcMarkSweepGC:设置并发收集器
+
+- 垃圾回收统计信息
+
+-XX:+PrintGC     输出GC日志
+
+-XX:+PrintGCDetails     输出GC的详细日志
+
+-XX:+PrintGCTimeStamps    输出GC的时间戳
+
+-XX:+PrintGCDateStamps    输出GC的日期时间戳
+
+-XX:+PrintGCCause     输出GC的详细日志
+
+-Xloggc:/opt/xxx/logs/xxx-gc-%t.log  设置文件目录
+
+-XX:+UseGCLogFileRotation       设置滚动日志
+
+-XX:NumberOfGCLogFiles=5      设置5个文件日志
+
+-XX:GCLogFileSize=100M            设置每个日志大小
 
 
-2. 收集器设置
-3. -XX:+UseSerialGC:设置串行收集器o -XX:+UseParallelGC:设置并行收集器
-4. -XX:+UseParalledlOldGC:设置并行年老代收集器
-5. -XX:+UseConcMarkSweepGC:设置并发收集器
 
+## 内存泄露和内存溢出
 
-3. 垃圾回收统计信息
+### 内存泄露
 
--XX:+PrintGC
+Memory Leak，程序在申请内存后，无法释放已申请的内存空间，一次内存泄露危害可以忽略，但内存泄露堆积后果很严重，无论多少内存，迟早会被占光，广义并通俗的说，就是：不再会被使用的对象或者变量占用的**内存不能被回收**，就是内存泄露。
 
--XX:+PrintGCDetails
+最终会导致out of memory
 
--XX:+PrintGCTimeStamps
+### 内存溢出
 
--Xloggc:filename
-
-
-## 内存泄露
-
-程序在申请内存后，无法释放已申请的内存空间，一次内存泄露危害可以忽略，但内存泄露堆积后果很严重，无论多少内存,迟早会被占光，广义并通俗的说，就是：不再会被使用的对象或者变量占用的**内存不能被回收**，就是内存泄露。
+OOM，out of memory，在申请内存时，没有足够的内存空间供其使用；通常发生于OLD段或Perm段垃圾回收后，仍然无内存空间容纳新的Java对象的情况。通常都是由于内存泄露导致堆栈内存不断增大，从而引发内存溢出。
 
 
 
+## Garbage Collection
 
+什么是垃圾？
+
+1. **引用计数算法**
+
+给对象中添加一个引用计数器，每当有一个地方引用它时，计数器值就加1；当引用失效时，计数器值就减1；任何时刻计数器为0的对象就是不可能再被使用的。
+
+> 优点：简单，高效，现在的objective-c用的就是这种算法。
+> 缺点：很难处理**循环引用**，相互引用的两个对象则无法释放。
+
+
+
+2. **可达性分析算法（根搜索算法）**Root Searching
+
+从GC Roots作为起点，向下搜索引用的对象，生成一棵引用树，树的节点视为可达对象。
+
+可作为GC Roots对象：
+
+- 线程栈变量
+- 方法区中静态变量引用的对象
+- 方法区中的常量引用的对象
+- 本地方法栈中JNI（Native方法）的引用对象
+
+> 真正标记以为对象为可回收状态至少要标记两次。
+
+
+
+### 垃圾回收算法
+
+- Copying 复制算法
+- Mark-Compact 标记-压缩
+- Mark-Sweep 标记-清除
+
+|       Copying 复制算法       |
+| :--------------------------: |
+| ![](.\image\GC\复制算法.png) |
+>优点： 快速高效，不会产生内存碎片。
+>缺点： 可用内存会减少一半，因为是按照均分的。
+
+
+
+|       Mark-Compact 标记压缩       |
+| :--------------------------: |
+| ![](.\image\GC\标记整理法.png) |
+|  |
+>优点： 适合存活对象多的，不产生内存碎片
+
+
+
+| Mark-Sweep 标记清除              |
+| :------------------------------- |
+| ![](.\image\GC\标记清除算法.png) |
+> 优点： 简单，易实现
+> 缺点： 容易产生**内存碎片**，对于后面分配大空间时，找不到足够的空间，而主动会触发一次内存回收，增加内存回收的次数。
+
+
+#### 年轻代（Young Generation）的回收算法（Minor GC）
+
+a)	所有新生成的对象首先都是放在年轻代的。年轻代的目标就是尽可能快速的收集掉那些生命周期短的对象。
+b)	新生代内存按照8:1:1的比例分为一个Eden区和两个survivor(s0,s1)区。一个Eden区，两个Survivor区(一般而言)。大部分对象在Eden区中生成。回收时先将Eden区存活对象复制到一个s0区，然后清空Eden区，当这个s0区也存放满了时，则将Eden区和s0区存活对象复制到另一个s1区，然后清空Eden和这个s0区，此时s0区是空的，然后将s0区和s1区交换，即保持s1区为空， 如此往复。
+c)	当s1区不足以存放 Eden和s0的存活对象时，就将存活对象直接存放到老年代。若是老年代也满了就会触发一次Full GC，也就是新生代、老年代都进行回收。
+d)	新生代发生的GC也叫做Minor GC，MinorGC发生频率比较高(不一定等Eden区满了才触发)。
+
+#### 年老代（Old Generation）的回收算法（Full GC）
+
+a)	在年轻代中经历了N次垃圾回收后仍然存活的对象，就会被放到年老代中。因此，可以认为年老代中存放的都是一些生命周期较长的对象。
+b)	内存比新生代也大很多(大概比例是1:2)，当老年代内存满时触发Major GC即Full GC，Full GC发生频率比较低，老年代对象存活时间比较长，存活率标记高。
+
+循环引用
+
+https://segmentfault.com/a/1190000019910501
+
+
+
+## 垃圾回收器种类
+
+从分代算法演变到不分代算法
+
+- 串行垃圾回收器（Serial Garbage Collector）：单线程
+- 并行垃圾回收器（Parallel Garbage Collector）：多线程
+- 并发标记扫描垃圾回收器（CMS Garbage Collector）
+- G1垃圾回收器（G1 Garbage Collector）
+
+
+
+### 具体划分：
+
+新生代：垃圾回收算法（**复制算法**）
+
+- Serial收集器
+- ParNew收集器
+- Parallel Scavenge收集器（并行）
+
+老年代：
+
+- Serial Old收集器：标记-整理算法
+- Parallel Old收集器（并行）：标记-整理算法
+- CMS（Concurrent Mark Sweep）收集器（并发）：标记-清除算法
+
+整堆：
+
+- G1（Garbage First）收集器
+- ZGC收集器
+
+|      |
+| :--: |
+|   ![](.\image\Java\GC.jpg)   |
+| <img src=".\image\GC\垃圾回收器.png" style="zoom:80%;" /> |
+
+
+
+| 垃圾回收器        | 新生代/老年代 | 回收算法  | 线程模式     |
+| ----------------- | ------------- | --------- | ------------ |
+| Serial            | 新生代        | 复制算法  | 单线程       |
+| ParNew            | 新生代        | 复制算法  | 多线程       |
+| Parallel Scavenge | 新生代        | 复制算法  | 多线程       |
+| Serial Old        | 老年代        | 标记-整理 | 单线程       |
+| Parallel Old      | 老年代        | 标记-整理 | 多线程       |
+| CMS               | 老年代        | 标记-清除 | 并发，多线程 |
+| G1                |               |           |              |
+
+
+
+#### Serial
+
+- 发生在新生代
+
+- 采用复制算法
+
+- 单线程收集
+
+Stop The World，在进行垃圾收集时，必须暂停其他所有工作线程（即GC停顿），直到它收集结束
+
+|                                                        |
+| :----------------------------------------------------: |
+| <img src=".\image\GC\Serial.png" style="zoom:125%;" /> |
+
+设置参数：`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+PrintCommandLineFlags -XX:+UseSerialGC`
+
+```java
+-XX:InitialHeapSize=5242880 -XX:MaxHeapSize=5242880 -XX:+PrintCommandLineFlags -XX:+PrintGCDetails -XX:-UseLargePagesIndividualAllocation -XX:+UseSerialGC 
+[GC (Allocation Failure) [DefNew: 1664K->192K(1856K), 0.0011112 secs] 1664K->718K(5952K), 0.0011399 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
+    
+[GC (Allocation Failure) [DefNew: 1650K->150K(1856K), 0.0004731 secs][Tenured: 1305K->1440K(4096K), 0.0019278 secs] 2926K->1440K(5952K), [Metaspace: 3270K->3270K(4480K)], 0.0024290 secs] [Times: user=0.01 sys=0.00, real=0.02 secs]
+
+[Full GC (Allocation Failure) [Tenured: 1440K->1190K(4096K), 0.0016928 secs] 1440K->1190K(5952K), [Metaspace: 3270K->3270K(4480K)], 0.0017108 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+```
+
+
+
+#### ParNew
+
+Serial收集器的多线程版本，除了使用多条线程进行垃圾收集之外，其余行为包括Serial收集器可用的所有控制参数、收集算法、Stop the World、对象分配规则、回收策略等都与Serial收集器完全一样。
+
+|                                                        |
+| :----------------------------------------------------: |
+| <img src=".\image\GC\ParNew.png" style="zoom:125%;" /> |
+
+> 目前只有ParNew收集器可以和老年代的CMS收集器配合
+
+设置参数：
+
+“-XX:+UseConcMarkSweepGC”：指定使用CMS后，会默认使用ParNew作为新生代收集器；
+
+“-XX:+UseParNewGC”：强制指定使用ParNew；
+
+“-XX:ParallelGCThreads”：指定垃圾收集的线程数量，ParNew默认开启的收集线程与CPU的数量相同；
+
+
+
+#### Parallel Scavenge
+
+因为与吞吐量关系密切，也称为吞吐量收集器（Throughput Collector），即吞吐量=运行用户代码时间/(运行用户代码时间+GC线程时间)
+
+- 发生在新生代
+- 采用复制算法
+- 多线程收集
+
+|                                                          |
+| :------------------------------------------------------: |
+| <img src=".\image\GC\Parallel.png" style="zoom:125%;" /> |
+
+设置参数：
+
+"-XX:MaxGCPauseMillis"
+
+"-XX:GCTimeRatio"
+
+"-XX:+UseAdptiveSizePolicy"
+
+
+
+#### Serial Old
+
+- 发生在老年代
+- 采用标记-整理算法
+- 单线程收集
+
+
+
+#### Parallel Old收集器
+
+- 发生在老年代
+- 采用标记-整理算法
+- 多线程收集
+
+设置参数：`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+UseParallelGC -XX:+UseParallelOldGC`
+
+```java
+[GC (Allocation Failure) [PSYoungGen: 256K->192K(1536K)] 1809K->1885K(5632K), 0.0005799 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
+
+[Full GC (Allocation Failure) [PSYoungGen: 192K->0K(1536K)] [ParOldGen: 1693K->1172K(4096K)] 1885K->1172K(5632K), [Metaspace: 3269K->3269K(4480K)], 0.0040003 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
+
+[GC (Allocation Failure) [PSYoungGen: 0K->0K(1536K)] 1172K->1172K(5632K), 0.0012317 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
+
+# OOM
+[Full GC (Allocation Failure) [PSYoungGen: 0K->0K(1536K)] [ParOldGen: 1172K->1101K(4096K)] 1172K->1101K(5632K), [Metaspace: 3269K->3267K(4480K)], 0.0078113 secs] [Times: user=0.09 sys=0.00, real=0.01 secs] 
+
+```
+
+参数说明：
+
+[名称：GC前内存占用 -> GC后内存占用 （该区内存总大小）]  GC前堆内存占用 -> GC后堆内存占用 （堆内存总大小）
+
++ `[GC (Allocation Failure) [PSYoungGen: 256K->192K(1536K)] 1809K->1885K(5632K), 0.0005799 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]`GC类型：Young GC
+
+新生代总内存 / 堆内存 = 1/3；
+
++ `[Full GC (Allocation Failure) [PSYoungGen: 192K->0K(1536K)] [ParOldGen: 1693K->1172K(4096K)] 1885K->1172K(5632K), [Metaspace: 3269K->3269K(4480K)], 0.0040003 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]`GC类型：Full GC
+
+新生代总内存/老年代总内存 = 1/2；新生代总内存 + 老年代总内存 = 堆内存
+
+
+
+#### CMS
+
+并发标记清理（Concurrent Mark Sweep，CMS）收集器也称为并发低停顿收集器（Concurrent Low Pause Collector）或低延迟（low-latency）垃圾收集器；
+
+- 发生在老年代
+- 标记-清除，不进行压缩，产生内存碎片
+- 并发收集、低停顿
+
+|                                                     |
+| :-------------------------------------------------: |
+| <img src=".\image\GC\CMS.png" style="zoom:125%;" /> |
+
+设置参数：
+
+"-XX:+UseCMSCompactAtFullCollection"：开启内存碎片的合并整理过程
+
+"-XX:+CMSFullGCsBeforeCompaction"：执行多少次不压缩的FullGC后，执行一次带碎片整理的FullGC
+
+`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+UseParNewGC -XX:+UseConcMarkSweepGC`
+
+```
+[GC (Allocation Failure) [ParNew: 1088K->128K(1216K), 0.0016975 secs] 1088K->647K(6016K), 0.0017305 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
+
+[GC (Allocation Failure) [ParNew: 581K->55K(1216K), 0.0004477 secs][CMS: 1480K->1178K(4800K), 0.0023755 secs] 2022K->1178K(6016K), [Metaspace: 3270K->3270K(4480K)], 0.0028529 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
+
+[Full GC (Allocation Failure) [CMS: 1178K->1130K(4800K), 0.0020235 secs] 1178K->1130K(6016K), [Metaspace: 3270K->3270K(4480K)], 0.0020465 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+```
+
+运行过程：
+
+1. 初始标记（CMS initial mark）
+
+   标记一下GC Roots能关联的对象，需要Stop The World
+
+2. 并发标记（CMS concurrent mark）
+
+   进行GC Roots Tracing过程，标记存活对象，应用程序运行，不需要Stop The World；与用户线程一起工作
+
+3. 重新标记（CMS remark）
+
+   修正并发标记期间因程序运行导致标记变动的那一部分标记记录，需要Stop The World，采用多线程执行
+
+4. 并发清除（CMS concurrent sweep）
+
+   回收所有的垃圾对象，不需要Stop The World；与用户线程一起工作
+
+> incremental update
+
+缺点：
+
+1）浮动垃圾（Floating Garbage）
+
+浮动垃圾，指的是并发清理阶段产生的垃圾。因为**并发清理**阶段用户程序也在运行，产生的垃圾在标记过程之后，所以本次清理过程不会被清理，并且CMS还必须预留一部分空间提供给并发收集时的程序运作使用。
+
+这使得并发清除时需要预留一定的内存空间，不能像其他收集器在老年代几乎填满再进行收集；
+也要可以认为CMS所需要的空间比其他垃圾收集器大；
+
+> “-XX:CMSInitiatingOccupancyFraction”：设置CMS预留内存空间；
+> JDK1.5默认值为68%；
+> JDK1.6变为大约92%；
+
+2）"Concurrent Mode Failure"失败
+要是CMS运行期间预留的内存无法满足程序需要，就会触发“Concurrent Mode Failure”，这时虚拟机将启动后备预案，临时启用Serial Old收集器，但停顿时间会明显增加，而导致另一次Full GC的产生；
+
+这样的代价是很大的，所以CMSInitiatingOccupancyFraction不能设置得太大。
+CMS提供了参数-XXCMSInitiatingOccupancyFraction来控制触发CMS的内存使用占比，设置太低会导致CMS触发过于频繁，设置太高则很容易出现大量的“Concurrent Mode Failure”。
+3）产生大量内存碎片
+
+
+
+#### G1
+
+逻辑分代，物理部分带
+
+|                                                    |
+| :------------------------------------------------: |
+| <img src=".\image\GC\G1.png" style="zoom:125%;" /> |
+
+设置参数：
+
+“-XX:+UseG1GC”：指定使用G1收集器；
+
+“-XX:InitiatingHeapOccupancyPercent”：当整个Java堆的占用率达到参数值时，开始并发标记阶段；默认为45；
+
+“-XX:MaxGCPauseMillis”：为G1设置暂停时间目标，默认值为200毫秒；
+
+“-XX:G1HeapRegionSize”：设置每个Region大小，范围1MB到32MB；目标是在最小Java堆时可以拥有约2048个Region
+
+`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+UseG1GC`
+
+```java
+[GC pause (G1 Evacuation Pause) (young), 0.0018089 secs]
+   [Parallel Time: 0.6 ms, GC Workers: 10]
+      [GC Worker Start (ms): Min: 112.7, Avg: 112.8, Max: 112.8, Diff: 0.1]
+      [Ext Root Scanning (ms): Min: 0.0, Avg: 0.2, Max: 0.5, Diff: 0.4, Sum: 1.6]
+      [Update RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+         [Processed Buffers: Min: 0, Avg: 0.0, Max: 0, Diff: 0, Sum: 0]
+      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Object Copy (ms): Min: 0.0, Avg: 0.3, Max: 0.4, Diff: 0.4, Sum: 3.1]
+      [Termination (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.2]
+      [GC Worker Total (ms): Min: 0.5, Avg: 0.5, Max: 0.6, Diff: 0.1, Sum: 4.9]
+      [GC Worker End (ms): Min: 113.3, Avg: 113.3, Max: 113.3, Diff: 0.0]
+   [Code Root Fixup: 0.0 ms]
+   [Code Root Purge: 0.0 ms]
+   [Clear CT: 0.2 ms]
+   [Other: 1.0 ms]
+      [Choose CSet: 0.0 ms]
+      [Ref Proc: 0.9 ms]
+      [Ref Enq: 0.0 ms]
+      [Redirty Cards: 0.1 ms]
+      [Humongous Reclaim: 0.0 ms]
+      [Free CSet: 0.0 ms]
+   [Eden: 3072.0K(3072.0K)->0.0B(2048.0K) Survivors: 0.0B->1024.0K Heap: 3072.0K(6144.0K)->1133.5K(6144.0K)]
+ [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC pause (G1 Evacuation Pause) (young), 0.0016612 secs]
+   [Parallel Time: 0.8 ms, GC Workers: 10]
+      [GC Worker Start (ms): Min: 171.8, Avg: 171.8, Max: 171.9, Diff: 0.1]
+      [Ext Root Scanning (ms): Min: 0.0, Avg: 0.1, Max: 0.3, Diff: 0.3, Sum: 0.5]
+      [Update RS (ms): Min: 0.0, Avg: 0.2, Max: 0.7, Diff: 0.7, Sum: 1.5]
+         [Processed Buffers: Min: 0, Avg: 1.3, Max: 4, Diff: 4, Sum: 13]
+      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Object Copy (ms): Min: 0.0, Avg: 0.1, Max: 0.2, Diff: 0.2, Sum: 1.2]
+      [Termination (ms): Min: 0.0, Avg: 0.4, Max: 0.5, Diff: 0.5, Sum: 3.8]
+      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [GC Worker Total (ms): Min: 0.7, Avg: 0.7, Max: 0.8, Diff: 0.1, Sum: 7.1]
+      [GC Worker End (ms): Min: 172.5, Avg: 172.5, Max: 172.6, Diff: 0.0]
+   [Code Root Fixup: 0.0 ms]
+   [Code Root Purge: 0.0 ms]
+   [Clear CT: 0.1 ms]
+   [Other: 0.8 ms]
+      [Choose CSet: 0.0 ms]
+      [Ref Proc: 0.6 ms]
+      [Ref Enq: 0.0 ms]
+      [Redirty Cards: 0.1 ms]
+      [Humongous Reclaim: 0.0 ms]
+      [Free CSet: 0.0 ms]
+   [Eden: 2048.0K(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->1024.0K Heap: 3946.1K(6144.0K)->1614.0K(6144.0K)]
+ [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC pause (G1 Humongous Allocation) (young) (initial-mark), 0.0010950 secs]
+   [Parallel Time: 0.5 ms, GC Workers: 10]
+      [GC Worker Start (ms): Min: 188.3, Avg: 188.3, Max: 188.4, Diff: 0.1]
+      [Ext Root Scanning (ms): Min: 0.2, Avg: 0.2, Max: 0.3, Diff: 0.1, Sum: 2.2]
+      [Update RS (ms): Min: 0.0, Avg: 0.0, Max: 0.1, Diff: 0.1, Sum: 0.2]
+         [Processed Buffers: Min: 0, Avg: 1.0, Max: 5, Diff: 5, Sum: 10]
+      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.1, Diff: 0.1, Sum: 0.1]
+      [Object Copy (ms): Min: 0.1, Avg: 0.1, Max: 0.2, Diff: 0.1, Sum: 1.4]
+      [Termination (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.1]
+      [GC Worker Total (ms): Min: 0.4, Avg: 0.4, Max: 0.4, Diff: 0.1, Sum: 4.0]
+      [GC Worker End (ms): Min: 188.7, Avg: 188.7, Max: 188.7, Diff: 0.0]
+   [Code Root Fixup: 0.0 ms]
+   [Code Root Purge: 0.0 ms]
+   [Clear CT: 0.1 ms]
+   [Other: 0.5 ms]
+      [Choose CSet: 0.0 ms]
+      [Ref Proc: 0.2 ms]
+      [Ref Enq: 0.0 ms]
+      [Redirty Cards: 0.2 ms]
+      [Humongous Reclaim: 0.0 ms]
+      [Free CSet: 0.0 ms]
+   [Eden: 1024.0K(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->1024.0K Heap: 2638.0K(6144.0K)->1528.0K(6144.0K)]
+ [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC concurrent-root-region-scan-start]
+[GC pause (G1 Humongous Allocation) (young)[GC concurrent-root-region-scan-end, 0.0005756 secs]
+[GC concurrent-mark-start]
+, 0.0010326 secs]
+   [Root Region Scan Waiting: 0.5 ms]
+   [Parallel Time: 0.3 ms, GC Workers: 10]
+      [GC Worker Start (ms): Min: 190.1, Avg: 190.1, Max: 190.2, Diff: 0.1]
+      [Ext Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.1, Diff: 0.1, Sum: 0.2]
+      [SATB Filtering (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Update RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.1]
+         [Processed Buffers: Min: 0, Avg: 0.9, Max: 2, Diff: 2, Sum: 9]
+      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [Object Copy (ms): Min: 0.1, Avg: 0.2, Max: 0.2, Diff: 0.1, Sum: 1.5]
+      [Termination (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
+      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.1]
+      [GC Worker Total (ms): Min: 0.2, Avg: 0.2, Max: 0.2, Diff: 0.1, Sum: 2.0]
+      [GC Worker End (ms): Min: 190.3, Avg: 190.3, Max: 190.3, Diff: 0.0]
+   [Code Root Fixup: 0.0 ms]
+   [Code Root Purge: 0.0 ms]
+   [Clear CT: 0.1 ms]
+   [Other: 0.2 ms]
+      [Choose CSet: 0.0 ms]
+      [Ref Proc: 0.1 ms]
+      [Ref Enq: 0.0 ms]
+      [Redirty Cards: 0.1 ms]
+      [Humongous Reclaim: 0.0 ms]
+      [Free CSet: 0.0 ms]
+   [Eden: 0.0B(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->1024.0K Heap: 1528.0K(6144.0K)->1454.8K(6144.0K)]
+ [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[Full GC (Allocation Failure)  1454K->1193K(6144K), 0.0031069 secs]
+   [Eden: 0.0B(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->0.0B Heap: 1454.8K(6144.0K)->1193.2K(6144.0K)], [Metaspace: 3270K->3270K(4480K)]
+ [Times: user=0.16 sys=0.00, real=0.01 secs] 
+[Full GC (Allocation Failure)  1193K->1145K(6144K), 0.0030986 secs]
+   [Eden: 0.0B(2048.0K)->0.0B(2048.0K) Survivors: 0.0B->0.0B Heap: 1193.2K(6144.0K)->1145.1K(6144.0K)], [Metaspace: 3270K->3268K(4480K)]
+ [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC concurrent-mark-abort]
+```
+
+运行过程：
+
+1. 初始标记（Initial Marking）
+2. 并发标记（Concurrent Marking）
+3. 最终标记（Final Marking）
+4. 筛选回收（Live Data Counting and Evacuation）
+
+> STAB     Snapshot At The Beginning在起始的时候做一个快照
+>
+
+
+
+#### ZGC
+
+Java 11，支持 TB 级别的堆，ZGC 非常高效，能够做到 10ms 以下的回收停顿时间。
+
+逻辑物理都不分代
+
+> Colored Pointers  着色指针
+
+|                         |
+| :---------------------: |
+| ![](.\image\GC\ZGC.png) |
+
+对象指针必须是64位，同样的也就无法支持压缩指针了（CompressedOops，压缩指针也是32位）。（ZGC仅支持64位平台），指针可以处理更多的内存，因此可以使用一些位来存储状态。 ZGC将限制最大支持4Tb堆（42-bits），那么会剩下22位可用，它目前使用了4位： Finalizable， Remapped， Marked0和Marked1。
+
+- 18位：预留给以后使用
+- 1位：Finalizable标识，次位与并发引用处理有关，它表示这个对象只能通过finalizer才能访问；
+- 1位：Remapped标识，设置此位的值后，对象未指向relocation set中（relocation set表示需要GC的Region集合）；
+- 1位：Marked1标识；
+- 1位：Marked0标识，和上面的Marked1都是标记对象用于辅助GC；
+- 42位：对象的地址（所以它可以支持2^42=4T内存）：
+
+
+
+### 配置参数
+
+运行的垃圾回收器类型
+
+| 配置                    | 描述                                         |
+| :---------------------- | :------------------------------------------- |
+| -XX:+UseSerialGC        | 串行垃圾回收器                               |
+| -XX:+UseParallelGC      | 并行垃圾回收器                               |
+| -XX:+UseConcMarkSweepGC | 并发标记扫描垃圾回收器                       |
+| -XX:ParallelCMSThreads= | 并发标记扫描垃圾回收器,**=为使用的线程数量** |
+| -XX:+UseG1GC            | G1垃圾回收器                                 |
+
+
+
+| ~                                        | 新生代GC方式                 | 老年代和持久代GC方式                                         |
+| :--------------------------------------- | :--------------------------- | :----------------------------------------------------------- |
+| -XX:+UseSerialGC                         | Serial 串行GC                | Serial Old 串行GC                                            |
+| -XX:+UseParallelGC                       | Parallel Scavenge 并行回收GC | Serial Old 并行GC                                            |
+| -XX:+UseConcMarkSweepGC                  | ParNew 并行GC                | CMS并发GC, 当出现“Concurrent Mode Failure”时采用Serial Old 串行GC |
+| -XX:+UseParNewGC                         | ParNew 并行GC                | Serial Old 串行GC                                            |
+| -XX:+UseParallelOldGC                    | Parallel Scavenge 并行回收GC | Parallel Old 并行GC                                          |
+| -XX:+UseConcMarkSweepGC -XX:+UseParNewGC | Serial 串行GC                | CMS 并发GC 当出现“Concurrent Mode Failure”时采用Serial Old 串行GC |
+
+
+
+GC的优化配置
+
+| 配置            | 描述             |
+| :-------------- | :--------------- |
+| -Xms            | 初始化堆内存大小 |
+| -Xmx            | 堆内存最大值     |
+| -Xmn            | 新生代大小       |
+| -XX:PermSize    | 初始化永久代大小 |
+| -XX:MaxPermSize | 永久代最大容量   |
+
+
+
+参数：
+
+| 参数                               | 描述                                                         |
+| :--------------------------------- | :----------------------------------------------------------- |
+| -XX:+UseSerialGC                   | Jvm运行在Client模式下的默认值，打开此开关后，使用Serial + Serial Old的收集器组合进行内存回收 |
+| -XX:+UseParNewGC                   | 打开此开关后，使用ParNew + Serial Old的收集器进行垃圾回收    |
+| -XX:+UseConcMarkSweepGC            | 使用ParNew + CMS + Serial Old的收集器组合进行内存回收，Serial Old作为CMS出现“Concurrent Mode Failure”失败后的后备收集器使用。 |
+| -XX:+UseParallelGC                 | Jvm运行在Server模式下的默认值，打开此开关后，使用Parallel Scavenge + Serial Old的收集器组合进行回收 |
+| -XX:+UseParallelOldGC              | 使用Parallel Scavenge + Parallel Old的收集器组合进行回收     |
+| -XX:SurvivorRatio                  | 新生代中Eden区域与Survivor区域的容量比值，默认为8，代表Eden:Subrvivor = 8:1 |
+| -XX:PretenureSizeThreshold         | 直接晋升到老年代对象的大小，设置这个参数后，大于这个参数的对象将直接在老年代分配 |
+| -XX:MaxTenuringThreshold           | 晋升到老年代的对象年龄，每次Minor GC之后，年龄就加1，当超过这个参数的值时进入老年代 |
+| -XX:UseAdaptiveSizePolicy          | 动态调整java堆中各个区域的大小以及进入老年代的年龄           |
+| -XX:+HandlePromotionFailure        | 是否允许新生代收集担保，进行一次minor gc后, 另一块Survivor空间不足时，将直接会在老年代中保留 |
+| -XX:ParallelGCThreads              | 设置并行GC进行内存回收的线程数                               |
+| -XX:GCTimeRatio                    | GC时间占总时间的比列，默认值为99，即允许1%的GC时间，仅在使用Parallel Scavenge 收集器时有效 |
+| -XX:MaxGCPauseMillis               | 设置GC的最大停顿时间，在Parallel Scavenge 收集器下有效       |
+| -XX:CMSInitiatingOccupancyFraction | 设置CMS收集器在老年代空间被使用多少后出发垃圾收集，默认值为68%，仅在CMS收集器时有效，-XX:CMSInitiatingOccupancyFraction=70 |
+| -XX:+UseCMSCompactAtFullCollection | 由于CMS收集器会产生碎片，此参数设置在垃圾收集器后是否需要一次内存碎片整理过程，仅在CMS收集器时有效 |
+| -XX:+CMSFullGCBeforeCompaction     | 设置CMS收集器在进行若干次垃圾收集后再进行一次内存碎片整理过程，通常与UseCMSCompactAtFullCollection参数一起使用 |
+| -XX:+UseFastAccessorMethods        | 原始类型优化                                                 |
+| -XX:+DisableExplicitGC             | 是否关闭手动System.gc                                        |
+| -XX:+CMSParallelRemarkEnabled      | 降低标记停顿                                                 |
+| -XX:LargePageSizeInBytes           | 内存页的大小不可设置过大，会影响Perm的大小，-XX:LargePageSizeInBytes=128m |
+
+
+
+
+
+1. CMS和G1的异同？
+
+2. G1什么时候引起Full  GC?
+
+3. 垃圾回收算法？
+
+4. 吞吐量优先和响应时间优先的回收期有哪些？
+
+5. 什么是内存泄漏？如何判断内存泄漏？
+
+6. CMS的流程？
+
+7. 为什么压缩指针超过32G失效？
+
+8. 出现GC问题如何解决？
+
+9. ThreadLocal有没有内存泄漏？
+
+   弱引用
+
+10. G1的两个Region不是连续的，而且之间还有一个可达的引用，如果回收一个，另一个怎么处理？
+
+    写屏障
+
+11. JVM的堆内存管理（对象分配过程）？
+
+12. CMS的并发预处理和并发可中断预处理？
+
+13. 到底多大的对象会被直接丢到老年代？
+
+14. 对象的创建过程？（半初始化过程）
+
+    ```
+     Code:
+           0: new           #2                  // class java/lang/Object    申请一块内存
+           3: dup                               // 复制
+           4: invokespecial #1                  // Method java/lang/Object."<init>":()V 调用构造方法
+           7: astore_1						    // 建立关联
+           8: return
+    ```
+
+    
+
+15. DCL和volatile（线程可见性和禁止指令重排序）
+
+16. 对象合数组在内存中存储布局？
+
+17. 对象头包括什么？
+
+18. 对象如何定位、分配？
+
+19. Object o = new Object()在存在中占有多少字节？
+
+20. Class对象在堆还是在方法区？
+
+
+
+## JVM调优
+
+- 吞吐量
+- 响应时间
 
 
 
@@ -206,42 +827,13 @@ Java 只能通过 ByteBuffer.allocateDirect 方法使用 Direct ByteBuffer，因
 检查 JVM 参数是否有 -XX:+DisableExplicitGC 选项，如果有就去掉，因为该参数会使 System.gc() 失效。
 检查堆外内存使用代码，确认是否存在内存泄漏；或者通过反射调用 sun.misc.Cleaner 的 clean() 方法来主动释放被 Direct ByteBuffer 持有的内存空间。
 内存容量确实不足，升级配置。
+
 推荐工具&产品
 Eclipse Memory Analyzer —— JVM 内存分析工具
 ARMS —— 阿里云 APM 产品，支持 OOM 异常关键字告警
 Arthas —— Java 在线诊断工具
 
 
-
-
-
-# 垃圾回收算法
-
-引用计数法(一般不采用)
-
-复制算法
-
-标记清除
-
-标记压缩
-
-
-
-#### 年轻代（Young Generation）的回收算法
-
-a)	所有新生成的对象首先都是放在年轻代的。年轻代的目标就是尽可能快速的收集掉那些生命周期短的对象。
-b)	新生代内存按照8:1:1的比例分为一个Eden区和两个survivor(s0,s1)区。一个Eden区，两个Survivor区(一般而言)。大部分对象在Eden区中生成。回收时先将Eden区存活对象复制到一个s0区，然后清空Eden区，当这个s0区也存放满了时，则将Eden区和s0区存活对象复制到另一个s1区，然后清空Eden和这个s0区，此时s0区是空的，然后将s0区和s1区交换，即保持s1区为空， 如此往复。
-c)	当s1区不足以存放 Eden和s0的存活对象时，就将存活对象直接存放到老年代。若是老年代也满了就会触发一次Full GC，也就是新生代、老年代都进行回收。
-d)	新生代发生的GC也叫做Minor GC，MinorGC发生频率比较高(不一定等Eden区满了才触发)。
-
-#### 年老代（Old Generation）的回收算法
-
-a)	在年轻代中经历了N次垃圾回收后仍然存活的对象，就会被放到年老代中。因此，可以认为年老代中存放的都是一些生命周期较长的对象。
-b)	内存比新生代也大很多(大概比例是1:2)，当老年代内存满时触发Major GC即Full GC，Full GC发生频率比较低，老年代对象存活时间比较长，存活率标记高。
-
-循环引用
-
-https://segmentfault.com/a/1190000019910501
 
 
 
@@ -452,188 +1044,3 @@ https://segmentfault.com/a/1190000019910501
 0xc8 goto_w    无条件跳转
 0xc9 jsr_w    跳转至指定32位offset位置，并将jsr_w下一条指令地址压入栈顶
 ```
-
-## 垃圾回收器种类
-
-
-
-![](.\image\Java\GC.jpg)
-
-### G1
-
-`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+UseG1GC`
-
-```java
-[GC pause (G1 Evacuation Pause) (young), 0.0018089 secs]
-   [Parallel Time: 0.6 ms, GC Workers: 10]
-      [GC Worker Start (ms): Min: 112.7, Avg: 112.8, Max: 112.8, Diff: 0.1]
-      [Ext Root Scanning (ms): Min: 0.0, Avg: 0.2, Max: 0.5, Diff: 0.4, Sum: 1.6]
-      [Update RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-         [Processed Buffers: Min: 0, Avg: 0.0, Max: 0, Diff: 0, Sum: 0]
-      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Object Copy (ms): Min: 0.0, Avg: 0.3, Max: 0.4, Diff: 0.4, Sum: 3.1]
-      [Termination (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.2]
-      [GC Worker Total (ms): Min: 0.5, Avg: 0.5, Max: 0.6, Diff: 0.1, Sum: 4.9]
-      [GC Worker End (ms): Min: 113.3, Avg: 113.3, Max: 113.3, Diff: 0.0]
-   [Code Root Fixup: 0.0 ms]
-   [Code Root Purge: 0.0 ms]
-   [Clear CT: 0.2 ms]
-   [Other: 1.0 ms]
-      [Choose CSet: 0.0 ms]
-      [Ref Proc: 0.9 ms]
-      [Ref Enq: 0.0 ms]
-      [Redirty Cards: 0.1 ms]
-      [Humongous Reclaim: 0.0 ms]
-      [Free CSet: 0.0 ms]
-   [Eden: 3072.0K(3072.0K)->0.0B(2048.0K) Survivors: 0.0B->1024.0K Heap: 3072.0K(6144.0K)->1133.5K(6144.0K)]
- [Times: user=0.00 sys=0.00, real=0.00 secs] 
-[GC pause (G1 Evacuation Pause) (young), 0.0016612 secs]
-   [Parallel Time: 0.8 ms, GC Workers: 10]
-      [GC Worker Start (ms): Min: 171.8, Avg: 171.8, Max: 171.9, Diff: 0.1]
-      [Ext Root Scanning (ms): Min: 0.0, Avg: 0.1, Max: 0.3, Diff: 0.3, Sum: 0.5]
-      [Update RS (ms): Min: 0.0, Avg: 0.2, Max: 0.7, Diff: 0.7, Sum: 1.5]
-         [Processed Buffers: Min: 0, Avg: 1.3, Max: 4, Diff: 4, Sum: 13]
-      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Object Copy (ms): Min: 0.0, Avg: 0.1, Max: 0.2, Diff: 0.2, Sum: 1.2]
-      [Termination (ms): Min: 0.0, Avg: 0.4, Max: 0.5, Diff: 0.5, Sum: 3.8]
-      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [GC Worker Total (ms): Min: 0.7, Avg: 0.7, Max: 0.8, Diff: 0.1, Sum: 7.1]
-      [GC Worker End (ms): Min: 172.5, Avg: 172.5, Max: 172.6, Diff: 0.0]
-   [Code Root Fixup: 0.0 ms]
-   [Code Root Purge: 0.0 ms]
-   [Clear CT: 0.1 ms]
-   [Other: 0.8 ms]
-      [Choose CSet: 0.0 ms]
-      [Ref Proc: 0.6 ms]
-      [Ref Enq: 0.0 ms]
-      [Redirty Cards: 0.1 ms]
-      [Humongous Reclaim: 0.0 ms]
-      [Free CSet: 0.0 ms]
-   [Eden: 2048.0K(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->1024.0K Heap: 3946.1K(6144.0K)->1614.0K(6144.0K)]
- [Times: user=0.00 sys=0.00, real=0.00 secs] 
-[GC pause (G1 Humongous Allocation) (young) (initial-mark), 0.0010950 secs]
-   [Parallel Time: 0.5 ms, GC Workers: 10]
-      [GC Worker Start (ms): Min: 188.3, Avg: 188.3, Max: 188.4, Diff: 0.1]
-      [Ext Root Scanning (ms): Min: 0.2, Avg: 0.2, Max: 0.3, Diff: 0.1, Sum: 2.2]
-      [Update RS (ms): Min: 0.0, Avg: 0.0, Max: 0.1, Diff: 0.1, Sum: 0.2]
-         [Processed Buffers: Min: 0, Avg: 1.0, Max: 5, Diff: 5, Sum: 10]
-      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.1, Diff: 0.1, Sum: 0.1]
-      [Object Copy (ms): Min: 0.1, Avg: 0.1, Max: 0.2, Diff: 0.1, Sum: 1.4]
-      [Termination (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.1]
-      [GC Worker Total (ms): Min: 0.4, Avg: 0.4, Max: 0.4, Diff: 0.1, Sum: 4.0]
-      [GC Worker End (ms): Min: 188.7, Avg: 188.7, Max: 188.7, Diff: 0.0]
-   [Code Root Fixup: 0.0 ms]
-   [Code Root Purge: 0.0 ms]
-   [Clear CT: 0.1 ms]
-   [Other: 0.5 ms]
-      [Choose CSet: 0.0 ms]
-      [Ref Proc: 0.2 ms]
-      [Ref Enq: 0.0 ms]
-      [Redirty Cards: 0.2 ms]
-      [Humongous Reclaim: 0.0 ms]
-      [Free CSet: 0.0 ms]
-   [Eden: 1024.0K(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->1024.0K Heap: 2638.0K(6144.0K)->1528.0K(6144.0K)]
- [Times: user=0.00 sys=0.00, real=0.00 secs] 
-[GC concurrent-root-region-scan-start]
-[GC pause (G1 Humongous Allocation) (young)[GC concurrent-root-region-scan-end, 0.0005756 secs]
-[GC concurrent-mark-start]
-, 0.0010326 secs]
-   [Root Region Scan Waiting: 0.5 ms]
-   [Parallel Time: 0.3 ms, GC Workers: 10]
-      [GC Worker Start (ms): Min: 190.1, Avg: 190.1, Max: 190.2, Diff: 0.1]
-      [Ext Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.1, Diff: 0.1, Sum: 0.2]
-      [SATB Filtering (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Update RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.1]
-         [Processed Buffers: Min: 0, Avg: 0.9, Max: 2, Diff: 2, Sum: 9]
-      [Scan RS (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Code Root Scanning (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [Object Copy (ms): Min: 0.1, Avg: 0.2, Max: 0.2, Diff: 0.1, Sum: 1.5]
-      [Termination (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]
-      [GC Worker Other (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.1]
-      [GC Worker Total (ms): Min: 0.2, Avg: 0.2, Max: 0.2, Diff: 0.1, Sum: 2.0]
-      [GC Worker End (ms): Min: 190.3, Avg: 190.3, Max: 190.3, Diff: 0.0]
-   [Code Root Fixup: 0.0 ms]
-   [Code Root Purge: 0.0 ms]
-   [Clear CT: 0.1 ms]
-   [Other: 0.2 ms]
-      [Choose CSet: 0.0 ms]
-      [Ref Proc: 0.1 ms]
-      [Ref Enq: 0.0 ms]
-      [Redirty Cards: 0.1 ms]
-      [Humongous Reclaim: 0.0 ms]
-      [Free CSet: 0.0 ms]
-   [Eden: 0.0B(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->1024.0K Heap: 1528.0K(6144.0K)->1454.8K(6144.0K)]
- [Times: user=0.00 sys=0.00, real=0.00 secs] 
-[Full GC (Allocation Failure)  1454K->1193K(6144K), 0.0031069 secs]
-   [Eden: 0.0B(2048.0K)->0.0B(2048.0K) Survivors: 1024.0K->0.0B Heap: 1454.8K(6144.0K)->1193.2K(6144.0K)], [Metaspace: 3270K->3270K(4480K)]
- [Times: user=0.16 sys=0.00, real=0.01 secs] 
-[Full GC (Allocation Failure)  1193K->1145K(6144K), 0.0030986 secs]
-   [Eden: 0.0B(2048.0K)->0.0B(2048.0K) Survivors: 0.0B->0.0B Heap: 1193.2K(6144.0K)->1145.1K(6144.0K)], [Metaspace: 3270K->3268K(4480K)]
- [Times: user=0.00 sys=0.00, real=0.00 secs] 
-[GC concurrent-mark-abort]
-```
-
-
-
-
-
-### Parallel Scavenge收集器 Parallel Old
-
-`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+UseParallelGC -XX:+UseParallelOldGC`
-
-```java
-[GC (Allocation Failure) [PSYoungGen: 256K->192K(1536K)] 1809K->1885K(5632K), 0.0005799 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
-
-[Full GC (Allocation Failure) [PSYoungGen: 192K->0K(1536K)] [ParOldGen: 1693K->1172K(4096K)] 1885K->1172K(5632K), [Metaspace: 3269K->3269K(4480K)], 0.0040003 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
-
-[GC (Allocation Failure) [PSYoungGen: 0K->0K(1536K)] 1172K->1172K(5632K), 0.0012317 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
-
-# OOM
-[Full GC (Allocation Failure) [PSYoungGen: 0K->0K(1536K)] [ParOldGen: 1172K->1101K(4096K)] 1172K->1101K(5632K), [Metaspace: 3269K->3267K(4480K)], 0.0078113 secs] [Times: user=0.09 sys=0.00, real=0.01 secs] 
-
-```
-
-参数说明：
-
-[名称：GC前内存占用 -> GC后内存占用 （该区内存总大小）]  GC前堆内存占用 -> GC后堆内存占用 （堆内存总大小）
-
-+ `[GC (Allocation Failure) [PSYoungGen: 256K->192K(1536K)] 1809K->1885K(5632K), 0.0005799 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]`GC类型：Young GC
-
-新生代总内存 / 堆内存 = 1/3；
-
-+ `[Full GC (Allocation Failure) [PSYoungGen: 192K->0K(1536K)] [ParOldGen: 1693K->1172K(4096K)] 1885K->1172K(5632K), [Metaspace: 3269K->3269K(4480K)], 0.0040003 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]`GC类型：Full GC
-
-新生代总内存/老年代总内存 = 1/2；新生代总内存 + 老年代总内存 = 堆内存
-
-### SerialGC
-
-`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+PrintCommandLineFlags -XX:+UseSerialGC`
-
-```java
--XX:InitialHeapSize=5242880 -XX:MaxHeapSize=5242880 -XX:+PrintCommandLineFlags -XX:+PrintGCDetails -XX:-UseLargePagesIndividualAllocation -XX:+UseSerialGC 
-[GC (Allocation Failure) [DefNew: 1664K->192K(1856K), 0.0011112 secs] 1664K->718K(5952K), 0.0011399 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
-    
-[GC (Allocation Failure) [DefNew: 1650K->150K(1856K), 0.0004731 secs][Tenured: 1305K->1440K(4096K), 0.0019278 secs] 2926K->1440K(5952K), [Metaspace: 3270K->3270K(4480K)], 0.0024290 secs] [Times: user=0.01 sys=0.00, real=0.02 secs]
-
-[Full GC (Allocation Failure) [Tenured: 1440K->1190K(4096K), 0.0016928 secs] 1440K->1190K(5952K), [Metaspace: 3270K->3270K(4480K)], 0.0017108 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
-```
-
-
-
-### CMS
-
-`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+UseParNewGC -XX:+UseConcMarkSweepGC`
-
-```
-[GC (Allocation Failure) [ParNew: 1088K->128K(1216K), 0.0016975 secs] 1088K->647K(6016K), 0.0017305 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
-
-[GC (Allocation Failure) [ParNew: 581K->55K(1216K), 0.0004477 secs][CMS: 1480K->1178K(4800K), 0.0023755 secs] 2022K->1178K(6016K), [Metaspace: 3270K->3270K(4480K)], 0.0028529 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]
-
-[Full GC (Allocation Failure) [CMS: 1178K->1130K(4800K), 0.0020235 secs] 1178K->1130K(6016K), [Metaspace: 3270K->3270K(4480K)], 0.0020465 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
-```
-
