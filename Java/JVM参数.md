@@ -403,7 +403,7 @@ CMS提供了参数-XXCMSInitiatingOccupancyFraction来控制触发CMS的内存�
 
 #### G1
 
-逻辑分代，物理部分带
+逻辑分代，物理不分代
 
 |                                                    |
 | :------------------------------------------------: |
@@ -667,30 +667,7 @@ GC的优化配置
 
 13. 到底多大的对象会被直接丢到老年代？
 
-14. 对象的创建过程？（半初始化过程）
-
-    ```
-     Code:
-           0: new           #2                  // class java/lang/Object    申请一块内存
-           3: dup                               // 复制
-           4: invokespecial #1                  // Method java/lang/Object."<init>":()V 调用构造方法
-           7: astore_1						    // 建立关联
-           8: return
-    ```
-
-    
-
-15. DCL和volatile（线程可见性和禁止指令重排序）
-
-16. 对象合数组在内存中存储布局？
-
-17. 对象头包括什么？
-
-18. 对象如何定位、分配？
-
-19. Object o = new Object()在存在中占有多少字节？
-
-20. Class对象在堆还是在方法区？
+14. 
 
 
 

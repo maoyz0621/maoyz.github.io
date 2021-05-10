@@ -1,8 +1,6 @@
 # MyBatis 缓存机制
 
-## 来源
 
-转载于 博客园  [吴振照](https://home.cnblogs.com/u/wuzhenzhao/) 的博客：https://www.cnblogs.com/wuzhenzhao/p/11103043.html
 
 ## 前言
 

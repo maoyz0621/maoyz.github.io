@@ -339,7 +339,7 @@ show index from table_name;
 
 表索引user_id、create_at、order_status
 
-![](image\索引示例.png)
+![](.\image\MySQL\索引示例.png)
 
 #### 一个条件查询
 
@@ -411,7 +411,7 @@ explain select * from orders where status in (2,3)
 
 
 
-##### UNION ALL，走索引，使用零时表
+##### UNION ALL，走索引，使用临时表
 
 ```mysql
 explain 

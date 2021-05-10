@@ -2,7 +2,7 @@
 
 ## SqlSessionFactoryBean
 
-在MyBatis中，是通过 SqlSessionFactoryBuilder 来创建 SqlSessionFactory 的。 而在 MyBatis-Spring 中，则使用 SqlSessionFactoryBean 来创建的。
+在MyBatis中，是通过 SqlSessionFactoryBuilder 来创建 SqlSessionFactory 的。 而在 MyBatis-Spring 中，则使用 SqlSessionFactoryBean 来创建的，而SqlSessionFactoryBean 是使用**FactoryBean**和**InitializingBean**进行整合的。
 
 ```java
 public class SqlSessionFactoryBean implements FactoryBean<SqlSessionFactory>, InitializingBean, ApplicationListener<ApplicationEvent> {
@@ -252,6 +252,126 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
 }
 
 ```
+
+
+
+## Mapper注入容器
+
+- MapperFactoryBean
+
+  实现**FactoryBean**和**InitializingBean**
+
+1. 检验接口映射配置文件
+
+> org.springframework.dao.support.DaoSupport#afterPropertiesSet
+
+```java
+@Override
+public final void afterPropertiesSet() throws IllegalArgumentException, BeanInitializationException {
+   // Let abstract subclasses check their configuration.
+   checkDaoConfig();
+
+   // Let concrete implementations initialize themselves.
+   try {
+      initDao();
+   }
+   catch (Exception ex) {
+      throw new BeanInitializationException("Initialization of DAO failed", ex);
+   }
+}
+```
+
+
+
+> org.mybatis.spring.mapper.MapperFactoryBean#checkDaoConfig
+
+```java
+@Override
+protected void checkDaoConfig() {
+    // sqlSessionTemplate不为空
+    super.checkDaoConfig();
+
+    notNull(this.mapperInterface, "Property 'mapperInterface' is required");
+
+    Configuration configuration = getSqlSession().getConfiguration();
+    // 接口映射的文件是否存在
+    if (this.addToConfig && !configuration.hasMapper(this.mapperInterface)) {
+        try {
+            configuration.addMapper(this.mapperInterface);
+        } catch (Exception e) {
+
+        } finally {
+            ErrorContext.instance().reset();
+        }
+    }
+}
+```
+
+2. 获取MapperFactoryBean实例
+
+```java
+@Override
+public T getObject() throws Exception {
+  return getSqlSession().getMapper(this.mapperInterface);
+}
+```
+
+
+
+
+
+- MapperScannerConfigurer扫描包
+
+  实现BeanDefinitionRegistryPostProcessor, InitializingBean, ApplicationContextAware, BeanNameAware
+
+配置xml：
+
+```xml
+<!-- 配置扫描Dao接口包，动态实现Dao接口，注入到spring容器中 -->
+<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+    <!-- 注入sqlSessionFactory -->
+    <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+    <!-- 给出需要扫描Dao接口包 -->
+    <property name="basePackage" value="com.myz.dao"/>
+</bean>
+```
+
+
+
+> org.mybatis.spring.mapper.MapperScannerConfigurer#postProcessBeanDefinitionRegistry
+
+```java
+@Override
+public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
+    if (this.processPropertyPlaceHolders) {
+        processPropertyPlaceHolders();
+    }
+
+    ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry);
+    scanner.setAddToConfig(this.addToConfig);
+    scanner.setAnnotationClass(this.annotationClass);
+    scanner.setMarkerInterface(this.markerInterface);
+    scanner.setSqlSessionFactory(this.sqlSessionFactory);
+    scanner.setSqlSessionTemplate(this.sqlSessionTemplate);
+    scanner.setSqlSessionFactoryBeanName(this.sqlSessionFactoryBeanName);
+    scanner.setSqlSessionTemplateBeanName(this.sqlSessionTemplateBeanName);
+    scanner.setResourceLoader(this.applicationContext);
+    scanner.setBeanNameGenerator(this.nameGenerator);
+    scanner.setMapperFactoryBeanClass(this.mapperFactoryBeanClass);
+    if (StringUtils.hasText(lazyInitialization)) {
+        scanner.setLazyInitialization(Boolean.valueOf(lazyInitialization));
+    }
+    scanner.registerFilters();
+    scanner.scan(
+            StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
+}
+```
+
+
+
+1. processPropertyPlaceHolders()：执行属性的处理，把xml中${XXX}中的XXX替换成属性文件中的相应的值
+2. scanner.registerFilters()：根据配置的属性生成对应的过滤器，然后这些过滤器在扫描的时候会起作用
+3. scanner.scan()：扫描java文件
 
 
 

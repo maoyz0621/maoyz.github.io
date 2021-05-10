@@ -1,5 +1,23 @@
 # JAVA高阶知识
 
+## 三高
+
+高性能、高扩展、高可用
+
+- 高性能：响应（低延时）、吞吐（高吞吐量、高并发）
+
+
+
+## JUC
+
+### CAS
+
+
+
+### ABA
+
+
+
 ## DCL
 
 Double Check Lock双检锁
@@ -44,6 +62,272 @@ public class SingletonLazy {
     }
 }
 ```
+
+
+
+## 对象的基本存储方式
+
+- 对象的引用：存储在栈中
+- 对象的实例数据：存储在堆中
+- 对象的元数据：存储在方法区
+
+> 在jdk8中为什么大于4秒钟的时候才会有偏向锁状态？
+> 其实这是因为虚拟机在启动的时候对于偏向锁有延迟。
+> 因为在项目启动的时候，有大量的同步块(synchronized),多个线程访问的时候，需要消除偏向锁。会很麻烦，反而会降低效率。
+> -XX:+UseBiasedLocking -XX:BiasedLockingStartupDelay=0 修改上面的jvm参数，可以开启jvm偏向锁延迟配置，延迟为0
+> -XX:-UseBiasedLocking关闭偏向锁
+
+
+
+## 对象的内存布局
+
+对象保存在堆中，由三部分组成：
+
+- **对象头（object header）**：包括了关于堆对象的布局、类型、GC状态、同步状态和标识哈希码的基本信息。Java对象和vm内部对象都有一个共同的对象头格式。
+- **实例数据（Instance Data）**：主要是存放类的数据信息，父类的信息，对象字段属性信息。
+
+- **对齐填充（Padding）**：为了字节对齐，填充的数据，不是必须的。
+
+|                对象实例                |
+| :------------------------------------: |
+| ![对象实例](.\image\Java\对象实例.png) |
+
+jdk8版本是默认开启指针压缩的，可以通过配置vm参数开启关闭指针压缩，-XX:-UseCompressedOops。
+
+开启指针压缩可以减少对象的内存使用
+
+### 1. 对象头（Header）
+
+对象头由两个**字**组成，第一个字就是 **mark word**，第二个就是 **klass pointer**。
+
+- #### **Mark Word（标记字段）**
+
+对象的Mark Word部分占8个字节，其内容是一系列的标记位，比如轻量级锁的标记位，偏向锁标记位等等。
+
+用于存储对象自身的运行时数据，如哈希码（HashCode）、GC分代年龄、锁信息（锁状态标志、线程持有的锁、偏向线程ID、偏向时间戳）等。在32位JVM中的长度是32bit，在64位JVM中长度是64bit
+
+> 工具：JOL
+
+|               Mark Word               |
+| :-----------------------------------: |
+| ![32位](.\image\Java\MarkWord_32.png) |
+| ![64位](.\image\Java\MarkWord_64.png) |
+
+- **对象的hashcode（identity hash code）**：占31bits，运行期间调用System.identityHashCode()来计算，延迟计算，并把结果赋值到这里。当对象加锁后，计算的结果31位不够表示，在偏向锁，轻量锁，重量锁，hashcode会被转移到Monitor中。
+
+- **GC分代年龄（age）**：占4bits，表示对象被GC的次数，在GC过程中，如果新生代对象在Survivor区复制一次，年龄+1．当对象年龄达到设定的阈值时，对象将会进入老年代．或者有一半的的对象年龄相等，则大于该年龄的对象直接进入老年代．默认情况GC年龄阈值为15．因为age只占4位 ，所以最大值为１１１１= 15．
+
+- **锁标志位（lock）**：占2bits，区分锁状态，11时表示对象待GC回收状态, 只有最后2位锁标识(11)有效。
+
+- **biased_lock**：占1bits，是否偏向锁，由于正常锁和偏向锁的锁标识都是 01，没办法区分，这里引入一位的偏向锁标识位。
+
+> 无锁和偏向锁的锁标志都是01 ，区分的方式是通过1bit的是否为偏向锁(biased_lock)．偏向锁的这1bit等于1，无锁这一位则为0
+
+- **偏向锁的线程ID（JavaThread）**：偏向模式的时候，当某个线程持有对象的时候，对象这里就会被置为该线程的ID。 在后面的操作中，就无需再进行尝试获取锁的动作。
+
+- **Epoch**：占2bits，偏向锁在CAS锁操作过程中，偏向性标识，表示对象更偏向哪个锁。
+
+- **ptr_to_lock_record**：轻量级锁状态下，指向栈中锁记录的指针。当锁获取是无竞争的时，JVM使用原子操作而不是OS互斥。这种技术称为轻量级锁定。在轻量级锁定的情况下，JVM通过CAS操作在对象的标题字中设置指向锁记录的指针。
+
+- **ptr_to_heavyweight_monitor**：重量级锁状态下，指向对象监视器Monitor的指针。如果两个不同的线程同时在同一个对象上竞争，则必须将轻量级锁定升级到Monitor以管理等待的线程。在重量级锁定的情况下，JVM在对象的ptr_to_heavyweight_monitor设置指向Monitor的指针。
+
+> 分析 synchronize 锁优化 和 JVM 垃圾回收年龄代的时候会有很大作用
+
+
+
+> JVM中大家是否还记得对象在Suvivor中每熬过一次MinorGC，年龄就增加1，当它的年龄增加到一定程度后就会被晋升到老年代中，这个次数默认是15岁，有想过为什么是15吗？在Mark Word中可以发现标记对象分代年龄的分配的空间是4bit，而4bit能表示的最大数就是2^4-1 = 15。
+
+
+
+- #### **类型指针（klass Pointer）**
+
+> 未开启指针压缩时，类型指针占用8byte (64bit)
+>
+> 开启指针压缩情况下，类型指针占用4byte (32bit)
+
+Class对象指针（指针压缩默认开启）的大小默认是4个字节，其指向的位置是对象对应的Class对象（其对应的元数据对象）的内存地址
+
+前提：
+
+new一个空对象在32为系统中占用内存大小是8byte（对象头，在堆中）+ 4byte（对象的引用地址，在栈中）=12byte；
+
+new一个空对象在64为系统中占用内存大小是16byte（对象头，在堆中）+ 8byte（对象的引用地址，在栈中）=24byte；
+
+> -XX:+UseCompressedOops       JVM 会使用 32-bit的offset来代表java object的引用
+>
+> -XX:+UseCompressedClassesPointers(默认是开启)     表示使用压缩指针，使用32-bit的offset来代表64-bit进程中的class pointer
+
+总结：
+
+1. 通过指针压缩，利用对齐填充的特性，通过映射方式达到了内存地址扩展的效果
+2. 指针压缩能够节省内存空间，同时提高了程序的寻址效率
+3. 堆内存设置时最好不要超过32GB，这时指针压缩将会失效，造成空间的浪费
+4. 此外，指针压缩不仅可以作用于对象头的类型指针，还可以作用于引用类型的字段指针，以及引用类型数组指针
+   
+
+- #### **array length(数组特有)**
+
+如果对象是一个数组，那么对象头还要有额外的空间存储数组的长度，JVM可以通过对象头中的数组长度数据来判定数组的大小，这是访问数组类型的元数据是无法得知的.　长度为4个字节
+
+
+
+### 2. 实例数据（Instance Data）
+
+包括了对象的所有成员变量，分配策略为longs/doubles、ints、shorts/chars、bytes/booleans、oops（Ordinary Object Pointers普通对象指针）。
+
+- 基本数据类型
+
+byte和boolean是1个字节，short和char是2个字节，int和float是4个字节，long和double是8个字节
+
+- 引用数据类型
+
+reference开启UseCompressedOops占4字节，不开启UseCompressedOops占8字节
+
+> -XX:+UseCompressedOops  为4字节(默认开启) ，不开启为8字节 Oops Ordinary Object Pointers(成员变量的引用 比如Object o)
+
+
+
+### 3. 对齐补充（Padding）
+
+由于要求对象起始地址必须是8字节的整数倍，换句话说就是对象的大小必须是8字节的整数倍。对象头正好是8字节的倍数（1倍或者2倍），因此当对象实例数据部分没有对齐的话，就需要通过对齐填充来补全。
+
+> **为什么要对齐数据**？字段内存对齐的其中一个原因，是让字段只出现在同一CPU的缓存行中。如果字段不是对齐的，那么就有可能出现跨缓存行的字段。也就是说，该字段的读取可能需要替换两个缓存行，而该字段的存储也会同时污染两个缓存行。这两种情况对程序的执行效率而言都是不利的。其实对其填充的最终目的是为了计算机高效寻址
+
+
+
+## 对象的创建过程
+
+1. 首先jvm要检查类A是否已经被加载到了内存，即类的符号引用是否已经在常量池中，并且检查这个符号引用代表的类是否已被加载、解析和初始化过的。如果还没有，需要先触发类的加载、解析、初始化。然后在堆上创建对象。
+
+2. 为新生对象分配内存。
+
+　　对象所需内存的大小在类加载完成后便可完全确定，为对象分配空间的任务具体便等同于一块确定大小 的内存从Java堆中划分出来，怎么划呢？假设Java堆中内存是绝对规整的，所有用过的内存都被放在一边，空闲的内存被放在另一边，中间放着一个指针作 为分界点的指示器，那所分配内存就仅仅是把那个指针向空闲空间那边挪动一段与对象大小相等的距离，这种分配方式称为“指针碰撞”（Bump The Pointer）。如果Java堆中的内存并不是规整的，已被使用的内存和空闲的内存相互交错，那就没有办法简单的进行指针碰撞了，虚拟机就必须维护一个列表，记录上哪些内存块是可用的，在分配的时候从列表中找到一块足够大的空间划分给对象实例，并更新列表上的记录，这种分配方式称为“空闲列表”（Free List）。选择哪种分配方式由Java堆是否规整决定，而Java堆是否规整又由所采用的垃圾收集器是否带有压缩整理功能决定。因 此在使用Serial、ParNew等带Compact过程的收集器时，系统采用的分配算法是指针碰撞，而使用CMS这种基于Mark-Sweep算法的 收集器时（说明一下，CMS收集器可以通过UseCMSCompactAtFullCollection或 CMSFullGCsBeforeCompaction来整理内存），就通常采用空闲列表。
+除如何划分可用空间之外，还有另外一个需要考虑的问题是对象创建在虚拟机中是非常频繁的行为，即使是仅仅修改一个指针所指向的位置，在并发情况下也并不是 线程安全的，可能出现正在给对象A分配内存，指针还没来得及修改，对象B又同时使用了原来的指针来分配内存。解决这个问题有两个方案，一种是对分配内存空 间的动作进行同步——实际上虚拟机是采用CAS配上失败重试的方式保证更新操作的原子性；另外一种是把内存分配的动作按照线程划分在不同的空间之中进行， 即每个线程在Java堆中预先分配一小块内存，称为本地线程分配缓冲区，（TLAB ，Thread Local Allocation Buffer），哪个线程要分配内存，就在哪个线程的TLAB上分配，只有TLAB用完，分配新的TLAB时才需要同步锁定。虚拟机是否使用TLAB，可以通过-XX:+/-UseTLAB参数来设定。
+
+3. 完成实例数据部分的初始化工作（初始化为0值）
+
+　　内存分配完成之后，虚拟机需要将分配到的内存空间都初始化为零值（不包括对象头），如果使用TLAB的话，这一个工作也可以提前至TLAB分配时进行。这 步操作保证了对象的实例字段在Java代码中可以不赋初始值就直接使用，程序能访问到这些字段的数据类型所对应的零值。
+
+4. 完成对象头的填充：如对象自身的运行时数据、类型指针等。
+
+　　接下来，虚拟机要对对象进行必要的设置，例如这个对象是哪个类的实例、如何才能找到类的元数据信息、对象的哈希码、对象的GC分代年龄等信息。这些信息存放在对象的对象头（Object Header）之中。根据虚拟机当前的运行状态的不同，如是否启用偏向锁等，对象头会有不同的设置方式。
+
+5. 在上面工作都完成之后，在虚拟机的视角来看，一个新的对象已经产生了。但是在Java程序的视角看来，初始化才正式开始，开始调用<init>方法完成初始复制和构造函数，所有的字段都为零值。因此一般来说（由字节码中是否跟随有invokespecial指令所决定），new指令之后会接着就是执 行<init>方法，把对象按照程序员的意愿进行初始化，这样一个真正可用的对象才算完全创建出来。
+
+
+
+```cpp
+// 确保常量池中存放的是已解释的类
+    if (!constants->tag_at(index).is_unresolved_klass()) {
+      // 断言确保是klassOop和instanceKlassOop（这部分下一节介绍）
+      oop entry = (klassOop) *constants->obj_at_addr(index);
+      assert(entry->is_klass(), "Should be resolved klass");
+      klassOop k_entry = (klassOop) entry;
+      assert(k_entry->klass_part()->oop_is_instance(), "Should be instanceKlass");
+      instanceKlass* ik = (instanceKlass*) k_entry->klass_part();
+      // 确保对象所属类型已经经过初始化阶段
+      if ( ik->is_initialized() && ik->can_be_fastpath_allocated() ) {
+        // 取对象长度
+        size_t obj_size = ik->size_helper();
+        oop result = NULL;
+        // 记录是否需要将对象所有字段置零值
+        bool need_zero = !ZeroTLAB;
+        // 是否在TLAB中分配对象
+        if (UseTLAB) {
+          result = (oop) THREAD->tlab().allocate(obj_size);
+        }
+        if (result == NULL) {
+          need_zero = true;
+          // 直接在eden中分配对象
+    retry:
+          HeapWord* compare_to = *Universe::heap()->top_addr();
+          HeapWord* new_top = compare_to + obj_size;
+          // cmpxchg是x86中的CAS指令，这里是一个C++方法，通过CAS方式分配空间，并发失败的话，转到retry中重试直至成功分配为止
+          if (new_top <= *Universe::heap()->end_addr()) {
+            if (Atomic::cmpxchg_ptr(new_top, Universe::heap()->top_addr(), compare_to) != compare_to) {
+              goto retry;
+            }
+            result = (oop) compare_to;
+          }
+        }
+        if (result != NULL) {
+          // 如果需要，为对象初始化零值
+          if (need_zero ) {
+            HeapWord* to_zero = (HeapWord*) result + sizeof(oopDesc) / oopSize;
+            obj_size -= sizeof(oopDesc) / oopSize;
+            if (obj_size > 0 ) {
+              memset(to_zero, 0, obj_size * HeapWordSize);
+            }
+          }
+          // 根据是否启用偏向锁，设置对象头信息
+          if (UseBiasedLocking) {
+            result->set_mark(ik->prototype_header());
+          } else {
+            result->set_mark(markOopDesc::prototype());
+          }
+          result->set_klass_gap(0);
+          result->set_klass(k_entry);
+          // 将对象引用入栈，继续执行下一条指令
+          SET_STACK_OBJECT(result, 0);
+          UPDATE_PC_AND_TOS_AND_CONTINUE(3, 1);
+        }
+      }
+    }
+```
+
+
+
+## 对象的访问定位
+
+​        需要通过栈上的reference数据来操作堆上的具体对象。由于reference类型在Java虚拟机规范里面只规定了是一个指向对象的引用，并没有定义这个引用应该通过什么种方式去定位、访问到堆中的对象的具体位置，对象访问方式也是取决于虚拟机实现而定的。主流的访问方式有使用**句柄**和**直接指针**两种。 
+
+- **句柄**
+
+​        Java堆中将会划分出一块内存来作为**句柄池**，reference中存储的就是对象的句柄地址，而句柄中包含了对象实例数据与类型数据的具体各自的地址信息。
+
+> 最大好处就是reference中存储的是稳定句柄地址，在对象被移动（垃圾收集时移动对象是非常普遍的行为）时只会改变句柄中的实例数据指针，而reference本身不需要被修改。 
+
+|                  句柄访问对象                  |
+| :--------------------------------------------: |
+| ![句柄访问对象](.\image\Java\句柄访问对象.png) |
+
+
+
+- **直接指针**
+
+　　Java堆对象的布局中就必须考虑如何放置访问类型数据的相关信息，reference中存储的直接就是对象地址。 
+
+> 最大的好处就是速度更快，它节省了一次指针定位的时间开销，由于对象访问的在Java中非常频繁，因此这类开销积小成多也是一项非常可观的执行成本。就虚拟机HotSpot而言，它是使用**直接指针**方式进行对象访问
+
+|                    直接指针访问对象                    |
+| :----------------------------------------------------: |
+| ![直接指针访问对象](.\image\Java\直接指针访问对象.png) |
+
+
+
+## 锁的四种状态
+
+- new (未锁定状态)
+  在一个对象刚new出来的时候，没有线程竞争，就是一个普通对象，不需要加锁，此时biased_lock为1,锁的标志位为01 , 表示无锁可偏向 . ( 如果计算了对象的hashcode ,则会记录对象的hashcode，锁的标志位为01．biased_lock位置为0. 此时表示无锁不可偏向状态)
+
+- 偏向锁：biased_lock
+  如果已经计算了对象的hashcode ,则表示该锁不能偏向 .直接升级为轻量级锁.(对象的hashcode和偏向线程id只能存储一个)
+  １．当第一个线程A来获取资源的时候，这个时候只有线程A一个，没有其他线程来竞争，他会将biased_lock标志位置为1，锁标志为01, 表示已经偏向它的状态．线程ID也会记录A的id.
+  ２．当A线程再次获取该资源的时候，JVM发现mark word里面的线程id是A的id，锁的标志位是01，biased_lock是1，表示A已经获得该偏向锁．
+
+- 轻量级锁(自旋，自旋锁，look-free，CAS轻量级锁)：
+  当线程B尝试获取该锁时(此时有了锁的竞争)，JVM发现此时锁处于偏向状态，mark word的线程id记录的是A，此时线程B会尝试通过CAS的方式(在用户空间)获取锁．两个线程都将对象的hashcode复制到自己新建的用于存储锁的记录空间LockRecord，通过CAS的操作，将对象的mark word的内容修改为自己新建的记录空间的地址来竞争mark word．成功则获取资源，失败则继续CAS操作．
+  自旋的线程在自旋过程中，成功获取资源，整个状态仍然处于轻量级锁的状态．
+
+- 重量级锁：
+
+> 竞争加剧 在jdk6: 自旋锁自旋次数超过10，或者等待线程超过CPU核数的二分之一，升级为重量级锁
+> jdk6以后：jdk自适应自旋，来判断什么时候升级
+
+自旋的线程将被阻塞，需经过os，提供一个等待队列和一个竞争队列．等待操作系统的调度
+
+
+
 
 ## JSR内存屏障（Memory Barrier）
 
@@ -104,3 +388,40 @@ Java内存屏障主要有Load和Store两类。
 在每个volatile写操作的后面插入一个StoreLoad屏障。
 在每个volatile读操作的后面插入一个LoadLoad屏障。
 在每个volatile读操作的后面插入一个LoadStore屏障。
+
+
+
+## synchronized 
+
+悲观锁
+
+
+
+
+
+1. 对象的创建过程？（半初始化过程）
+
+   ```
+    Code:
+          0: new           #2                  // class java/lang/Object    申请一块内存
+          3: dup                               // 复制
+          4: invokespecial #1                  // Method java/lang/Object."<init>":()V 调用构造方法
+          7: astore_1						    // 建立关联
+          8: return
+   ```
+
+   
+
+2. DCL和volatile（线程可见性和禁止指令重排序）
+
+3. 对象合数组在内存中存储布局？
+
+4. 对象头包括什么？
+
+5. 对象如何定位、分配？
+
+6. Object o = new Object()在存在中占有多少字节？
+
+7. Class对象在堆还是在方法区？
+
+8. 对象中的属性是如何在内存中分配的？

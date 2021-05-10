@@ -262,7 +262,7 @@ docker run --name elasticsearch-head -di -p 9100:9100 docker.io/mobz/elasticsear
 
 页面登录地址：http://192.168.107.110:9100/
 
-![](..\开源软件\image\elasticsearch-head.jpg)
+![](.\开源软件\image\elasticsearch-head.jpg)
 
 数据浏览时，无数据展示：
 

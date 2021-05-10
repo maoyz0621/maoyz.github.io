@@ -1,4 +1,16 @@
-1. Executor执行器有哪些？
+1. Mybatis四大对象？
+
+- Executor (update, query, flushStatements, commit, rollback, getTransaction, close, isClosed)拦截执行器的方法
+
+- ParameterHandler (getParameterObject, setParameters)请求参数处理
+
+- ResultSetHandler (handleResultSets, handleOutputParameters)返回结果集处理
+
+- StatementHandler (prepare, parameterize, batch, update, query)Sql语法构建的处理
+
+ 
+
+2. Executor执行器有哪些？
 
    - SimpleExecutor：每执行一次 update或select，就开启一个Statement对象，用完立刻关闭Statement对象
    - ReuseExecutor：执行 update 或 select，以 sql 作为 key 查找 Statement 对象，存在就使用，不存在就创建，用完后，不关闭Statement对象，而是放置于Map<String, Statement>内，供下一次使用。简言之，就是重建使用 Statement 对象
@@ -17,14 +29,21 @@
 3. 如何在在mapper中如何传递多个参数?
 
   - **顺序传参法**
+
   - **@param注解传参法**
+
   - **多个参数封装成map（Map传参法）**
+
   - **Java Bean传参法**
+
+    
 
 4. Mybatis的xml映射文件中，不同的xml映射文件，id是否可以重复？
 
     不同namespace的xml映射文件，id可以重复；同一个xml映射文件中id不能重复；
     由于namespace+id 是作为 Map＜String, MappedStatement＞的key使用的，如果没有namespace，就剩下id，那么，id重复会导致数据互相覆盖。 有了 namespace，自然id就可以重夏，namespace不同，namespace+id自然也就不同。
+
+    
 
 5. Mybatis是否支持延迟加载？如果支持，它的实现原理是什么？
 
@@ -41,6 +60,8 @@
    （2）二级缓存与一级缓存其机制相同，默认也是采用 PerpetualCache，HashMap 存储，不同在于其存储作用域为 Mapper(Namespace)，并且可自定义存储源，如 Ehcache。默认不打开二级缓存，要开启二级缓存，使用二级缓存属性类需要实现Serializable序列化接口(可用来保存对象的状态),可在它的映射文件中配置<cache/> ；
 
    （3）对于缓存数据更新机制，当某一个作用域(一级缓存 Session/二级缓存Namespaces)的进行了C/U/D 操作后，默认该作用域下所有 select 中的缓存将被 clear 掉并重新更新，如果开启了二级缓存，则只根据配置判断是否刷新
+
+   
 
 7. Mybatis与Spring整合之后，一级缓存”失效“？
 
