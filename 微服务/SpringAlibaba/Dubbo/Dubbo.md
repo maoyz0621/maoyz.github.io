@@ -4,7 +4,7 @@
 
 ### 架构
 
-<img src="images\Dubbo架构.jpg" alt="Dubbo架构"  />
+<img src="images/Dubbo架构.jpg" alt="Dubbo架构"  />
 
 ### 工作原理
 
@@ -39,7 +39,7 @@
   
   |                             |
   | :-------------------------: |
-  | ![](images\Dubbo调用链.jpg) |
+  | ![](images/Dubbo调用链.jpg) |
   
   
 
@@ -282,7 +282,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
 
 |                                  |
 | :------------------------------: |
-| ![集群容错](images\集群容错.jpg) |
+| ![集群容错](images/集群容错.jpg) |
 
 
 
@@ -422,3 +422,8 @@ public <T> T getExtension(Class<T> type, String name) {
     return null;
 }
 ```
+
+
+
+## 异步调用
+
