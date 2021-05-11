@@ -132,7 +132,7 @@ OOM，out of memory，在申请内存时，没有足够的内存空间供其使�
 
 |       Copying 复制算法       |
 | :--------------------------: |
-| ![](.\image\GC\复制算法.png) |
+| ![](./image/GC/复制算法.png) |
 >优点： 快速高效，不会产生内存碎片。
 >缺点： 可用内存会减少一半，因为是按照均分的。
 
@@ -140,7 +140,7 @@ OOM，out of memory，在申请内存时，没有足够的内存空间供其使�
 
 |       Mark-Compact 标记压缩       |
 | :--------------------------: |
-| ![](.\image\GC\标记整理法.png) |
+| ![](./image/GC/标记整理法.png) |
 |  |
 >优点： 适合存活对象多的，不产生内存碎片
 
@@ -148,7 +148,7 @@ OOM，out of memory，在申请内存时，没有足够的内存空间供其使�
 
 | Mark-Sweep 标记清除              |
 | :------------------------------- |
-| ![](.\image\GC\标记清除算法.png) |
+| ![](./image/GC/标记清除算法.png) |
 > 优点： 简单，易实现
 > 缺点： 容易产生**内存碎片**，对于后面分配大空间时，找不到足够的空间，而主动会触发一次内存回收，增加内存回收的次数。
 
@@ -204,7 +204,7 @@ https://segmentfault.com/a/1190000019910501
 |      |
 | :--: |
 |   ![](.\image\Java\GC.jpg)   |
-| <img src=".\image\GC\垃圾回收器.png" style="zoom:80%;" /> |
+| <img src="./image/GC/垃圾回收器.png" style="zoom:80%;" /> |
 
 
 
@@ -232,7 +232,7 @@ Stop The World，在进行垃圾收集时，必须暂停其他所有工作线程
 
 |                                                        |
 | :----------------------------------------------------: |
-| <img src=".\image\GC\Serial.png" style="zoom:125%;" /> |
+| <img src="./image/GC/Serial.png" style="zoom:125%;" /> |
 
 设置参数：`-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+PrintCommandLineFlags -XX:+UseSerialGC`
 
@@ -253,7 +253,7 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 
 |                                                        |
 | :----------------------------------------------------: |
-| <img src=".\image\GC\ParNew.png" style="zoom:125%;" /> |
+| <img src="./image/GC/ParNew.png" style="zoom:125%;" /> |
 
 > 目前只有ParNew收集器可以和老年代的CMS收集器配合
 
@@ -269,7 +269,7 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 
 #### Parallel Scavenge
 
-因为与吞吐量关系密切，也称为吞吐量收集器（Throughput Collector），即吞吐量=运行用户代码时间/(运行用户代码时间+GC线程时间)
+因为与吞吐量关系密切，也称为吞吐量收集器（Throughput Collector），即吞吐量=运行用户代码时间/(运行用户代码时间+GC线程时间）PS GC所能处理的堆内存较小，建议堆内存小于8GB考虑。
 
 - 发生在新生代
 - 采用复制算法
@@ -277,15 +277,36 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 
 |                                                          |
 | :------------------------------------------------------: |
-| <img src=".\image\GC\Parallel.png" style="zoom:125%;" /> |
+| <img src="./image/GC/Parallel.png" style="zoom:125%;" /> |
 
 设置参数：
 
-"-XX:MaxGCPauseMillis"
+- **-XX:+UseParallelGC**
+  使用并行GC算法，新生代使用并行擦除算法，老年代使用串行标记擦除算法
+- **-XX:+UserParallelOldGC**
+  使用并行GC算法，新生代使用并行擦除算法，老年代使用并行标记擦除算法
+- **-XX:NewRatio**
+  默认值是2。新生代和老年代的比例环比，默认是老年代是新生代的2倍。对于PS GC比较多的情况是FGC非常耗时，可以将该值调整为1来减少老年代标记、清理时间。同时，可以设置在FGC前执行一次YGC来减少对老年代对像的引用数据。
+- **-XX:MaxGCPauseMillis**
+  默认值是最大32位整数值。收集器将尽可能的保证回收耗费的时间不超过设定的值，但是，并不是越小越好，GC停顿时间缩短是以牺牲吞吐量和新生代空间来换取的，如果设置的值太小，将会导致频繁GC。
+- **-XX:GCTimeRatio**
+  默认值是99%。参数的值是一个大于0且小于100的整数，也就是垃圾收集时间占总时间的比率，默认是99%，也就是允许最大1%（即1/(1+99)）的垃圾收集时间。
+- **-XX:UseAdaptiveSizePolicy**
+  默认是开启自适应算法功能的。JVM会根据当前系统运行情况收集到的监控信息，动态调整新生代的比例，以提供最合适的停顿时间或最大的吞吐量。开启这个参数之后，就不需要再设置新生代大小，Eden与S0/S1的比例等参数。
+- **-XX:+ScavengeBeforeFullGC**
+  默认是开启的，作用是在一次Full GC之前，先触发一次Young GC来清理年轻代，以降低Full GC的STW耗时（Young GC会清理Young GC中非存活的对象，减少Full GC中，标记存活对象的工作量）。
 
-"-XX:GCTimeRatio"
+参数建议：
 
-"-XX:+UseAdptiveSizePolicy"
+```
+-Xmx6G
+-Xms6G
+-XX:+UserParallelOldGC
+-XX:MaxGCPauseMillis = 250
+-XX:GCTimeRatio = 99
+-XX:-UseAdaptiveSizePolicy  // 如果考虑到更大的吞吐量，可以关闭自适应算法
+-XX:+ScavengeBeforeFullGC 
+```
 
 
 
@@ -341,13 +362,40 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 
 |                                                     |
 | :-------------------------------------------------: |
-| <img src=".\image\GC\CMS.png" style="zoom:125%;" /> |
+| <img src="./image/GC/CMS.png" style="zoom:125%;" /> |
 
 设置参数：
 
-"-XX:+UseCMSCompactAtFullCollection"：开启内存碎片的合并整理过程
+- **-XX:+UseConcMarkSweepGC**
+  CMS全称 Concurrent Mark Sweep，是一款并发的、使用标记-清除算法的垃圾回收器，
+  是老年代垃圾回收器。
+- **-XX:CMSInitiatingOccupancyFraction=n**
+  CMS的一个缺点是它需要更大的堆空间。因为CMS标记阶段应用程序的线程还是在执行的，那么就会有堆空间继续分配的情况，为了保证在CMS回收完堆之前还有空间分配给正在运行的应用程序，必须预留一部分空间。也就是说，CMS不会在老年代满的时候才开始收集。相反，它会尝试更早的开始收集，已避免如下情况：在回收完成之前，堆没有足够空间分配！默认当老年代使用92%的时候，CMS就开始行动了。CMSInitiatingOccupancyFraction设置这个阀值，一般建议使用70%，但需要结合业务实际使用情况决定。
+- **-XX:+UseCMSInitiatingOccupancyOnly**
+  只使用设定的回收阈值（CMSInitiatingOccupancyFraction）；如果不指定，JVM仅在第一次使用设定值，后续则自动调整。
+- **-XX:+CMSScavengeBeforeRemark**
+  在CMS GC前启动一次ygc，目的在于减少old gen对ygc gen的引用，降低remark时的开销。一般CMS的GC耗时 80%都在remark阶段。
+- **-XX:NewRatio**
+  如果仅仅设置参数：-Xmx -Xms，CMS默认的NewRatio并未生效，新生代的大小是不确定的，即新生代的大小是通过GC的线程数与每线程处理的堆内存大小（Linux系统下64MB）计算出来的。
+  所以，通常使用CMS的时候，建议手动指定新生代大小参数(-XX:NewRatio或者-Xmn或者-XX:NewSize/-XX:MaxNewSize)。
+- **-XX:CMSFullGCsBeforeCompaction=n 废弃**
+  在上一次CMS并发GC执行过后，还要再执行多少次Full GC才会做压缩。默认是0，也就是说，在默认配置下每次CMS GC要转入Full GC的时候都会做压缩。
+- **-XX:-UseCMSCompactAtFullCollection 废弃**
+  默认是true，即在进行Full GC前会进行一次压缩，减少碎片问题。
+  默认情况下，配合CMSFullGCsBeforeCompaction值0，容易触发Serial Old GC（也就是可用堆内存空间不足）导致长时间暂停。
 
-"-XX:+CMSFullGCsBeforeCompaction"：执行多少次不压缩的FullGC后，执行一次带碎片整理的FullGC
+触发条件：
+
+- 如果没有设置 -XX:+UseCMSInitiatingOccupancyOnly，虚拟机会根据收集的数据决定是否触发；
+- 老年代使用率达到阈值 CMSInitiatingOccupancyFraction，默认92%；
+- 永久代的使用率达到阈值 CMSInitiatingPermOccupancyFraction，默认92%，触发的前提是开启了选项： CMSClassUnloadingEnabled；
+- 新生代的晋升交换区失败。
+
+### Full GC时触发压缩条件
+
+- UseCMSCompactAtFullCollection 与 CMSFullGCsBeforeCompaction 搭配使用；前者默认就是true，后者默认时0（即每次Full GC都会触发压缩动作）。
+- 用户调用了System.gc()，而且DisableExplicitGC没有开启。
+- Young Gen报告接下来如果做增量收集会失败，简单来说也就是Young Gen预计Old Gen没有足够空间来容纳下次Young GC晋升的对象。
 
 `-Xms5m -Xmx5m -XX:+PrintGCDetails  -XX:+UseParNewGC -XX:+UseConcMarkSweepGC`
 
@@ -399,6 +447,19 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 CMS提供了参数-XXCMSInitiatingOccupancyFraction来控制触发CMS的内存使用占比，设置太低会导致CMS触发过于频繁，设置太高则很容易出现大量的“Concurrent Mode Failure”。
 3）产生大量内存碎片
 
+参考建议：
+
+```
+-Xmx16G
+-Xms16G 
+-XX:+UseConcMarkSweepGC
+-XX:+UseCMSInitiatingOccupancyOnly
+-XX:CMSInitiatingOccupancyFraction=70  // 预留内存30%，保障在并行标记过程中的YGC导致的晋升内存是满足申请需求的。但需要结合业务综合考虑，并不是越多越好。
+-XX:NewRatio=2  // 强制设置
+-XX:+CMSScavengeBeforeRemark // 可选，内存大情况下可设置
+-XX:CMSFullGCsBeforeCompaction=5  // 默认0，即每次FGC都会触发压缩，每次压缩可能带来不小的性能损耗
+```
+
 
 
 #### G1
@@ -407,7 +468,7 @@ CMS提供了参数-XXCMSInitiatingOccupancyFraction来控制触发CMS的内存�
 
 |                                                    |
 | :------------------------------------------------: |
-| <img src=".\image\GC\G1.png" style="zoom:125%;" /> |
+| <img src="./image/GC/G1.png" style="zoom:125%;" /> |
 
 设置参数：
 
@@ -546,6 +607,62 @@ CMS提供了参数-XXCMSInitiatingOccupancyFraction来控制触发CMS的内存�
 > STAB     Snapshot At The Beginning在起始的时候做一个快照
 >
 
+- **-XX:+UseG1GC**
+  Garbage-First，G1不再像早期的垃圾收集器，需要分代配合不同的垃圾收集器。因为G1中的垃圾收集区域是“分区”（Region）的。G1的分代收集和其它垃圾收集器不同的就是除了有年轻代的YGC，全堆扫描的FullGC外，还有包含所有年轻代以及部分老年代Region的MixedGC。
+- **-XX:MaxGCPauseMillis**
+  目标最大GC暂停时间，默认为200ms，这只是期望的目标延迟（服务的响应时间目标，不应该是指100%时间的服务响应。服务不可能是100%可用的，通常，我们对于服务的响应延迟目标也不是100%可用时间内的。实际应用中，我们可能会以99.9%时间内，延迟不超过100ms为目标）。我们知道G1有相应的收集算法，会根据收集的信息及检测的垃圾量动态的调整年轻代与老年代的大小以尽力达到这个目标。
+- **-XX:G1HeapRegionSize**
+  Region块大小，若未指定则默认最多生成2048块，每块的大小需要为2的幂次方，最大值为32M。Region的大小主要是关系到Humongous Object的判定，当一个对象超过Region大小的一半时，则为巨型对象，那么其会至少独占一个Region，如果一个放不下，会占用连续的多个Region。
+- **-XX:InitiatingHeapOccupancyPercent**
+  默认值是45%。也就是老年代使用与新申请的占超过堆的45%时触发并发标记。如果Mixed GC周期结束后老年代使用率还是超过45%，那么会再次触发全局并发标记过程，这样就会导致频繁的老年代GC，影响应用吞吐量。如果老年代空间不大，Mixed GC回收的空间肯定是偏少的，可以适当调高该值；当然如果该值太高，则很容易导致年轻代晋升失败而触发Full GC。
+- **-XX:G1RSetUpdatingPauseTimePercent**
+  默认值是10%。预期对RS（remembered set）在非GC时间并行处理时间，时间参照的是MaxGCPauseMillis值。G1HeapRegionSize会影响RS集合大小，Region越大则处理Region间引用（RS）的时间就越短，但是对于区块的回收时间则会增加。
+- **-XX:G1NewSizePercent**
+  G1NewSizePercent的默认值是5%。即G1的全部分区中新生代最小占据的比例。
+- **-XX:G1MaxNewSizePercent**
+  G1MaxNewSizePercent的默认值是60%。G1会根据实际的GC情况(主要是暂停时间)来动态的调整新生代的大小（也就是新生代的调整范围默认是整个堆空间的10%~60%之间），也就是新生代Region的个数。最好是新生代的空间大一点，毕竟Young GC的频率更大，大的新生代空间能够降低Young GC的发生次数。
+- **-XX:ConcGCThreads**
+  默认是-XX:ParallelGCThreads/4，也就是在非STW期间的GC工作线程数，不是越多越好，过多的话可能与业务线程竞争。
+  并行GC线程数可以通过-XX:ParallelGCThreads来指定（1/4），也就是在STW阶段工作的GC线程数，其值遵循以下原则：
+  ① 如果用户显示指定了ConcGCThreads，则使用用户指定的值。
+  ② 否则，需要根据实际的CPU所能够支持的线程数来计算ParallelGCThreads的值，计算方法见步骤③和步骤④。
+  ③ 如果物理CPU所能够支持线程数小于8，则ParallelGCThreads的值为CPU所支持的线程数。这里的阀值为8，是因为JVM中调用nof_parallel_worker_threads接口所传入的switch_pt的值均为8。
+  ④ 如果物理CPU所能够支持线程数大于8，则ParallelGCThreads的值为8加上一个调整值，调整值的计算方式为：物理CPU所支持的线程数减去8所得值的5/8，JVM会根据实际的情况来选择具体是乘以5/8。
+- **-XX:G1MixedGCLiveThresholdPercent**
+  默认值是85%。在全局并发标记阶段，如果一个老年代的Region的存活对象的空间占比低于此值，则会被纳入Cset（也就是会在Mixed GC中进行清理）。Cset是Mixed GC选择回收的区域，当发现Mixed GC时间较长时，可以尝试调低此阈值，尽量优先选择回收垃圾占比高的Region，但该值过大时也可能导致垃圾回收的不够彻底，最终触发Full GC。
+- **-XX:-G1UseAdaptiveIHOP**
+  关闭自适应算法，默认是开启的，配合InitiatingHeapOccupancyPercent使用。否则设置的InitiatingHeapOccupancyPercent仅在第一次计算时起效，后续G1会重新通过自适应算法计算新的堆占比值（触发并发标记）。
+- **-XX:G1HeapWastePercent**
+  默认值是5%。也就是在全局标记结束后能够统计出所有Cset内可被回收的垃圾占整堆的比值，如果超过该值，那么就会触发之后的多轮Mixed GC；如果不超过，那么会在之后的某次Young GC中重新执行全局并发标记。
+  可尝试适当的调高此阈值，能够降低Mixed GC的频率。
+- **-XX:G1OldCSetRegionThresholdPercent**
+  默认值是10%。也就是每轮Mixed GC附加来自老年代Cset的Region数不会超过全部Region的10%，如果暂停时间短，那么可能会少于10%。Mixed GC阶段不仅会回收全部的新生代区，也会加入部分的老年代区，该值就是限制加入老年代区的数量最大值。
+  该值不是越大越好，获取的Region数是通过对老年代区标记获得，过多的标记反而使Mixed GC时间变长。
+- **-XX:G1MixedGCCountTarget**
+  默认值是8。也就是在一次全局并发标记后，最多接着 8 次Mixed GC，也就是会把全局并发标记阶段生成的Cset里的Region拆分为默认最多 8 个部分，然后在每轮Mixed GC里收集一部分。
+- **-XX:G1ReservePercent**
+  默认值是10%。也就是老年代会预留10%的空间来给新生代的对象晋升，如果经常发生新生代晋升失败而导致Full GC，那么可以适当调高此阈值。
+- **-XX:+ParallelRefProcEnabled**
+  启动引用对象的并发处理机制，以多线程的方式进行处理。建议不要使用引用对象，所以该功能一般不需要设置。
+
+参考建议：
+
+```
+-Xmx16G
+-Xms16G 
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis = 100
+-XX:InitiatingHeapOccupancyPercent = 45 // 一般会调高，避免频繁标记的Mixed GC
+-XX:G1NewSizePercent = 30  // 适当将新生代区的最小值调大，降低YGC的频率
+-XX:G1MaxNewSizePercent = 60  // 如果新生代区回收慢，可以适当降低该值；如果Mixed GC标记或者停顿长则可以适当增加该值。
+-XX:ConcGCThreads = n // 一般不需要设置，系统自行计算即可，GC后台线程会消耗业务可用CPU资源
+-XX:G1MixedGCLiveThresholdPercent = 75  // 如果标记时间长，且堆内存空闲大（触发GC频率低）的情况下可适当调低此值，让可释放内存多的区优先是否。
+-XX:-G1UseAdaptiveIHOP  // 一般与InitiatingHeapOccupancyPercent配合使用，关闭自适应阈值算法。
+-XX:G1HeapWastePercent = 10 // 如果值过小，会导致较多的内存整理耗时
+-XX:G1OldCSetRegionThresholdPercent = 15 // 可适当增加老年代分区进入Mixed GC范围，减少出现FGC的可能。
+-XX:G1ReservePercent = 10 // 基本可以不用修改，G1的堆内存一般较大
+```
+
 
 
 #### ZGC
@@ -558,7 +675,7 @@ Java 11，支持 TB 级别的堆，ZGC 非常高效，能够做到 10ms 以下�
 
 |                         |
 | :---------------------: |
-| ![](.\image\GC\ZGC.png) |
+| ![](./image/GC/ZGC.png) |
 
 对象指针必须是64位，同样的也就无法支持压缩指针了（CompressedOops，压缩指针也是32位）。（ZGC仅支持64位平台），指针可以处理更多的内存，因此可以使用一些位来存储状态。 ZGC将限制最大支持4Tb堆（42-bits），那么会剩下22位可用，它目前使用了4位： Finalizable， Remapped， Marked0和Marked1。
 

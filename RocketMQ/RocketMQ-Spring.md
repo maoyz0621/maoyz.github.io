@@ -1,5 +1,44 @@
 # RocketMQ-Spring
 
+## 消息状态
+
+#### SendStatus   消息发送状态
+
+- SEND_OK
+- FLUSH_DISK_TIMEOUT
+- FLUSH_SLAVE_TIMEOUT
+- SLAVE_NOT_AVAILABLE
+
+
+
+#### LocalTransactionState  原生事务消息
+
+- COMMIT_MESSAGE
+- ROLLBACK_MESSAGE
+- UNKNOW
+
+
+
+#### RocketMQLocalTransactionState  整合Spring事务消息
+
+- COMMIT
+- ROLLBACK
+- UNKNOWN
+
+
+
+#### ConsumeConcurrentlyStatus  负载均衡/广播方式消费消息状态
+
+- CONSUME_SUCCESS
+- RECONSUME_LATER
+
+
+
+#### ConsumeOrderlyStatus 顺序消费状态
+
+- SUCCESS
+- SUSPEND_CURRENT_QUEUE_A_MOMENT
+
 
 
 ## 发送消息
@@ -148,7 +187,7 @@ public class ProducerApplication implements CommandLineRunner{
     class TransactionListenerImpl implements RocketMQLocalTransactionListener {
           @Override
           public RocketMQLocalTransactionState executeLocalTransaction(Message msg, Object arg) {
-            // ... local transaction process, return bollback, commit or unknown
+            // ... local transaction process, return rollback, commit or unknown
             return RocketMQLocalTransactionState.UNKNOWN;
           }
 
