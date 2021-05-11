@@ -57,7 +57,7 @@ redis确实不是单线程的,更确切地说法是redis的核心业务线程只
 
 |                                  |
 | :------------------------------: |
-| ![](.\image\Redis\Redis-AOF.png) |
+| ![](./image/Redis/Redis-AOF.png) |
 
 ​		记录每次对服务器写的操作,当服务器重启的时候会重新执行这些命令来恢复原始的数据，AOF命令以redis协议追加保存每次写的操作到文件末尾，Redis还能对AOF文件进行后台重写，使得AOF文件的体积不至于过大.
 
@@ -90,7 +90,7 @@ auto-aof-rewrite-min-size  64mb  # 设置允许重写的最小aof文件大小，
 
 |                                  |
 | :------------------------------: |
-| ![](.\image\Redis\Redis-RDB.png) |
+| ![](./image/Redis/Redis-RDB.png) |
 
 
 
@@ -472,7 +472,7 @@ https://yq.aliyun.com/articles/531067
 
 |                                      |
 | :----------------------------------: |
-| ![](.\image\Redis\Redis线程比较.jpg) |
+| ![](./image/Redis/Redis线程比较.jpg) |
 
 
 
@@ -484,7 +484,7 @@ https://yq.aliyun.com/articles/531067
 
 |                                                              |
 | ------------------------------------------------------------ |
-| <img src=".\image\Redis\Redis进程模型.png" style="zoom:150%;" /> |
+| <img src="./image/Redis/Redis进程模型.png" style="zoom:150%;" /> |
 
 
 
@@ -503,7 +503,7 @@ io-threads   4
 
 |                               |
 | :---------------------------: |
-| ![](.\image\Redis\Redis6.jpg) |
+| ![](./image/Redis/Redis6.jpg) |
 
 主要流程：
 
