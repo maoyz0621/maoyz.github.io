@@ -425,5 +425,87 @@ public <T> T getExtension(Class<T> type, String name) {
 
 
 
-## 异步调用
+## 服务调用方式
 
+### 异步调用
+
+基于 Netty 的 NIO 异步通讯机制，客户端不需要启动多线程即可完成并行调用多个远程服务，相对多线程开销较小。
+
+|                                   |
+| --------------------------------- |
+| ![异步调用](/images/异步调用.png) |
+|                                   |
+
+- Consumer 配置
+
+```xml
+<dubbo:reference id="asyncService" interface="com.alibaba.dubbo.samples.async.api.AsyncService">
+    <dubbo:method name="goodbye" async="true"/>
+</dubbo:reference>
+```
+
+- Consumer发起调用：
+
+```java
+
+AsyncService service = ...;
+String result = service.goodbye("samples");// 这里的返回值为空，请不要使用
+Future<String> future = RpcContext.getContext().getFuture();
+... // 业务线程可以开始做其他事情
+result = future.get(); // 阻塞需要获取异步结果时，也可以使用 get(timeout, unit) 设置超时时间
+```
+
+
+
+- sent="true"` 等待消息发出，消息发送失败将抛出异常；
+- `sent="false"` 不等待消息发出，将消息放入 IO 队列，即刻返回。
+
+如果你只是想异步，完全忽略返回值，可以配置 `return="false"`，以减少 Future 对象的创建和管理成本
+
+```xml
+<dubbo:method name="goodbye" async="true" return="false"/>
+```
+
+此时，`RpcContext.getContext().getFuture()`将返回`null`。
+
+### 参数回调
+
+### 事件通知
+
+事件通知允许 Consumer 端在调用之前、调用之后或出现异常时，触发 `oninvoke`、`onreturn`、`onthrow` 三个事件。
+
+- Consumer端，指定事件需要通知的方法
+
+```xml
+<bean id="demoCallback" class="com.alibaba.dubbo.samples.notify.impl.NotifyImpl" />
+
+<dubbo:reference id="demoService" check="false" interface="com.alibaba.dubbo.samples.notify.api.DemoService" version="1.0.0" group="cn">
+    <dubbo:method name="sayHello" onreturn="demoCallback.onreturn" onthrow="demoCallback.onthrow"/>
+</dubbo:reference>
+```
+
+- NotifyImpl
+
+```java
+public class NotifyImpl implements Notify{
+
+    public Map<Integer, String> ret = new HashMap<Integer, String>();
+    
+    public void onreturn(String name, int id) {
+        ret.put(id, name);
+        System.out.println("onreturn: " + name);
+    }
+
+    public void onthrow(Throwable ex, String name, int id) {
+        System.out.println("onthrow: " + name);
+    }
+}
+```
+
+这里要强调一点，自定义 Notify 接口中的三个方法的参数规则如下：
+
+- `oninvoke` 方法参数与调用方法的参数相同；
+- `onreturn`方法第一个参数为调用方法的返回值，其余为调用方法的参数；
+- `onthrow`方法第一个参数为调用异常，其余为调用方法的参数。
+
+上述配置中，`sayHello`方法为同步调用，因此事件通知方法的执行也是同步执行。可以配置 `async=true`让方法调用为异步，这时事件通知的方法也是异步执行的。特别强调一下，`oninvoke`方法不管是否异步调用，都是同步执行的。
