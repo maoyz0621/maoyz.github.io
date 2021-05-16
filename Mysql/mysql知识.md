@@ -14,7 +14,20 @@ show engines;
 show variables like '%storage_engine%';
 ```
 
+## 锁的种类
 
+1. 表级锁
+2. 行级锁：会出现死锁；
+3. 页面锁：会出现死锁
+
+## 存储格式
+
+1. MyISAM
+   - .frm   表定义
+   - .MYD   MYData
+   - .MYI    MYIndex
+2. InnoDB
+   - .ibd
 
 ## Group by
 

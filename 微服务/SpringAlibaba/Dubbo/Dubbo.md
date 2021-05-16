@@ -45,6 +45,56 @@
 
 ## 启动流程
 
+org.apache.dubbo.container.Main（com.alibaba.dubbo.container.Main）
+
+提供的启动脚本：META-INF/assembly/bin/start.sh
+
+> 制作自定义的标签：
+> 1. spring.handlers     
+> 2. NamespaceHandlerSupport
+
+
+
+```java
+public class DubboNamespaceHandler extends NamespaceHandlerSupport implements ConfigurableSourceBeanMetadataElement {
+
+    static {
+        Version.checkDuplicate(DubboNamespaceHandler.class);
+    }
+
+    @Override
+    public void init() {
+        registerBeanDefinitionParser("application", new DubboBeanDefinitionParser(ApplicationConfig.class, true));
+        registerBeanDefinitionParser("module", new DubboBeanDefinitionParser(ModuleConfig.class, true));
+        registerBeanDefinitionParser("registry", new DubboBeanDefinitionParser(RegistryConfig.class, true));
+        registerBeanDefinitionParser("config-center", new DubboBeanDefinitionParser(ConfigCenterBean.class, true));
+        registerBeanDefinitionParser("metadata-report", new DubboBeanDefinitionParser(MetadataReportConfig.class, true));
+        registerBeanDefinitionParser("monitor", new DubboBeanDefinitionParser(MonitorConfig.class, true));
+        registerBeanDefinitionParser("metrics", new DubboBeanDefinitionParser(MetricsConfig.class, true));
+        registerBeanDefinitionParser("ssl", new DubboBeanDefinitionParser(SslConfig.class, true));
+        registerBeanDefinitionParser("provider", new DubboBeanDefinitionParser(ProviderConfig.class, true));
+        registerBeanDefinitionParser("consumer", new DubboBeanDefinitionParser(ConsumerConfig.class, true));
+        registerBeanDefinitionParser("protocol", new DubboBeanDefinitionParser(ProtocolConfig.class, true));
+        // 服务发布
+        registerBeanDefinitionParser("service", new DubboBeanDefinitionParser(ServiceBean.class, true));
+        registerBeanDefinitionParser("reference", new DubboBeanDefinitionParser(ReferenceBean.class, false));
+        registerBeanDefinitionParser("annotation", new AnnotationBeanDefinitionParser());
+    }
+}
+```
+
+会在Spring容器中生成一个**`ServiceBean`** ，服务的发布也会在`ServiceBean`中完成。
+
+```
+public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean,
+        ApplicationContextAware, BeanNameAware, ApplicationEventPublisherAware {
+}
+```
+
+初始化之后，调用**`InitializingBean`**的`afterPropertiesSet`方法，Spring容器加载完成，接收事件**`ContextRefreshedEvent`**，调用**`ApplicationListener`**的`onApplicationEvent`方法。
+
+在`afterPropertiesSet`中，和`onApplicationEvent`中，会调用`export()`，在`export()`中，会暴露dubbo服务，具体区别在于是否配置了`delay`属性，是否延迟暴露，如果`delay`不为`null`，或者不为`-1`时，会在`afterPropertiesSet`中调用`export()`暴露dubbo服务，如果为`null`，或者为`-1`时，会在Spring容器初始化完成，接收到**`ContextRefreshedEvent`**事件，调用`onApplicationEvent`，暴露dubbo服务。
+
 
 
 ## 服务调用底层原理
@@ -218,7 +268,7 @@ public class MockClusterInvoker<T> implements Invoker<T> {
 
 > org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker
 
-```
+```java
 public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
     @Override
     public Result invoke(final Invocation invocation) throws RpcException {

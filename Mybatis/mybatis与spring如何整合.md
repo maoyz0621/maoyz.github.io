@@ -515,10 +515,10 @@ public static void bindResource(Object key, Object value) throws IllegalStateExc
 
 Mybatis与Spring整合之后，一级缓存”失效“案例：
 
-|                                               |
-| :-------------------------------------------: |
-|     ![](.\image\Mybatis_一级缓存生效.png)     |
-| ![](.\image\Mybatis_一级缓存生效执行结果.png) |
-|     ![](.\image\Mybatis_一级缓存失效.png)     |
-| ![](.\image\Mybatis_一级缓存失效执行结果.png) |
+|                                                              |
+| :----------------------------------------------------------: |
+|            ![](.\image\Mybatis_一级缓存生效.png)             |
+|        ![](.\image\Mybatis_一级缓存生效执行结果.png)         |
+| <img src=".\image\Mybatis_一级缓存失效.png" style="zoom:80%;" /> |
+|        ![](.\image\Mybatis_一级缓存失效执行结果.png)         |
 

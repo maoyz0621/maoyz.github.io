@@ -12,11 +12,13 @@
 
 ### CAS
 
+compare and swap，比较并交换，是一种乐观锁
+
 
 
 ### ABA
 
-
+AtomicStampedReference 
 
 ## DCL
 
@@ -149,9 +151,9 @@ Class对象指针（指针压缩默认开启）的大小默认是4个字节，�
 
 前提：
 
-new一个空对象在32为系统中占用内存大小是8byte（对象头，在堆中）+ 4byte（对象的引用地址，在栈中）=12byte；
+new Object()在32为系统中占用内存大小是8byte（对象头，在堆中）+ 4byte（对象的引用地址，在栈中）=12byte；
 
-new一个空对象在64为系统中占用内存大小是16byte（对象头，在堆中）+ 8byte（对象的引用地址，在栈中）=24byte；
+new Object()在64为系统中占用内存大小是16byte（对象头，在堆中）+ 8byte（对象的引用地址，在栈中）=24byte；
 
 > -XX:+UseCompressedOops       JVM 会使用 32-bit的offset来代表java object的引用
 >
@@ -377,6 +379,8 @@ Java内存屏障主要有Load和Store两类。
 
 ## volatile
 
+作用：
+
 - 禁止指令重排序
 - 保证内存可见性
 
@@ -391,11 +395,17 @@ Java内存屏障主要有Load和Store两类。
 
 
 
+用途：
+
+​		结合CAS，保证原子性（AtomicXxx），常用于多线程环境下的单词操作。
+
+用volatile修饰long和double可以保证其操作原子性。
+
 ## synchronized 
 
-悲观锁
+实则是一个悲观锁。
 
-
+synchronized关键字在JavaSE1.6之后进行了主要包括为了减少获得锁和释放锁带来的性能消耗而引入的偏向锁和轻量级锁以及其它各种优化之后执行效率有了显著提升。
 
 
 

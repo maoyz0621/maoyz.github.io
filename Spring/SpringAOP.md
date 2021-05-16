@@ -12,22 +12,22 @@
 
 - JDK动态代理（默认使用）
 
-- CGLib动态代理
+- CGLib动态代理（Code Generation Library）
 
-  |                           |
-  | :-----------------------: |
-  | ![](.\image\AopProxy.png) |
+  |                         |
+  | :---------------------: |
+  | ![](image/AopProxy.png) |
 
 ## Spring AOP 和 AspectJ
 
-  ![](.\image\Aspect.jpg)
+  ![](image/Aspect.jpg)
 
 ## 继承关系
-|                              |
-| :--------------------------: |
-| ![](.\image\AOP类继承图.png) |
-|                              |
-|                              |
+|                            |
+| :------------------------: |
+| ![](image/AOP类继承图.png) |
+|                            |
+|                            |
 
 ## 执行流程
 
@@ -43,9 +43,9 @@ public @interface EnableAspectJAutoProxy {
 }
 ```
 
-|      AspectJAdvice      |
-| :---------------------: |
-| ![](.\image\Advice.png) |
+|     AspectJAdvice     |
+| :-------------------: |
+| ![](image/Advice.png) |
 
 对应@Before、 @AfterReturning、  @AfterThrowing、 @After、 @Around
 
@@ -95,14 +95,14 @@ class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
                    2）、applyBeanPostProcessorsBeforeInitialization()：应用后置处理器的postProcessBeforeInitialization（）
                    3）、invokeInitMethods()；执行自定义的初始化方法
                    4）、applyBeanPostProcessorsAfterInitialization()；执行后置处理器的postProcessAfterInitialization（）；
-           4）、BeanPostProcessor(AnnotationAwareAspectJAutoProxyCreator)创建成功；--》aspectJAdvisorsBuilder
+           4）、BeanPostProcessor(AnnotationAwareAspectJAutoProxyCreator)创建成功；--> aspectJAdvisorsBuilder
        7）、把BeanPostProcessor注册到BeanFactory中；
            beanFactory.addBeanPostProcessor(postProcessor);  
 ```
 
 | org.springframework.aop.config.AopConfigUtils#registerOrEscalateApcAsRequired |
 | ------------------------------------------------------------ |
-| ![](.\image\AnnotationAwareAspectJAutoProxyCreator.png)      |
+| ![](image/AnnotationAwareAspectJAutoProxyCreator.png)        |
 
 *IOC容器中注入了一个internalAutoProxyCreator=AnnotationAwareAspectJAutoProxyCreator的bean，*到此可以得出结论，@EnableAspectJAutoProxy给容器中注册一个AnnotationAwareAspectJAutoProxyCreator。
 
@@ -242,9 +242,9 @@ public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException 
 
 
 
-|                              |
-| ---------------------------- |
-| ![](.\image\createProxy.png) |
+|                            |
+| -------------------------- |
+| ![](image/createProxy.png) |
 
 > 实现了多个切面，如何保证切面执行顺序？
 
@@ -256,7 +256,7 @@ public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException 
 
 > org.springframework.aop.framework.JdkDynamicAopProxy#invoke
 
-```
+```java
 @Override
 @Nullable
 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -382,7 +382,7 @@ public Object intercept(Object proxy, Method method, Object[] args, MethodProxy 
 
 都使用了this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass)
 
-![](.\image\Aspect调用链.png)
+![](image/Aspect调用链.png)
 
 > org.springframework.aop.framework.DefaultAdvisorChainFactory
 
@@ -442,7 +442,7 @@ public List<Object> getInterceptorsAndDynamicInterceptionAdvice(
 
 2. 开启AOP之后，给容器注册一个后置组件：AnnotationAwareAspectJAutoProxyCreator
 
-3. AnnotationAwareAspectJAutoProxyCreator是一个后置处理器，执行postProcessAfterInitialization()
+3. AnnotationAwareAspectJAutoProxyCreator是一个后置处理器（SmartInstantiationAwareBeanPostProcessor），执行postProcessAfterInitialization()
 
 4. 容器的创建过程：
 

@@ -1,6 +1,24 @@
+# Feign
+
+## 原理
+
+|                                                            |
+| :--------------------------------------------------------: |
+| <img src="./images/Feign处理过程.jpg" style="zoom:60%;" /> |
+
+- 启动时，程序会进行包扫描，扫描所有包下所有@FeignClient注解的类，并将这些类注入到Spring容器中。当定义的Feign中的接口被调用时，通过JDK的动态代理来生成RequestTemplate。
+
+- RequestTemplate中包含请求的所有信息，如请求参数，请求URL等。
+
+- RequestTemplate生产Request，然后将Request交给feign.Client处理，这个feign.Client默认是JDK的HTTPUrlConnection，也可以是OKhttp、Apache的HTTPClient等。
+
+- 最后feign.Client封装成LoadBaLanceClient，结合ribbon负载均衡地发起调用。
+
+
+
 ## @EnableFeignClients 注解声明客户端接口
 
-```
+```java
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Documented
@@ -20,7 +38,7 @@ public @interface EnableFeignClients {
 ```
 
 ## @FeignClient注解，将接口声明为Feign客户端
-```
+```java
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
@@ -28,25 +46,27 @@ public @interface FeignClient {
 
 	@AliasFor("name")
 	String value() default "";
-	//名称，对应与eureka上注册的应用名
+	// 名称，对应与eureka上注册的应用名
 	@AliasFor("value")
 	String name() default "";
 	//生成spring bean的qualifier
 	String qualifier() default "";
-	//http服务的url
+	// http服务的url，全路径地址或hostname，http或https可选
 	String url() default "";
+	// 配置响应状态码为404时是否应该抛出FeignExceptions
 	boolean decode404() default false;
-	//配置类，这里设置的配置类是Spring Configuration，将会在FeignContext中创建内部声明的Bean，用于不同的客户端进行隔离
+	// 配置类，这里设置的配置类是Spring Configuration，将会在FeignContext中创建内部声明的Bean，用于不同的客户端进行隔离,参考FeignClientsConfiguration
 	Class<?>[] configuration() default {};
-	//声明hystrix调用失败后的方法
+	// 声明hystrix调用失败后的方法，底层依赖hystrix，启动类要加上@EnableHystrix
 	Class<?> fallback() default void.class;
 	Class<?> fallbackFactory() default void.class;
+    // 自动给所有方法的requestMapping前加上前缀，类似与controller类上的requestMapping
 	String path() default "";
 }
 ```
 
 ## FeignClientsRegistrar 注册客户端
-```
+```java
 class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar,
 		ResourceLoaderAware, BeanClassLoaderAware {
 。。。
@@ -68,7 +88,7 @@ class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar,
 + 接口ImportBeanDefinitionRegistrar用于动态向Spring Context中注册bean
 
 ### 注册默认配置
-```
+```java
 private void registerDefaultConfiguration(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
 	//获取@EnableFeignClients注解参数
 	Map<String, Object> defaultAttrs = metadata
@@ -90,7 +110,7 @@ private void registerDefaultConfiguration(AnnotationMetadata metadata, BeanDefin
 ```
 
 ### 注册客户端的配置Bean
-```
+```java
 private void registerClientConfiguration(BeanDefinitionRegistry registry, Object name, Object configuration) {
 	// 创建一个BeanDefinitionBuilder，注册bean的类为FeignClientSpecification
 	BeanDefinitionBuilder builder = BeanDefinitionBuilder
@@ -107,7 +127,7 @@ private void registerClientConfiguration(BeanDefinitionRegistry registry, Object
 
 ### registerFeignClients方法，注册feign客户端
 
-```
+```java
 public void registerFeignClients(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
 	//生成一个scanner，扫描注定包下的类
 	ClassPathScanningCandidateComponentProvider scanner = getScanner();
@@ -178,7 +198,7 @@ public void registerFeignClients(AnnotationMetadata metadata, BeanDefinitionRegi
 ```
 
 如果在@FeignClient注解中设置了url参数，就不走Ribbon，直接url调用，否则通过Ribbon调用，实现客户端负载均衡。生成Feign客户端所需要的各种配置对象，都是通过FeignContex中获取的。
-```
+```java
 @Override
 public Object getObject() throws Exception {
 	// FeignContext在FeignAutoConfiguration中自动注册，FeignContext用于客户端配置类独立注册，后面具体分析
@@ -226,8 +246,8 @@ public Object getObject() throws Exception {
 
 ## FeignContext 隔离配置
 
-### feign构建类创建过程
-```
+### Feign构建类创建过程
+```java
 protected Feign.Builder feign(FeignContext context) {
 	。。。
 	// 从FeignContext中获取注册的Feign.Builder bean，设置Encoder/Decoder/Contract
@@ -266,7 +286,7 @@ protected Feign.Builder feign(FeignContext context) {
 
 ## FeignClientsConfiguration 客户端默认配置
 
-```
+```java
 @Configuration
 public class FeignClientsConfiguration {
 	// 注入springMVC的HttpMessageConverters
@@ -329,7 +349,7 @@ public class FeignClientsConfiguration {
 
 ### HystrixTargeter
 
-```
+```java
 class HystrixTargeter implements Targeter {
 
 	@Override
@@ -352,6 +372,189 @@ class HystrixTargeter implements Targeter {
 
 		return feign.target(target);
 	}
-  。。。
+  ...
 }
 ```
+
+
+
+## 调用处理器
+
+### 默认调用处理器FeignInvocationHandler
+
+```java
+package feign;
+//...省略import
+
+public class ReflectiveFeign extends Feign {
+
+  //...
+
+  // 内部类：默认的Feign调用处理器 FeignInvocationHandler
+  static class FeignInvocationHandler implements InvocationHandler {
+
+    private final Target target;
+    // 方法实例对象和方法处理器的映射
+    private final Map<Method, MethodHandler> dispatch;
+
+    //构造函数    
+    FeignInvocationHandler(Target target, Map<Method, MethodHandler> dispatch) {
+      this.target = checkNotNull(target, "target");
+      this.dispatch = checkNotNull(dispatch, "dispatch for %s", target);
+    }
+
+    //默认Feign调用的处理
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+      //...
+	  // 首先，根据方法实例，从方法实例对象和方法处理器的映射中，
+	  // 取得 方法处理器，然后，调用 方法处理器 的 invoke(...) 方法
+         return dispatch.get(method).invoke(args);
+    }
+    //...
+  }
+```
+
+1. 根据Java反射的方法实例，在dispatch 映射对象中，找到对应的MethodHandler 方法处理器；
+2. 调用MethodHandler方法处理器的 invoke(...) 方法，完成实际的HTTP请求和结果的处理。
+
+```java
+public interface InvocationHandlerFactory {
+  //…
+
+  // 方法处理器接口，仅仅拥有一个invoke(…)方法
+  interface MethodHandler {
+    // 完成远程URL请求
+    Object invoke(Object[] argv) throws Throwable;
+  }
+//...
+}
+```
+
+主要职责是完成实际远程URL请求，然后返回解码后的远程URL的响应结果。Feign提供了默认的 SynchronousMethodHandler 实现类
+
+#### 方法处理器SynchronousMethodHandler
+
+```java
+final class SynchronousMethodHandler implements MethodHandler {
+    
+	@Override
+    public Object invoke(Object[] argv) throws Throwable {
+        RequestTemplate template = buildTemplateFromArgs.create(argv);
+        Options options = findOptions(argv);
+        Retryer retryer = this.retryer.clone();
+        while (true) {
+            try {
+                return executeAndDecode(template, options);
+            } catch (RetryableException e) {
+                try {
+                    retryer.continueOrPropagate(e);
+                } catch (RetryableException th) {
+                    Throwable cause = th.getCause();
+                    if (propagationPolicy == UNWRAP && cause != null) {
+                        throw cause;
+                    } else {
+                        throw th;
+                    }
+                }
+                if (logLevel != Logger.Level.NONE) {
+                    logger.logRetry(metadata.configKey(), logLevel);
+                }
+                continue;
+            }
+        }
+    }
+    
+    // 执行请求，解码结果
+    Object executeAndDecode(RequestTemplate template, Options options) throws Throwable {
+        Request request = targetRequest(template);
+
+        if (logLevel != Logger.Level.NONE) {
+            logger.logRequest(metadata.configKey(), logLevel, request);
+        }
+
+        Response response;
+        long start = System.nanoTime();
+        try {
+            response = client.execute(request, options);
+            // ensure the request is set. TODO: remove in Feign 12
+            response = response.toBuilder()
+                    .request(request)
+                    .requestTemplate(template)
+                    .build();
+        } catch (IOException e) {
+           
+        }
+        long elapsedTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+        boolean shouldClose = true;
+        try {
+            if (logLevel != Logger.Level.NONE) {
+                response =
+                        logger.logAndRebufferResponse(metadata.configKey(), logLevel, response, elapsedTime);
+            }
+            if (Response.class == metadata.returnType()) {
+                if (response.body() == null) {
+                    return response;
+                }
+                if (response.body().length() == null ||
+                        response.body().length() > MAX_RESPONSE_BUFFER_SIZE) {
+                    shouldClose = false;
+                    return response;
+                }
+                // Ensure the response body is disconnected
+                byte[] bodyData = Util.toByteArray(response.body().asInputStream());
+                return response.toBuilder().body(bodyData).build();
+            }
+            if (response.status() >= 200 && response.status() < 300) {
+                if (void.class == metadata.returnType()) {
+                    return null;
+                } else {
+                    Object result = decode(response);
+                    shouldClose = closeAfterDecode;
+                    return result;
+                }
+            } else if (decode404 && response.status() == 404 && void.class != metadata.returnType()) {
+                Object result = decode(response);
+                shouldClose = closeAfterDecode;
+                return result;
+            } else {
+                throw errorDecoder.decode(metadata.configKey(), response);
+            }
+        } catch (IOException e) {
+            if (logLevel != Logger.Level.NONE) {
+                
+            }
+            throw errorReading(request, response, e);
+        } finally {
+            if (shouldClose) {
+                ensureClosed(response.body());
+            }
+        }
+    }
+}
+```
+
+
+
+### Hystrix调用处理器 HystrixInvocationHandler
+
+
+
+## 客户端组件feign.Client
+
+负责端到端的执行URL请求。发送request请求到服务器，并接收response响应后进行解码。
+
+```java
+public interface Client {
+    Response execute(Request request, Options options) throws IOException;
+}
+```
+
+1. Client.Default类：默认的feign.Client 客户端实现类，内部使用HttpURLConnnection 完成URL请求处理；
+
+2. ApacheHttpClient 类：内部使用 Apache httpclient 开源组件完成URL请求处理的feign.Client 客户端实现类；
+
+3. OkHttpClient类：内部使用 OkHttp3 开源组件完成URL请求处理的feign.Client 客户端实现类。
+
+4. LoadBalancerFeignClient 类：内部使用 Ribben 负载均衡技术完成URL请求处理的feign.Client 客户端实现类。

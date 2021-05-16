@@ -1,8 +1,8 @@
 # Bean生命周期
 
-|                                           |
-| :---------------------------------------: |
-| ![Bean生命周期](.\image\Bean生命周期.jpg) |
+|                                         |
+| :-------------------------------------: |
+| ![Bean生命周期](image/Bean生命周期.jpg) |
 
 ## ApplicationContextInitializer
 
@@ -16,9 +16,9 @@ Spring容器刷新refresh()之前初始化`ConfigurableApplicationContext`的回
 
 |                                                              |
 | ------------------------------------------------------------ |
-| ![Bean生命周期](.\image\ApplicationContextInitializer-1.png) |
-| ![Bean生命周期](.\image\ApplicationContextInitializer-2.png) |
-| ![Bean生命周期](.\image\ApplicationContextInitializer-3.png) |
+| ![Bean生命周期](image/ApplicationContextInitializer-1.png) |
+| ![Bean生命周期](image/ApplicationContextInitializer-2.png) |
+| ![Bean生命周期](image/ApplicationContextInitializer-3.png) |
 
 扩展的生效，有以下三种方式：
 
@@ -48,10 +48,10 @@ beanFactory的扩展接口，Spring在读取beanDefinition信息之后，实例�
 
 |                                                  |
 | :----------------------------------------------: |
-|           ![](.\image\初始化bean.png)            |
-| ![](.\image\postProcessBeforeInitialization.png) |
-|        ![](.\image\invokeInitMethods.png)        |
-| ![](.\image\postProcessAfterInitialization.png)  |
+|           ![](image/初始化bean.png)            |
+| ![](image/postProcessBeforeInitialization.png) |
+|        ![](image/invokeInitMethods.png)        |
+| ![](image/postProcessAfterInitialization.png)  |
 
 1. 调用BeanNameAware、BeanClassLoaderAware、BeanFactoryAware的set方法
 
@@ -81,8 +81,8 @@ bean初始化之前
 
 |                          |
 | :----------------------: |
-| ![](.\image\Aware_1.png) |
-| ![](.\image\Aware_2.png) |
+| ![](image/Aware_1.png) |
+| ![](image/Aware_2.png) |
 |                          |
 
 先执行BeanNameAware，后执行BeanFactoryAware
@@ -95,8 +95,8 @@ bean初始化之前
 
 |                                                     |
 | :-------------------------------------------------: |
-| ![](.\image\ApplicationContextAwareProcessor_1.png) |
-| ![](.\image\ApplicationContextAwareProcessor_2.png) |
+| ![](image/ApplicationContextAwareProcessor_1.png) |
+| ![](image/ApplicationContextAwareProcessor_2.png) |
 |                                                     |
 
 
@@ -121,7 +121,7 @@ BeanPostProcessor的实现类，bean实例化之后，初始化之前
 
 |                                                     |
 | :-------------------------------------------------: |
-| ![](.\image\ApplicationContextAwareProcessor_2.png) |
+| ![](image/ApplicationContextAwareProcessor_2.png) |
 
 - `EnvironmentAware`：用于获取`EnviromentAware`的一个扩展类，这个变量非常有用， 可以获得系统内的所有参数。当然个人认为这个Aware没必要去扩展，因为spring内部都可以通过注入的方式来直接获得。
 
@@ -227,7 +227,7 @@ bean初始化阶段，如果一个方法有此注解，会先调用这个方法�
 
 # Bean初始化
 
-![](.\image\ApplicationContext.png)
+![](image/ApplicationContext.png)
 
 
 
@@ -330,7 +330,7 @@ public void refresh() throws BeansException, IllegalStateException {
 
 | org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#doCreateBean |
 | ------------------------------------------------------------ |
-| ![](.\image\doCreateBean.png)                                |
+| ![](image/doCreateBean.png)                                |
 
 
 
