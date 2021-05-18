@@ -57,6 +57,7 @@ datadir= C:\Program Files\mysql-5.7.16-winx64\data（mysql所在目录\data）
     ```
 
 
+
 ## 运行多mysql实例
 
 帮助文档：https://blog.csdn.net/li87218677/article/details/64454488
@@ -89,6 +90,7 @@ mysqld --initialize-insecure --defaults-file=/etc/mysql/3301.cnf  --basedir=/usr
 5. 停止mysql：
 `mysqladmin -u root -proot  -S /data/mysql/mysql_1/mysqld.sock shutdown`
 `mysqladmin -u root -proot  -S /data/mysql/mysql_2/mysqld.sock shutdown`
+
 
 
 ## 一台服务器多实例mysql做主从复制
@@ -128,7 +130,10 @@ show slave status \G;
 4. 登陆repl用户
 `mysql -urepl -p -S /data/mysql/mysql_1/mysqld.sock -hlocalhost  -P 3301`
 
+
+
 ## 开启profile 查看生命周期
+
 ```mysql
 set profiling = on;
 show profiles;		# 记录操作语句
@@ -140,14 +145,20 @@ Coping to tmp table on disk		内存临时表复制到磁盘（危险）
 locked
 ```
 
+
+
 ## 全局查询日志
+
 ```mysql
 set global general_log = 1;
 set global log_output = 'TABLE';
 select * from mysql.general_log;	# 查询
 ```
 
+
+
 ## 主从复制配置
+
 ```mysql
 [mysqld]
 server-id = 1
@@ -189,6 +200,8 @@ show slave status \G;    # 观察 Slave_IO_Running = YES   Slave_SQL_Running = Y
 >1 `show variables like 'sql_mode';`
 >2 `set session`
    `sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';`
+
+
 
 ## MySQL监控指标
 
@@ -297,3 +310,23 @@ show slave status \G;    # 观察 Slave_IO_Running = YES   Slave_SQL_Running = Y
 | 16      | 4456           |
 | 32      | 4500(max)      |
 | 64      | 4500(max)      |
+
+
+
+## MySQL调优
+
+### 性能监控
+
+### schema与数据类型优化
+
+### 执行计划
+
+### 索引优化
+
+### 查询优化
+
+### 分区表
+
+### 服务器参数设置
+
+### msql集群

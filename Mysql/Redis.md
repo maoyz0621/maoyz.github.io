@@ -484,7 +484,7 @@ https://yq.aliyun.com/articles/531067
 
 |                                                              |
 | ------------------------------------------------------------ |
-| <img src="./image/Redis/Redis进程模型.png" style="zoom:200%;" /> |
+| <img src="./image/Redis/Redis进程模型.png" style="zoom:250%;" /> |
 
 
 
@@ -501,9 +501,9 @@ io-threads   4
 
 多线程实现机制：
 
-|                               |
-| :---------------------------: |
-| ![](./image/Redis/Redis6.jpg) |
+|                                                          |
+| :------------------------------------------------------: |
+| <img src="./image/Redis/Redis6.jpg" style="zoom:80%;" /> |
 
 主要流程：
 

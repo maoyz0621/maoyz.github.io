@@ -2,10 +2,10 @@
 
 > ZooKeeper: A Distributed Coordination Service for Distributed Applications  分布式协调
 
-|                                                              |
-| :----------------------------------------------------------: |
-|              ![](.\images\ZooKeeper架构图.png)               |
-| <img src=".\images\ZooKeeper集群图.png" style="zoom:80%;" /> |
+|                                                            |
+| :--------------------------------------------------------: |
+| <img src="images/ZooKeeper架构图.png" style="zoom:80%;" /> |
+| <img src="images/ZooKeeper集群图.png" style="zoom:80%;" /> |
 
 - Leader： ZooKeeper 集群工作的核心 事务请求（写操作）的唯一调度和处理者，保证集群事务处理的顺序性；集群内部各个服务的调度者。 对于 create，setData，delete 等有写操作的请求，则需要统一转发给 leader 处理，leader 需要决定编号、执行操作，这个过程称为一个事务。
 - Follower： 处理客户端非事务（读操作）请求 转发事务请求给 Leader 参与集群 leader 选举投票2n-1台可以做集群投票 此外，针对访问量比较大的 zookeeper 集群，还可以新增观察者角色
@@ -54,7 +54,7 @@ Znode兼具文件和目录两种特点。既像文件一样维护着数据长度
 
 ### Znode结构
 
-![](.\images\数据节点.png)
+![](images/数据节点.png)
 
 
 
@@ -298,7 +298,7 @@ ZAB（ZooKeeper Atomic Broadcast 原子广播）协议是为分布式协调服�
 
 根据上面这个规则，我们结合图来分折上面提到的5台机器组成的ZooKeeper集群的投票变更过程。
 
-![](.\images\选举投票.png)
+![](images/选举投票.png)
 
  
 
@@ -378,7 +378,7 @@ ZAB（ZooKeeper Atomic Broadcast 原子广播）协议是为分布式协调服�
 
 **(2) 算法核心**
 
-![](.\images\选举算法.png)
+![](images/选举算法.png)
 
  
 

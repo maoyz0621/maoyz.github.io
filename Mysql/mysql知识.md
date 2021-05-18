@@ -23,11 +23,12 @@ show variables like '%storage_engine%';
 ## 存储格式
 
 1. MyISAM
-   - .frm   表定义
-   - .MYD   MYData
-   - .MYI    MYIndex
+    - .frm   表定义
+    - .MYD   MYData  数据文件
+    - .MYI    MYIndex   索引文件
 2. InnoDB
-   - .ibd
+    - .frm   表定义
+    - .ibd    数据和索引存储文件
 
 ## Group by
 
@@ -38,10 +39,10 @@ CREATE TABLE `courses` (
     `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增id',
     `student` VARCHAR(255) DEFAULT NULL COMMENT '学生',
     `class` VARCHAR(255) DEFAULT NULL COMMENT '课程',
-    `score` INT(255) DEFAULT NULL COMMENT '分数',
+    `score` INT(3) DEFAULT NULL COMMENT '分数',
     PRIMARY KEY (`id`),
     UNIQUE KEY `course` (`student`, `class`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
 插入数据：
@@ -352,7 +353,7 @@ show index from table_name;
 
 表索引user_id、create_at、order_status
 
-![](.\image\MySQL\索引示例.png)
+![](./image/MySQL/索引示例.png)
 
 #### 一个条件查询
 
@@ -501,7 +502,7 @@ union联表查询去重，union all不会去重
 
 
 
-![sql join](image/MySQL/sql join.png)
+<img src="image/MySQL/sql join.png" alt="sql join" style="zoom:80%;" />
 
 
 
@@ -578,11 +579,11 @@ SELECT * FROM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY WHERE A.KEY IS NUL
 
 select 语句的执行计划。表的读取顺序、哪些索引可以使用、哪些索引时机使用，表之间的引用、每张表有多少行被优化器查询。
 
-#### 1、id
+#### id
 
 按照select出现的顺序。简单子查询、派生表（from语句中的子查询）、union查询
 
-#### 2、select_type 
+#### select_type 
 
 1. simple：简单查询
 2. primary：子查询中最外层的select
@@ -592,11 +593,11 @@ select 语句的执行计划。表的读取顺序、哪些索引可以使用、�
 6.  dependent  union：union中的第二个或后面的SELECT语句，取决于外面的查询
 7. union  result：union的结果，union语句中第二个select开始后面所有select
 
-#### 3、table
+#### table
 
 访问哪张表。from子查询时，<derivenN>，表示当前查询依赖id = N的查询，先执行id = N的查询；有union时，union result的table值位<union1, 2>，1和2 表示参与union的select行id
 
-#### 4、type
+#### type
 
 NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > **range** > index > ALL，一般来说，至少达到range级别，最好ref。
 
@@ -609,33 +610,35 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 7. index：扫描索引树
 8. ALL：全表扫描
 
-#### 5、possible_keys
+#### possible_keys
 
 查询时**可能**使用的索引。出现 `possible_keys` 有列，而`key` 显示NULL，因为表中数据不多，mysql认为索引对此查询帮助不大，选择全表查询；当该列是NULL，建议选择适当的索引。
 
-#### 6、key
+#### key
 
 查询时**实际**使用的索引。
 
-####  7、key_len
+####  key_len
 
 索引使用的字节数
 
-#### 8、ref
+#### ref
 
 在 `key` 列索引中使用的列或常量。见的有：const（常量），func，NULL，字段名
 
-#### 9、rows
+#### rows
 
 查询时读取的行数，不是结果集的行数。
 
-#### 10、Extra
+#### Extra
 
 1. distinct：一旦找到与行相匹配的行，不找搜索
 2. Using index：对
 3. Using where：先读取整行数据，在按照where条件筛选
 4. Using temporary：创建临时表，常见于排序和分组（group  by，order  by）一般需要优化
 5. Using filesort：文件排序，order  by，一般需要优化
+
+
 
 ## 事务特性
 
@@ -644,7 +647,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 
 #### 隔离性级别
 
-##### 1、read uncommitted 读未提交
+##### read uncommitted 读未提交
 
 ```
 - 事务A和事务B，事务A未提交的数据，事务B可以读取到
@@ -652,7 +655,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 - 这种隔离级别最低，这种级别一般是在理论上存在，数据库隔离级别一般都高于该级别
 ```
 
-##### 2、read committed 读已提交
+##### read committed 读已提交
 
 ```
 - 事务A和事务B，事务A提交了数据，事务B才能读取到
@@ -663,7 +666,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 - Oracle默认隔离级别
 ```
 
-##### 3、repeatable read 可重复读
+##### repeatable read 可重复读
 
 ```
 - 事务A和事务B，事务A提交之后的数据，事务B读取不到
@@ -676,7 +679,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 - 虽然可以达到可重复读取，但是会导致“幻像读”
 ```
 
-##### 4、serializable 串行化 
+##### serializable 串行化 
 
 ```
 - 事务A和事务B，事务A在操作数据库时，事务B只能排队等待
@@ -686,7 +689,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 
 #### 设置隔离级别
 
-##### 1、配置文件my.ini
+##### 配置文件my.ini
 
 ```
 – READ-UNCOMMITTED
@@ -699,7 +702,7 @@ transaction-isolation = READ-COMMITTED
 ```
 
 
-##### 2、动态设置
+##### 动态设置
 
 ```
 •   事务隔离级别的作用范围分为两种： 

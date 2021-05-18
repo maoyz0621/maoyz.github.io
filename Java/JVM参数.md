@@ -203,7 +203,7 @@ https://segmentfault.com/a/1190000019910501
 
 |      |
 | :--: |
-|   ![](.\image\Java\GC.jpg)   |
+|   ![](image/Java/GC.jpg)   |
 | <img src="./image/GC/垃圾回收器.png" style="zoom:80%;" /> |
 
 
