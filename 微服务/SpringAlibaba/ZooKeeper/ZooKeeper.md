@@ -7,11 +7,9 @@
 | <img src="images/ZooKeeper架构图.png" style="zoom:80%;" /> |
 | <img src="images/ZooKeeper集群图.png" style="zoom:80%;" /> |
 
-- Leader： ZooKeeper 集群工作的核心 事务请求（写操作）的唯一调度和处理者，保证集群事务处理的顺序性；集群内部各个服务的调度者。 对于 create，setData，delete 等有写操作的请求，则需要统一转发给 leader 处理，leader 需要决定编号、执行操作，这个过程称为一个事务。
-- Follower： 处理客户端非事务（读操作）请求 转发事务请求给 Leader 参与集群 leader 选举投票2n-1台可以做集群投票 此外，针对访问量比较大的 zookeeper 集群，还可以新增观察者角色
-- Observer： 观察者角色，观察ZooKeeper集群的最新状态变化并将这些状态同步过来，其对于非事务请求（读操作）可以进行独立处理，对于事务请求（写操作），则会转发给Leader服务器处理， 不会参与任何形式的投票只提供服务，通常用于在不影响集群事务处理能力的前提下提升集群的非事务处理能力 扯淡：说白了就是增加并发的请求
-
-
+- Leader： ZooKeeper集群工作的核心事务请求（写操作）的唯一调度和处理者，保证集群事务处理的顺序性；集群内部各个服务的调度者。 对于create，setData，delete等有写操作的请求，则需要统一转发给leader处理，leader需要决定编号、执行操作，这个过程称为一个事务。
+- Follower： 处理客户端（读操作）请求，转发（写操作）请求给Leader ，参与集群 leader 选举投票2n-1台可以做集群投票，此外，针对访问量比较大的zookeeper集群，还可以新增观察者角色
+- Observer： 观察者角色，观察ZooKeeper集群的最新状态变化并将这些状态同步过来，其对于非事务请求（读操作）可以进行独立处理，对于事务请求（写操作），则会转发给Leader服务器处理， 不会参与任何形式的投票只提供服务，通常用于在不影响集群事务处理能力的前提下提升集群的非事务处理能力
 
 ## 特性
 
@@ -76,7 +74,7 @@ Znode兼具文件和目录两种特点。既像文件一样维护着数据长度
 
 ### Zxid
 
-事务id，64位的数字，高32位表示leader关系，低32位递增计数。
+事务id，64位的数字，高32位表示epoch用来标识leader关系是否改变，每次一个leader被选出来，它都会有一个新的epoch；低32位递增计数，保证事务的顺序一致性
 
 1. **cZxid**
    Create，节点创建的事务标识
@@ -104,7 +102,16 @@ Znode兼具文件和目录两种特点。既像文件一样维护着数据长度
 
 （事件监听器），是 ZooKeeper 中的一个很重要的特性。
 
-ZooKeeper 允许用户在指定节点上注册一些 Watcher，并且在一些特定事件触发的时候，ZooKeeper 服务端会将事件通知到感兴趣的客户端上去，该机制是 ZooKeeper 实现分布式协调服务的重要特性。
+ZooKeeper 允许用户在指定节点上注册一些 Watcher，并且在一些特定事件触发的时候，ZooKeeper 服务端会将事件通知到感兴趣的客户端，该机制是 ZooKeeper 实现分布式协调服务的重要特性。
+
+- 一种是DataWatches，基于znode节点的数据变更从而触发 watch 事件，触发条件getData()、exists()、setData()、 create()。
+- 一种是Child Watches，基于znode的子节点发生变更触发的watch事件，触发条件 getChildren()、 create()。
+
+> 调用 delete() 方法删除znode时，则会同时触发Data Watches和Child Watches，如果被删除的节点还有父节点，则父节点会触发一个Child Watches。
+
+1. Watch是一次性的，每次都需要重新注册，并且客户端在会话异常结束时不会收到任何通知，而快速重连接时仍不影响接收通知。
+2. Watch的回调执行都是顺序执行的，并且客户端在没有收到关注数据的变化事件通知之前是不会看到最新的数据
+3. Watch是轻量级的，WatchEvent是最小的通信单元，结构上只包含通知状态、事件类型和节点路径。ZooKeeper服务端只会通知客户端发生了什么，并不会告诉具体内容。
 
 
 
@@ -126,7 +133,7 @@ ZooKeeper 采用 ACL（Access Control List）策略来进行权限控制，类�
 
 
 
-### ZAB 协议。
+### ZAB 协议
 
 ZAB 核心思想是当多数 Server 写成功，则任务数据写成功.
 
@@ -134,7 +141,12 @@ ZAB（ZooKeeper Atomic Broadcast 原子广播）协议是为分布式协调服�
 
 在 ZooKeeper 中，主要依赖 ZAB 协议来实现分布式数据一致性，基于该协议，ZooKeeper 实现了一种主备模式的系统架构来保持集群中各个副本之间的数据一致性。
 
+包含两个阶段：leader election阶段和Atomic Broadcast阶段
 
+- a) 集群中将选举出一个leader，其他的机器则称为follower，所有的写操作都被传送给leader，并通过broadcast将所有的更新告诉follower。
+- b) 当leader崩溃或者leader失去大多数的follower时，需要重新选举出一个新的leader，让所有的服务器都恢复到一个正确的状态。
+- c) 当leader被选举出来，且大多数服务器完成了和leader的状态同步后，leader election 的过程就结束了，就将会进入到Atomic broadcast的过程。
+- d) Atomic Broadcast同步leader和follower之间的信息，保证leader和follower具有形同的系统状态。
 
 ### Paxos 算法
 
@@ -147,7 +159,7 @@ ZAB（ZooKeeper Atomic Broadcast 原子广播）协议是为分布式协调服�
 - 比如有三台服务器，编号分别是1,2,3。
 - 编号越大在选择算法中的权重越大。
 
-#### zxid（最新的事物ID 既 LastLoggedZxid）
+#### zxid（最新的事务D 既 LastLoggedZxid）
 
 - 服务器中存放的最大数据ID。
 - ID值越大说明数据越新，在选举算法中数据越新权重越大。
@@ -162,7 +174,7 @@ ZAB（ZooKeeper Atomic Broadcast 原子广播）协议是为分布式协调服�
 
 - LOOKING，竞选状态。
 - FOLLOWING，随从状态，同步leader状态，参与投票。
-- OBSERVING，观察状态,同步leader状态，不参与投票。
+- OBSERVING，观察状态，同步leader状态，不参与投票。
 - LEADING，领导者状态。
 
 ### 选举算法

@@ -382,7 +382,7 @@ public Object intercept(Object proxy, Method method, Object[] args, MethodProxy 
 
 都使用了this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass)
 
-![](image/Aspect调用链.png)
+<img src="image/Aspect调用链.png" style="zoom:80%;" />
 
 > org.springframework.aop.framework.DefaultAdvisorChainFactory
 

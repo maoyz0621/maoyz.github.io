@@ -424,6 +424,20 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 }
 ```
 
+
+
+## 如何处理pull和push消息
+
+### pull
+
+拉取，**DefaultMQPullConsumer**模式。客户端主动向MQ请求数据，主动权在客户端，先拉取数据再消费。不会因为推送太快而处理不及时。
+
+
+
+### push
+
+推送，**DefaultMQPushConsumer**模式。MQ主动推送信息，但是可能会导致消费者跟不上推送速度。RocketMQ采用的是**长轮询**的方式，客户端访问MQ，有信息就拉取关闭连接消费，然后再请求并拉取。没有信息请求就会等待新信息，直到超时，超时会关闭连接并再次发送新的请求。
+
 ## 发送消息
 
 修改application.properties
@@ -498,6 +512,8 @@ rocketmq.name-server=127.0.0.1:9876
 > 请将上述示例配置中的`127.0.0.1:9876`替换成真实RocketMQ的NameServer地址与端口
 
 编写代码
+
+> org.apache.rocketmq.spring.support.DefaultRocketMQListenerContainer.DefaultMessageListenerConcurrently
 
 ```java
 @SpringBootApplication

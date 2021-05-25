@@ -4,7 +4,7 @@
 
 分布式队列因为有高可靠性的要求，所以数据要进行持久化存储。
 
-![](img/消息存储方式.png)
+<img src="img/消息存储方式.png" style="zoom:80%;" />
 
 1. 消息生成者发送消息
 2. MQ收到消息，将消息进行持久化，在存储中新增一条记录
@@ -19,17 +19,17 @@
 
 Apache下开源的另外一款MQ—ActiveMQ（默认采用的KahaDB做消息存储）可选用JDBC的方式来做消息持久化，通过简单的xml配置信息即可实现JDBC消息存储。由于，普通关系型数据库（如Mysql）在单表数据量达到千万级别的情况下，其IO读写性能往往会出现瓶颈。在可靠性方面，该种方案非常依赖DB，如果一旦DB出现故障，则MQ的消息就无法落盘存储会导致线上故障
 
-![](img/MySQL.png)
+<img src="img/MySQL.png" style="zoom: 50%;" />
 
 - 文件系统
 
   目前业界较为常用的几款产品（RocketMQ/Kafka/RabbitMQ）均采用的是消息刷盘至所部署虚拟机/物理机的文件系统来做持久化（刷盘一般可以分为异步刷盘和同步刷盘两种模式）。消息刷盘为消息存储提供了一种高效率、高可靠性和高性能的数据持久化方式。除非部署MQ机器本身或是本地磁盘挂了，否则一般是不会出现无法持久化的故障问题。
 
-  ![](img/磁盘.png)
+  <img src="img/磁盘.png" style="zoom:80%;" />
 
 ### 1.1.2 性能对比
 
-文件系统>关系型数据库DB
+文件系统 > 关系型数据库DB
 
 ### 1.1.3 消息的存储和发送
 
@@ -62,7 +62,7 @@ RocketMQ充分利用了上述特性，也就是所谓的“零拷贝”技术，
 
 ### 1.1.4 消息存储结构
 
-RocketMQ消息的存储是由ConsumeQueue和CommitLog配合完成 的，消息真正的物理存储文件是CommitLog，ConsumeQueue是消息的逻辑队列，类似数据库的索引文件，存储的是指向物理存储的地址。每 个Topic下的每个Message Queue都有一个对应的ConsumeQueue文件。
+RocketMQ消息的存储是由**ConsumeQueue**和**CommitLog**配合完成的，消息真正的物理存储文件是CommitLog，ConsumeQueue是消息的逻辑队列，类似数据库的索引文件，存储的是指向物理存储的地址。每个Topic下的每个Message Queue都有一个对应的ConsumeQueue文件。
 
 ![](img/消息存储结构.png)
 
@@ -74,7 +74,7 @@ RocketMQ消息的存储是由ConsumeQueue和CommitLog配合完成 的，消息�
 
 RocketMQ的消息是存储到磁盘上的，这样既能保证断电后恢复， 又可以让存储的消息量超出内存的限制。RocketMQ为了提高性能，会尽可能地保证磁盘的顺序写。消息在通过Producer写入RocketMQ的时 候，有两种写磁盘方式，分布式同步刷盘和异步刷盘。
 
-![](img/同步刷盘和异步刷盘.png)
+<img src="img/同步刷盘和异步刷盘.png" style="zoom:80%;" />
 
 #### 1）同步刷盘
 
@@ -90,13 +90,13 @@ RocketMQ的消息是存储到磁盘上的，这样既能保证断电后恢复，
 
 ## 1.2 高可用性机制
 
-![](img/RocketMQ角色.jpg)
+<img src="img/RocketMQ角色.jpg" style="zoom: 67%;" />
 
 RocketMQ分布式集群是通过Master和Slave的配合达到高可用性的。
 
-Master和Slave的区别：在Broker的配置文件中，参数 brokerId的值为0表明这个Broker是Master，大于0表明这个Broker是 Slave，同时brokerRole参数也会说明这个Broker是Master还是Slave。
+Master和Slave的区别：在Broker的配置文件中，**参数 brokerId的值为0表明这个Broker是Master，大于0表明这个Broker是 Slave，同时brokerRole参数也会说明这个Broker是Master还是Slave**。
 
-Master角色的Broker支持读和写，Slave角色的Broker仅支持读，也就是 Producer只能和Master角色的Broker连接写入消息；Consumer可以连接 Master角色的Broker，也可以连接Slave角色的Broker来读取消息。
+**Master角色的Broker支持读和写，Slave角色的Broker仅支持读**，也就是 Producer只能和Master角色的Broker连接写入消息；Consumer可以连接 Master角色的Broker，也可以连接Slave角色的Broker来读取消息。
 
 ### 1.2.1 消息消费高可用
 
@@ -104,7 +104,7 @@ Master角色的Broker支持读和写，Slave角色的Broker仅支持读，也就
 
 ### 1.2.2 消息发送高可用
 
-在创建Topic的时候，把Topic的多个Message Queue创建在多个Broker组上（相同Broker名称，不同 brokerId的机器组成一个Broker组），这样当一个Broker组的Master不可用后，其他组的Master仍然可用，Producer仍然可以发送消息。 RocketMQ目前还不支持把Slave自动转成Master，如果机器资源不足， 需要把Slave转成Master，则要手动停止Slave角色的Broker，更改配置文 件，用新的配置文件启动Broker。
+在创建Topic的时候，把Topic的多个Message Queue创建在多个Broker组上（相同Broker名称，不同 brokerId的机器组成一个Broker组），这样当一个Broker组的Master不可用后，其他组的Master仍然可用，Producer仍然可以发送消息。 RocketMQ目前还不支持把Slave自动转成Master，如果机器资源不足， 需要把Slave转成Master，则要手动停止Slave角色的Broker，更改配置文件，用新的配置文件启动Broker。
 
 ![](img/消息发送高可用设计.jpg)
 
@@ -130,7 +130,7 @@ Master角色的Broker支持读和写，Slave角色的Broker仅支持读，也就
 
 #### 4）总结
 
-![](img/复制刷盘.png)
+<img src="img/复制刷盘.png" style="zoom: 50%;" />
 
 实际应用中要结合业务场景，合理设置刷盘方式和主从复制方式， 尤其是SYNC_FLUSH方式，由于频繁地触发磁盘写动作，会明显降低 性能。**通常情况下，应该把Master和Save配置成ASYNC_FLUSH的刷盘方式，主从之间配置成SYNC_MASTER的复制方式，这样即使有一台机器出故障，仍然能保证数据不丢，是个不错的选择**。
 
@@ -154,13 +154,13 @@ Producer端，每个实例在发消息的时候，默认会轮询所有的messag
 
 默认的分配算法是AllocateMessageQueueAveragely，如下图：
 
-![](img/consumer负载均衡.png)
+<img src="img/consumer负载均衡.png" style="zoom:67%;" />
 
 还有另外一种平均的算法是AllocateMessageQueueAveragelyByCircle，也是平均分摊每一条queue，只是以环状轮流分queue的形式，如下图：
 
-![](img/consumer负载均衡2.png)
+<img src="img/consumer负载均衡2.png" style="zoom:67%;" />
 
-需要注意的是，集群模式下，queue都是只允许分配只一个实例，这是由于如果多个实例同时消费一个queue的消息，由于拉取哪些消息是consumer主动控制的，那样会导致同一个消息在不同的实例下被消费多次，所以算法上都是一个queue只分给一个consumer实例，一个consumer实例可以允许同时分到不同的queue。
+需要注意的是，集群模式下，queue都是只允许分配给一个实例，这是由于如果多个实例同时消费一个queue的消息，由于拉取哪些消息是consumer主动控制的，那样会导致同一个消息在不同的实例下被消费多次，所以算法上都是一个queue只分给一个consumer实例，一个consumer实例可以允许同时分到不同的queue。
 
 通过增加consumer实例去分摊queue的消费，可以起到水平扩展的消费能力的作用。而有实例下线的时候，会重新触发负载均衡，这时候原来分配到的queue将分配到其他实例上继续消费。
 
@@ -172,7 +172,7 @@ Producer端，每个实例在发消息的时候，默认会轮询所有的messag
 
 在实现上，其中一个不同就是在consumer分配queue的时候，所有consumer都分到所有的queue。
 
-![](img/consumer负载均衡3.png)
+<img src="img/consumer负载均衡3.png" style="zoom:67%;" />
 
 ## 1.4 消息重试
 
@@ -349,7 +349,7 @@ public class MessageListenerImpl implements MessageListener {
 
 ### 1.6.2 处理方式
 
-因为 Message ID 有可能出现冲突（重复）的情况，所以真正安全的幂等处理，不建议以 Message ID 作为处理依据。 最好的方式是以业务唯一标识作为幂等处理的关键依据，而业务的唯一标识可以通过消息 Key 进行设置：
+因为Message ID有可能出现冲突（重复）的情况，所以真正安全的幂等处理，不建议以 Message ID 作为处理依据。 最好的方式是以业务唯一标识作为幂等处理的关键依据，而业务的唯一标识可以通过消息 Key 进行设置：
 
 ```java
 Message message = new Message();
@@ -479,7 +479,7 @@ abortFile=E:\\RocketMQ\\data\\rocketmq\\dataDir\\abort
 
 ![](img/源码8.png)
 
-####3）发送消息
+#### 3）发送消息
 
 * 进入example模块的`org.apache.rocketmq.example.quickstart`
 * 指定Namesrv地址
@@ -511,7 +511,7 @@ consumer.setNamesrvAddr("127.0.0.1:9876");
 
 NameServer就是为了解决以上问题设计的。
 
-![](img/RocketMQ角色.jpg)
+<img src="img/RocketMQ角色.jpg" style="zoom: 67%;" />
 
 
 
@@ -525,7 +525,7 @@ NameServer本身的高可用是通过部署多台NameServer来实现，但彼此
 
 启动类：`org.apache.rocketmq.namesrv.NamesrvStartup`
 
-####步骤一
+#### 步骤一
 
 解析配置文件，填充NameServerConfig、NettyServerConfig属性值，并创建NamesrvController
 
@@ -703,7 +703,7 @@ private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> f
 
 #### 2.2.3.2 路由注册
 
-#####1）发送心跳包
+##### 1）发送心跳包
 
 ![](img/路由注册.png)
 
@@ -1159,19 +1159,19 @@ public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
 
 ### 2.2.4 小结
 
-![](img/NameServer小结.png)
+<img src="img/NameServer小结.png" style="zoom: 67%;" />
 
 ## 2.3 Producer
 
 消息生产者的代码都在client模块中，相对于RocketMQ来讲，消息生产者就是客户端，也是消息的提供者。
 
-![](img/DefaultMQProducer类图.png)
+<img src="img/DefaultMQProducer类图.png" style="zoom:67%;" />
 
-###2.3.1 方法和属性
+### 2.3.1 方法和属性
 
-####1）主要方法介绍
+#### 1）主要方法介绍
 
-![](img/MQAdmin.png)
+<img src="img/MQAdmin.png" style="zoom:67%;" />
 
 * ```java
   //创建主题
@@ -1210,7 +1210,7 @@ public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
   MessageExt viewMessage(String topic,String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
   ```
 
-![](img/MQProducer.png)
+<img src="img/MQProducer.png" style="zoom:67%;" />
 
 * ```java
   //启动
@@ -1280,9 +1280,9 @@ public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
   SendResult send(final Collection<Message> msgs) throws MQClientException, RemotingException, MQBrokerException,InterruptedException;
   ```
 
-####2）属性介绍
+#### 2）属性介绍
 
-![](img/DefaultMQProducer属性.png)
+<img src="img/DefaultMQProducer属性.png" style="zoom:67%;" />
 
 ```java
 producerGroup：生产者所属组
@@ -1394,7 +1394,7 @@ public SendResult send(Message msg,long timeout){
 Validators.checkMessage(msg, this.defaultMQProducer);
 ```
 
-####1）验证消息
+#### 1）验证消息
 
 ***代码：Validators#checkMessage***
 
@@ -1424,7 +1424,7 @@ public static void checkMessage(Message msg, DefaultMQProducer defaultMQProducer
 }
 ```
 
-####2）查找路由
+#### 2）查找路由
 
 ***代码：DefaultMQProducerImpl#tryToFindTopicPublishInfo***
 
@@ -1795,7 +1795,7 @@ public void updateFaultItem(final String name, final long currentLatency, final 
 }
 ```
 
-####4）发送消息
+#### 4）发送消息
 
 消息发送API核心入口***DefaultMQProducerImpl#sendKernelImpl***
 
@@ -2041,9 +2041,9 @@ private MessageBatch batch(Collection<Message> msgs) throws MQClientException {
 
 ## 2.4 消息存储
 
-###2.4.1 消息存储核心类
+### 2.4.1 消息存储核心类
 
-![](img/DefaultMessageStore.png)
+<img src="img/DefaultMessageStore.png" style="zoom:67%;" />
 
 ```java
 private final MessageStoreConfig messageStoreConfig;	//消息配置属性
@@ -2284,7 +2284,7 @@ handleHA(result, putMessageResult, msg);
 
 ### 2.4.3 存储文件
 
-![](../%E6%96%87%E6%A1%A3/img/%E5%AD%98%E5%82%A8%E6%96%87%E4%BB%B6.png)
+![](img/存储文件.png)
 
 - commitLog：消息存储目录
 - config：运行期间一些配置信息
@@ -2297,9 +2297,9 @@ handleHA(result, putMessageResult, msg);
 
 RocketMQ通过使用内存映射文件提高IO访问性能，无论是CommitLog、ConsumerQueue还是IndexFile，单个文件都被设计为固定长度，如果一个文件写满以后再创建一个新文件，文件名就为该文件第一条消息对应的全局物理偏移量。
 
-####1）MappedFileQueue
+#### 1）MappedFileQueue
 
-![](img/MappedFileQueue.png)
+<img src="img/MappedFileQueue.png" style="zoom: 80%;" />
 
 ```java
 String storePath;	//存储目录
@@ -2422,9 +2422,9 @@ public long getMaxWrotePosition() {
 }
 ```
 
-####2）MappedFile
+####  2）MappedFile
 
-![](img/MappedFile.png)
+<img src="img/MappedFile.png" style="zoom:80%;" />
 
 ```java
 int OS_PAGE_SIZE = 1024 * 4;		//操作系统每页大小,默认4K
@@ -2757,7 +2757,7 @@ for (int readSize = 0; readSize < result.getSize() && doNext; ) {
 
 ***DispatchRequest***
 
-![](img/DispatchRequest.png)
+<img src="img/DispatchRequest.png" style="zoom:80%;" />
 
 ```java
 String topic; //消息主题名称
@@ -2903,7 +2903,7 @@ public void buildIndex(DispatchRequest req) {
 
 ![](img/文件恢复总体流程.png)
 
-####1）存储文件加载
+#### 1）存储文件加载
 
 ***代码：DefaultMessageStore#load***
 
@@ -3117,7 +3117,7 @@ public void recoverTopicQueueTable() {
 }
 ```
 
-####2）正常恢复
+#### 2）正常恢复
 
 ***代码：CommitLog#recoverNormally***
 
@@ -3213,7 +3213,7 @@ public void truncateDirtyFiles(long offset) {
 }
 ```
 
-####3）异常恢复
+#### 3）异常恢复
 
 Broker异常停止文件恢复的实现为CommitLog#recoverAbnormally。异常文件恢复步骤与正常停止文件恢复流程基本相同，其主要差别有两个。首先，正常停止默认从倒数第三个文件开始进行恢复，而异常停止则需要从最后一个文件往前走，找到第一个消息存储正常的文件。其次，如果CommitLog目录没有消息文件，如果消息消费队列目录下存在文件，则需要销毁。
 
@@ -3582,17 +3582,17 @@ RocketMQ不会永久存储消息文件、消息消费队列文件，而是启动
 
 ### 2.5.1 消息消费概述
 
-消息消费以组的模式开展，一个消费组内可以包含多个消费者，每一个消费者组可订阅多个主题，消费组之间有ff式和广播模式两种消费模式。集群模式，主题下的同一条消息只允许被其中一个消费者消费。广播模式，主题下的同一条消息，将被集群内的所有消费者消费一次。消息服务器与消费者之间的消息传递也有两种模式：推模式、拉模式。所谓的拉模式，是消费端主动拉起拉消息请求，而推模式是消息达到消息服务器后，推送给消息消费者。RocketMQ消息推模式的实现基于拉模式，在拉模式上包装一层，一个拉取任务完成后开始下一个拉取任务。
+消息消费以组的模式开展，一个消费组内可以包含多个消费者，每一个消费者组可订阅多个主题，消费组之间有集群模式和广播模式两种消费模式。集群模式，主题下的同一条消息只允许被其中一个消费者消费。广播模式，主题下的同一条消息，将被集群内的所有消费者消费一次。消息服务器与消费者之间的消息传递也有两种模式：推模式、拉模式。所谓的拉模式，是消费端主动拉起拉消息请求，而推模式是消息达到消息服务器后，推送给消息消费者。RocketMQ消息推模式的实现基于拉模式，在拉模式上包装一层，一个拉取任务完成后开始下一个拉取任务。
 
 集群模式下，多个消费者如何对消息队列进行负载呢？消息队列负载机制遵循一个通用思想：一个消息队列同一个时间只允许被一个消费者消费，一个消费者可以消费多个消息队列。
 
 RocketMQ支持局部顺序消息消费，也就是保证同一个消息队列上的消息顺序消费。不支持消息全局顺序消费，如果要实现某一个主题的全局顺序消费，可以将该主题的队列数设置为1，牺牲高可用性。
 
-###2.5.2 消息消费初探
+### 2.5.2 消息消费初探
 
 **<u>消息推送模式</u>**
 
-![](img/消息推送.png)
+<img src="img/消息推送.png" style="zoom:80%;" />
 
 **<u>消息消费重要方法</u>**
 
@@ -3609,7 +3609,7 @@ void unsubscribe(final String topic)：取消消息订阅
 
 **<u>DefaultMQPushConsumer</u>**
 
-![](img/DefaultMQPushConsumer.png)
+<img src="img/DefaultMQPushConsumer.png" style="zoom:80%;" />
 
 ```java
 //消费者组
@@ -3778,7 +3778,7 @@ public void run() {
 
 <u>**PullRequest**</u>
 
-![](img/PullRequest.png)
+<img src="img/PullRequest.png" style="zoom:80%;" />
 
 ```java
 private String consumerGroup;	//消费者组
@@ -3792,12 +3792,12 @@ private boolean lockedFirst = false;	//是否被锁定
 
 ```java
 private void pullMessage(final PullRequest pullRequest) {
-    //获得消费者实例
+    // 获得消费者实例
     final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
     if (consumer != null) {
-        //强转为推送模式消费者
+        // 强转为推送模式消费者
         DefaultMQPushConsumerImpl impl = (DefaultMQPushConsumerImpl) consumer;
-        //推送消息
+        // 推送消息
         impl.pullMessage(pullRequest);
     } else {
         log.warn("No matched consumer for the PullRequest {}, drop it", pullRequest);
@@ -3805,11 +3805,11 @@ private void pullMessage(final PullRequest pullRequest) {
 }
 ```
 
-####2）ProcessQueue实现机制
+####  2）ProcessQueue实现机制
 
 ProcessQueue是MessageQueue在消费端的重现、快照。PullMessageService从消息服务器默认每次拉取32条消息，按照消息的队列偏移量顺序存放在ProcessQueue中，PullMessageService然后将消息提交到消费者消费线程池，消息成功消费后从ProcessQueue中移除。
 
-![](img/ProcessQueue.png)
+<img src="img/ProcessQueue.png" style="zoom:80%;" />
 
 **<u>属性</u>**
 
@@ -3853,7 +3853,7 @@ public List<MessageExt> takeMessags(final int batchSize)
 
 #### 3）消息拉取基本流程
 
-#####1.客户端发起拉取请求
+##### 1.客户端发起拉取请求
 
 ![](img/消息拉取基本流程.png)
 
@@ -3933,7 +3933,7 @@ public void pullMessage(final PullRequest pullRequest) {
 }
 ```
 
-#####2.消息服务端Broker组装消息
+##### 2.消息服务端Broker组装消息
 
 ![](img/消息服务端Broker组装消息.png)
 
@@ -4081,7 +4081,7 @@ if (storeOffsetEnable) {
 }
 ```
 
-#####3.消息拉取客户端处理消息
+##### 3.消息拉取客户端处理消息
 
 ![](img/消息拉取客户端处理消息.png)
 
@@ -4128,7 +4128,7 @@ private final long maxOffset;	//消息队列最大偏移量
 private List<MessageExt> msgFoundList;	//拉取的消息列表
 ```
 
-![](img/PullStatus.png)
+<img src="img/PullStatus.png" style="zoom:67%;" />
 
 ***代码：DefaultMQPushConsumerImpl$PullCallback#OnSuccess***
 
@@ -4156,7 +4156,7 @@ if (DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval() > 0) 
 
 #### 4）消息拉取长轮询机制分析
 
-RocketMQ未真正实现消息推模式，而是消费者主动向消息服务器拉取消息，RocketMQ推模式是循环向消息服务端发起消息拉取请求，如果消息消费者向RocketMQ拉取消息时，消息未到达消费队列时，如果不启用长轮询机制，则会在服务端等待shortPollingTimeMills时间后（挂起）再去判断消息是否已经到达指定消息队列，如果消息仍未到达则提示拉取消息客户端PULL—NOT—FOUND（消息不存在）；如果开启长轮询模式，RocketMQ一方面会每隔5s轮询检查一次消息是否可达，同时一有消息达到后立马通知挂起线程再次验证消息是否是自己感兴趣的消息，如果是则从CommitLog文件中提取消息返回给消息拉取客户端，否则直到挂起超时，超时时间由消息拉取方在消息拉取是封装在请求参数中，PUSH模式为15s，PULL模式通过DefaultMQPullConsumer#setBrokerSuspendMaxTimeMillis设置。RocketMQ通过在Broker客户端配置longPollingEnable为true来开启长轮询模式。
+**RocketMQ未真正实现消息推模式，而是消费者主动向消息服务器拉取消息，RocketMQ推模式是循环向消息服务端发起消息拉取请求**，如果消息消费者向RocketMQ拉取消息时，消息未到达消费队列时，如果不启用长轮询机制，则会在服务端等待shortPollingTimeMills时间后（挂起）再去判断消息是否已经到达指定消息队列，如果消息仍未到达则提示拉取消息客户端PULL—NOT—FOUND（消息不存在）；如果开启长轮询模式，RocketMQ一方面会每隔5s轮询检查一次消息是否可达，同时一有消息达到后立马通知挂起线程再次验证消息是否是自己感兴趣的消息，如果是则从CommitLog文件中提取消息返回给消息拉取客户端，否则直到挂起超时，超时时间由消息拉取方在消息拉取是封装在请求参数中，PUSH模式为15s，PULL模式通过DefaultMQPullConsumer#setBrokerSuspendMaxTimeMillis设置。RocketMQ通过在Broker客户端配置longPollingEnable为true来开启长轮询模式。
 
 ***代码：PullMessageProcessor#processRequest***
 
@@ -4460,7 +4460,7 @@ c3:q3,q6
 
 PullMessageService负责对消息队列进行消息拉取，从远端服务器拉取消息后将消息存储ProcessQueue消息队列处理队列中，然后调用ConsumeMessageService#submitConsumeRequest方法进行消息消费，使用线程池来消费消息，确保了消息拉取与消息消费的解耦。ConsumeMessageService支持顺序消息和并发消息，核心类图如下：
 
-![](img/ConsumeMessageService.png)
+<img src="img/ConsumeMessageService.png" style="zoom:67%;" />
 
 **<u>并发消息消费</u>**
 

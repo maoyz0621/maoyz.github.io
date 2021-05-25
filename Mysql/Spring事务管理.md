@@ -104,7 +104,7 @@ public interface PlatformTransactionManager {
 
 事务属性包括5个方面：
 
-![](image/MySQL/事务属性.jpg)
+<img src="image/MySQL/事务属性.jpg" style="zoom: 67%;" />
 
 ```java
 public interface TransactionDefinition {   

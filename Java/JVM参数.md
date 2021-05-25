@@ -62,6 +62,10 @@ string pool，在类加载完成，经过验证，准备阶段之后在堆中生
 
 - 垃圾回收统计信息
 
+```
+-Xloggc:/opt/xxx/logs/xxx-gc-%t.log -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=100M -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCCause
+```
+
 -XX:+PrintGC     输出GC日志
 
 -XX:+PrintGCDetails     输出GC的详细日志
@@ -203,8 +207,8 @@ https://segmentfault.com/a/1190000019910501
 
 |      |
 | :--: |
-|   ![](image/Java/GC.jpg)   |
-| <img src="./image/GC/垃圾回收器.png" style="zoom:80%;" /> |
+|   <img src="image/Java/GC.jpg" style="zoom:80%;" />   |
+| <img src="./image/GC/垃圾回收器.png" style="zoom: 50%;" /> |
 
 
 
@@ -367,8 +371,7 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 设置参数：
 
 - **-XX:+UseConcMarkSweepGC**
-  CMS全称 Concurrent Mark Sweep，是一款并发的、使用标记-清除算法的垃圾回收器，
-  是老年代垃圾回收器。
+  CMS全称 Concurrent Mark Sweep，并发的、使用标记-清除算法的垃圾回收器，是老年代垃圾回收器。
 - **-XX:CMSInitiatingOccupancyFraction=n**
   CMS的一个缺点是它需要更大的堆空间。因为CMS标记阶段应用程序的线程还是在执行的，那么就会有堆空间继续分配的情况，为了保证在CMS回收完堆之前还有空间分配给正在运行的应用程序，必须预留一部分空间。也就是说，CMS不会在老年代满的时候才开始收集。相反，它会尝试更早的开始收集，已避免如下情况：在回收完成之前，堆没有足够空间分配！默认当老年代使用92%的时候，CMS就开始行动了。CMSInitiatingOccupancyFraction设置这个阀值，一般建议使用70%，但需要结合业务实际使用情况决定。
 - **-XX:+UseCMSInitiatingOccupancyOnly**
@@ -391,7 +394,7 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 - 永久代的使用率达到阈值 CMSInitiatingPermOccupancyFraction，默认92%，触发的前提是开启了选项： CMSClassUnloadingEnabled；
 - 新生代的晋升交换区失败。
 
-### Full GC时触发压缩条件
+Full GC时触发压缩条件：
 
 - UseCMSCompactAtFullCollection 与 CMSFullGCsBeforeCompaction 搭配使用；前者默认就是true，后者默认时0（即每次Full GC都会触发压缩动作）。
 - 用户调用了System.gc()，而且DisableExplicitGC没有开启。
@@ -409,19 +412,19 @@ Serial收集器的多线程版本，除了使用多条线程进行垃圾收集�
 
 运行过程：
 
-1. 初始标记（CMS initial mark）
+1. 初始标记（initial mark）
 
    标记一下GC Roots能关联的对象，需要Stop The World
 
-2. 并发标记（CMS concurrent mark）
+2. 并发标记（concurrent mark）
 
    进行GC Roots Tracing过程，标记存活对象，应用程序运行，不需要Stop The World；与用户线程一起工作
 
-3. 重新标记（CMS remark）
+3. 重新标记（remark）
 
    修正并发标记期间因程序运行导致标记变动的那一部分标记记录，需要Stop The World，采用多线程执行
 
-4. 并发清除（CMS concurrent sweep）
+4. 并发清除（concurrent sweep）
 
    回收所有的垃圾对象，不需要Stop The World；与用户线程一起工作
 
@@ -673,9 +676,9 @@ Java 11，支持 TB 级别的堆，ZGC 非常高效，能够做到 10ms 以下�
 
 > Colored Pointers  着色指针
 
-|                         |
-| :---------------------: |
-| ![](./image/GC/ZGC.png) |
+|                                                    |
+| :------------------------------------------------: |
+| <img src="./image/GC/ZGC.png" style="zoom:80%;" /> |
 
 对象指针必须是64位，同样的也就无法支持压缩指针了（CompressedOops，压缩指针也是32位）。（ZGC仅支持64位平台），指针可以处理更多的内存，因此可以使用一些位来存储状态。 ZGC将限制最大支持4Tb堆（42-bits），那么会剩下22位可用，它目前使用了4位： Finalizable， Remapped， Marked0和Marked1。
 
@@ -687,6 +690,14 @@ Java 11，支持 TB 级别的堆，ZGC 非常高效，能够做到 10ms 以下�
 - 42位：对象的地址（所以它可以支持2^42=4T内存）：
 
 
+
+### 三色标记算法
+
+G1：未被标记对象、自身被标记，成员变量未被标记、自身和成员变量均标记完成
+
+ZGC：颜色指针
+
+CMS：Incremental Update
 
 ### 配置参数
 
@@ -715,13 +726,14 @@ Java 11，支持 TB 级别的堆，ZGC 非常高效，能够做到 10ms 以下�
 
 GC的优化配置
 
-| 配置            | 描述             |
-| :-------------- | :--------------- |
-| -Xms            | 初始化堆内存大小 |
-| -Xmx            | 堆内存最大值     |
-| -Xmn            | 新生代大小       |
-| -XX:PermSize    | 初始化永久代大小 |
-| -XX:MaxPermSize | 永久代最大容量   |
+| 配置            | 描述               |
+| :-------------- | :----------------- |
+| -Xms            | 初始化堆内存大小   |
+| -Xmx            | 堆内存最大值       |
+| -Xmn            | 新生代大小         |
+| -Xss            | 每个线程的堆栈大小 |
+| -XX:PermSize    | 初始化永久代大小   |
+| -XX:MaxPermSize | 永久代最大容量     |
 
 
 
@@ -793,7 +805,9 @@ GC的优化配置
 - 吞吐量
 - 响应时间
 
+java -server  -XX:+PrintCommandLineFlags
 
+-XX:+UseParallelGC
 
 1. Java heap space
    当堆内存（Heap Space）没有足够空间存放新创建的对象时，就会抛出 java.lang.OutOfMemoryError: Java heap space 错误。（提示：根据实际生产经验，可以对程序日志中的 OutOfMemoryError 配置关键字告警，一经发现，立即处理）。

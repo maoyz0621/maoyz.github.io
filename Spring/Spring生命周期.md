@@ -101,18 +101,6 @@ bean初始化之前
 
 
 
-## BeanPostProcessor
-
-bean已经实例化完成，`BeanPostProcess`接口只在bean的初始化阶段进行扩展（注入spring上下文前后）
-
-- postProcessBeforeInitialzation( Object bean, String beanName ) 
-当前正在初始化的bean对象会被传递进来，我们就可以对这个bean作任何处理。 先于InitialzationBean执行，因此称为前置处理。 所有Aware接口的注入就是在这一步完成的。
-
-- postProcessAfterInitialzation( Object bean, String beanName ) 
-当前正在初始化的bean对象会被传递进来，我们就可以对这个bean作任何处理。 在InitialzationBean完成后执行，因此称为后置处理。
-
-
-
 ## ApplicationContextAwareProcessor
 
 > org.springframework.context.support.ApplicationContextAwareProcessor
@@ -124,25 +112,31 @@ BeanPostProcessor的实现类，bean实例化之后，初始化之前
 | ![](image/ApplicationContextAwareProcessor_2.png) |
 
 - `EnvironmentAware`：用于获取`EnviromentAware`的一个扩展类，这个变量非常有用， 可以获得系统内的所有参数。当然个人认为这个Aware没必要去扩展，因为spring内部都可以通过注入的方式来直接获得。
-
 - `EmbeddedValueResolverAware`：用于获取`StringValueResolver`的一个扩展类， `StringValueResolver`用于获取基于`String`类型的properties的变量，一般我们都用`@Value`的方式去获取，如果实现了这个Aware接口，把`StringValueResolver`缓存起来，通过这个类去获取`String`类型的变量，效果是一样的。
-
 - `ResourceLoaderAware`：用于获取`ResourceLoader`的一个扩展类，`ResourceLoader`可以用于获取classpath内所有的资源对象，可以扩展此类来拿到`ResourceLoader`对象。
-
 - `ApplicationEventPublisherAware`：用于获取`ApplicationEventPublisher`的一个扩展类，`ApplicationEventPublisher`可以用来发布事件，结合`ApplicationListener`来共同使用，下文在介绍`ApplicationListener`时会详细提到。这个对象也可以通过spring注入的方式来获得。
-
 - `MessageSourceAware`：用于获取`MessageSource`的一个扩展类，`MessageSource`主要用来做国际化。
-
 - `ApplicationContextAware`：用来获取`ApplicationContext`的一个扩展类，`ApplicationContext`应该是很多人非常熟悉的一个类了，就是spring上下文管理器，可以手动的获取任何在spring上下文注册的bean，我们经常扩展这个接口来缓存spring上下文，包装成静态方法。同时`ApplicationContext`也实现了`BeanFactory`，`MessageSource`，`ApplicationEventPublisher`等接口，也可以用来做相关接口的事情。
 
-  
+
+
+## BeanPostProcessor
+
+bean已经实例化完成，`BeanPostProcess`接口只在bean的初始化阶段进行扩展（注入Spring上下文前后）
+
+- postProcessBeforeInitialzation( Object bean, String beanName ) 
+  当前正在初始化的bean对象会被传递进来，我们就可以对这个bean作任何处理。 先于InitialzationBean执行，因此称为前置处理。 所有Aware接口的注入就是在这一步完成的。
+- postProcessAfterInitialzation( Object bean, String beanName ) 
+  当前正在初始化的bean对象会被传递进来，我们就可以对这个bean作任何处理。 在InitialzationBean完成后执行，因此称为后置处理。
+
+
 
 
 ## InstantiationAwareBeanPostProcessor
 
 > org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor
 
-继承BeanPostProcessor，**把可扩展的范围增加了实例化阶段和属性注入阶段。**其调用顺序：
+代表了Spring的另外一段生命周期。继承BeanPostProcessor，BeanPostProcessor的子接口，**把可扩展的范围增加了实例化阶段和属性注入阶段。**其调用顺序：
 
 - `postProcessBeforeInstantiation`：实例化bean之前，相当于new这个bean之前
 - `postProcessAfterInstantiation`：实例化bean之后，相当于new这个bean之后
@@ -150,7 +144,17 @@ BeanPostProcessor的实现类，bean实例化之后，初始化之前
 - `postProcessBeforeInitialization`：初始化bean之前，相当于把bean注入spring上下文之前
 - `postProcessAfterInitialization`：初始化bean之后，相当于把bean注入spring上下文之后
 
-使用场景：对实现了某一类接口的bean在各生命周期收集，或对莫个类型的bean进行统一设值
+使用场景：对实现了某一类接口的Bean在各生命周期收集，或对某个类型的bean进行统一设值
+
+| 方法                            | 描述                                                         |
+| ------------------------------- | ------------------------------------------------------------ |
+| postProcessBeforeInstantiation  | 最先执行的方法，它在目标对象实例化之前调用，该方法的返回值类型是Object，我们可以返回任何类型的值。由于这个时候目标对象还未实例化，所以这个返回值可以用来代替原本该生成的目标对象的实例(比如代理对象)。如果该方法的返回值代替原本该生成的目标对象，后续只有postProcessAfterInitialization方法会调用，其它方法不再调用；否则按照正常的流程走 |
+| postProcessAfterInstantiation   | 在目标对象实例化之后调用，这个时候对象已经被实例化，但是该实例的属性还未被设置，都是null。因为它的返回值是决定要不要调用postProcessPropertyValues方法的其中一个因素（因为还有一个因素是mbd.getDependencyCheck）；如果该方法返回false，并且不需要check，那么postProcessPropertyValues就会被忽略不执行；如果返回true，postProcessPropertyValues就会被执行 |
+| postProcessPropertyValues       | 对属性值进行修改，如果postProcessAfterInstantiation方法返回false，该方法可能不会被调用。可以在该方法内对属性值进行修改 |
+| postProcessBeforeInitialization | BeanPostProcessor接口中的方法，在Bean的自定义初始化方法之前执行 |
+| postProcessAfterInitialization  | BeanPostProcessor接口中的方法，在Bean的自定义初始化方法执行完成之后执行 |
+
+> Instantiation  表示实例化，对象还未生成；Initialization  表示初始化，对象已经生成
 
 
 
@@ -158,13 +162,24 @@ BeanPostProcessor的实现类，bean实例化之后，初始化之前
 
 > org.springframework.beans.factory.config.SmartInstantiationAwareBeanPostProcessor
 
-继承`InstantiationAwareBeanPostProcessor`，
+继承`InstantiationAwareBeanPostProcessor`
 
-- `predictBeanType`：该触发点发生在`postProcessBeforeInstantiation`之前(在图上并没有标明，因为一般不太需要扩展这个点)，这个方法用于预测Bean的类型，返回第一个预测成功的Class类型，如果不能预测返回null；当你调用`BeanFactory.getType(name)`时当通过bean的名字无法得到bean类型信息时就调用该回调方法来决定类型信息。
-
+- `predictBeanType`：该触发点发生在`postProcessBeforeInstantiation`之前，这个方法用于预测Bean的类型，返回第一个预测成功的Class类型，如果不能预测返回null；当你调用`BeanFactory.getType(name)`时当通过bean的名字无法得到bean类型信息时就调用该回调方法来决定类型信息。
 - `determineCandidateConstructors`：该触发点发生在`postProcessBeforeInstantiation`之后，用于确定该bean的构造函数之用，返回的是该bean的所有构造函数列表。用户可以扩展这个点，来自定义选择相应的构造器来实例化这个bean。
-
 - `getEarlyBeanReference`：该触发点发生在`postProcessAfterInstantiation`之后，当有循环依赖的场景，当bean实例化好之后，为了防止有循环依赖，会提前暴露回调方法，用于bean实例化的后置处理。这个方法就是在提前暴露的回调方法中触发。
+
+| 方法                           | 描述                                                         |
+| ------------------------------ | ------------------------------------------------------------ |
+| predictBeanType                | 预测Bean的类型，返回第一个预测成功的Class类型，如果不能预测返回null；发生在`postProcessBeforeInstantiation`之前 |
+| determineCandidateConstructors | 选择合适的构造器，比如目标对象有多个构造器，在这里可以进行一些定制化，选择合适的构造器；发生在`postProcessBeforeInstantiation`之后 |
+| getEarlyBeanReference          | 获得提前暴露的bean引用。主要用于解决循环引用的问题；发生在`postProcessAfterInstantiation`之后 |
+
+Spring提供了2个默认实现类：
+
+1. AbstractAutoProxyCreator：AOP
+2. InstantiationAwareBeanPostProcessorAdapte
+
+
 
 
 ## @PostConstruct
@@ -182,7 +197,7 @@ bean初始化阶段，如果一个方法有此注解，会先调用这个方法�
 - afterPropertiesSet()
 
 这一阶段也可以在bean正式构造完成前增加我们自定义的逻辑，但它与前置处理不同，由于该函数并不会把当前bean对象传进来，因此在这一步没办法处理对象本身，只能增加一些额外的逻辑。 
-若要使用它，我们需要让bean实现该接口，并把要增加的逻辑写在该函数中。然后Spring会在前置处理完成后检测当前bean是否实现了该接口，并执行afterPropertiesSet函数。
+若要使用它，我们需要让bean实现该接口，并把要增加的逻辑写在该函数中。然后Spring会在前置处理完成后检测当前bean是否实现了该接口，并执行afterPropertiesSet()。
 
 
 
@@ -199,7 +214,7 @@ bean初始化阶段，如果一个方法有此注解，会先调用这个方法�
 
 > org.springframework.beans.factory.SmartInitializingSingleton
 
-在Spring容器管理的所有单例对象（非懒加载对象）初始化完成之后调用的回调接口。其触发时机为``BeanPostProcessor.postProcessAfterInitialization`之后。
+在Spring容器管理的所有单例Bean（非懒加载对象）初始化完成之后调用的回调接口。其触发时机为``BeanPostProcessor.postProcessAfterInitialization`之后。
 
 
 
@@ -217,7 +232,15 @@ bean初始化阶段，如果一个方法有此注解，会先调用这个方法�
 
 可以监听某个事件的`event`，触发时机可以穿插在业务方法执行过程中，用户可以自定义某个业务事件。Spring内部也有一些内置事件，这种事件，可以穿插在启动调用中。我们也可以利用这个特性，来自己做一些内置事件的监听器来达到和前面一些触发点大致相同的事情。
 
+## PropertySourcesPlaceholderConfigurer
 
+BeanFactoryPostProcessor的子类实现
+
+属性配置文件，解析${...}
+
+```
+<property name="url" value="jdbc:${dbname:defaultdb}"/>
+```
 
 ## CommandLineRunner
 
@@ -326,7 +349,92 @@ public void refresh() throws BeansException, IllegalStateException {
 
 ## 初始化所有的 singleton beans
 
+### 实例化
 
+> org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#createBean
+
+实则也是InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation调用时机
+
+```java
+@Override
+protected Object createBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
+      throws BeanCreationException {
+   try {
+      // Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+      Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
+      if (bean != null) {
+         return bean;
+      }
+   }
+   ...
+   try {
+      // 真正执行创建Bean
+      Object beanInstance = doCreateBean(beanName, mbdToUse, args);
+      return beanInstance;
+	}
+}
+
+
+protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
+    Object bean = null;
+    // 如果beforeInstantiationResolved还没有设置或者是false（说明还没有需要在实例化前执行的操作）
+    if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
+        // Make sure bean class is actually resolved at this point.
+        // 判断是否有注册过InstantiationAwareBeanPostProcessor类型的bean
+        if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+            Class<?> targetType = determineTargetType(beanName, mbd);
+            if (targetType != null) {
+                bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
+                if (bean != null) {
+                    // 初始化之后的方法，也就是通过这个方法实例化了之后，直接执行初始化之后的方法;中间的实例化之后和初始化之前都不执行
+                    bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+                }
+            }
+        }
+        mbd.beforeInstantiationResolved = (bean != null);
+    }
+    return bean;
+}
+
+protected Object applyBeanPostProcessorsBeforeInstantiation(Class<?> beanClass, String beanName) {
+    for (BeanPostProcessor bp : getBeanPostProcessors()) {
+        if (bp instanceof InstantiationAwareBeanPostProcessor) {
+            InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+            // 只要有一个result不为null；后面的所有后置处理器的方法就不执行了，直接返回(所以执行顺序很重要)
+            Object result = ibp.postProcessBeforeInstantiation(beanClass, beanName);
+            if (result != null) {
+                return result;
+            }
+        }
+    }
+    return null;
+}
+
+// 初始化之后的方法
+public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
+    throws BeansException {
+
+    Object result = existingBean;
+    for (BeanPostProcessor processor : getBeanPostProcessors()) {
+        Object current = processor.postProcessAfterInitialization(result, beanName);
+        // 如果返回null；后面的所有后置处理器的方法就不执行，直接返回(所以执行顺序很重要)
+        if (current == null) {
+            return result;
+        }
+        result = current;
+    }
+    return result;
+}
+```
+
+总结：
+
+1. 如果postProcessBeforeInstantiation方法返回了Object是nul，那么就直接返回，调用doCreateBean方法()
+2. 如果postProcessBeforeInstantiation返回不为null；说明修改了bean对象，然后这个时候就立马执行postProcessAfterInitialization方法（注意这个是初始化之后的方法，也就是通过这个方法实例化了之后，直接执行初始化之后的方法，中间的实例化之后和初始化之前都不执行）;
+3. 在调用postProcessAfterInitialization方法时候如果返回null，那么就直接返回，调用doCreateBean方法，（初始化之后的方法返回了null，那就需要调用doCreateBean生成对象了）
+4. 在调用postProcessAfterInitialization时返回不为null，那这个Bean就直接返回给容器。 初始化之后的操作是这里面最后一个方法
+5. 通过上面的描述，我们其实可以在这里生成一个代理类；
+   
 
 | org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#doCreateBean |
 | ------------------------------------------------------------ |
@@ -351,11 +459,6 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
 		}
 	}
 
-	// Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
-	// state of the bean before properties are set. This can be used, for example,
-	// to support styles of field injection.
-	boolean continueWithPropertyPopulation = true;
-
     // 判断是否有InstantiationAwareBeanPostProcessor，提前生成代理对象
 	if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
         // 遍历BeanPostProcessor
@@ -363,17 +466,14 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
             // 如果有InstantiationAwareBeanPostProcessor，提前生成代理对象
 			if (bp instanceof InstantiationAwareBeanPostProcessor) {
 				InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+                // 执行InstantiationAwareBeanPostProcessor.postProcessAfterInstantiation方法
                 // 如果返回false，代表不需要进行后续的属性设值，也不需要再经过其他的 BeanPostProcessor 的处理
 				if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
-					continueWithPropertyPopulation = false;
-					break;
+                    // 返回false,并且不需要check，那么postProcessPropertyValues就会被忽略不执行；如果返回true，postProcessPropertyValues就会被执行
+					return;
 				}
 			}
 		}
-	}
-
-	if (!continueWithPropertyPopulation) {
-		return;
 	}
 
 	PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
@@ -407,6 +507,7 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
                 // 
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+                    // 执行InstantiationAwareBeanPostProcessor.postProcessPropertyValues方法
                     // 执行@Resource、@Autowired
                     // BeanPostProcessor: CommonAnnotationBeanPostProcessor和AutowiredAnnotationBeanPostProcessor
                     // 对采用 @Autowired、@Value 注解的依赖进行设值
@@ -423,7 +524,7 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
 	}
 
 	if (pvs != null) {
-        // 设置 bean 实例的属性值
+        // 设置bean实例的属性值
 		applyPropertyValues(beanName, mbd, bw, pvs);
 	}
 }

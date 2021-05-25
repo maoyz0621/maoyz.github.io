@@ -2,6 +2,12 @@
 
 ## 注解
 
+## @SpringBootConfiguration
+
+- @Configuration
+- @EnableAutoConfiguration
+- @ComponentScan
+
 ### @EnableXxx
 
 开启Xxx服务，配合@Import注解以及定义好的JavaConfig配置类，加在工程启动类上
@@ -31,6 +37,8 @@
 ## SpringFactoriesLoader
 
 Spring提供的SPI实现
+
+从指定的配置文件META-INF/spring.factories加载配置，即根据@EnableAutoConfiguration的完整类名org.springframework.boot.autoconfigure.EnableAutoConfiguration作为查找的Key，获取对应的一组@Configuration类
 
 
 
@@ -118,4 +126,10 @@ Spring提供的SPI实现
 ```
 
 ## 自动配置
+
+注解 @EnableAutoConfiguration, @Configuration, @ConditionalOnClass 就是自动配置的核心，首先它得是一个配置文件，其次根据类路径下是否有这个类去自动配置
+
+自动装配在springboot-autoconfigure工程，/META-INF/spring.factories中获取EnableAutoConfiguration指定的值
+
+#### 监视器
 
