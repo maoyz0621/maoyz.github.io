@@ -201,6 +201,41 @@ show slave status \G;    # 观察 Slave_IO_Running = YES   Slave_SQL_Running = Y
 >2 `set session`
    `sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';`
 
+## 数据库连接池
+
+### 长连接
+
+长连接即在建立连接后一直打开，直到应用程序关闭才释放。使用长连接的好处是减少每次创建连接带来的开销。
+
+对于应用服务器来说维持长连接的好处不言自明，但是对于数据库服务器来说，过多的长连接则是灾难。
+
+MYSQL的TCP连接支持长连接，所以每次操作完数据库，可以不必直接关掉连接，而是等待下次使用的时候在复用这个连接。所有的Socket长连接都是通过TCP自带的ping来维持心跳(TCP保活)，从而保持连接状态，而我们熟悉的`websocket`,也正是通过TCP的心跳来维持连接不被中断。
+
+### 连接池
+
+1. 初始化连接；
+2. 业务取出连接；
+3. 业务发送请求；
+4. 放回连接。
+
+除了上面的基本功能以外，还要处理并发问题，多数据库服务器和多用户，事务处理，连接池的配置与维护。
+
+| 配置                | 含义                                                   |
+| ------------------- | ------------------------------------------------------ |
+| Connections         | 尝试连接Mysql的连接数，不管连接成功与否，该值都会+1    |
+| Threads_connected   | 已经建立的连接数，单节点下一般小于最大连接池最大连接数 |
+| max_connections     | Mysql限制的最大的可连接的数量                          |
+| wait_timeout        | 即MYSQL长连接(非交互式)的最大生命时长,默认是8小时      |
+| interactive_timeout | 长连接(交互式)的最大生命时长，默认是8小时              |
+
+```txt
+connections = ((core_count * 2) + effective_spindle_count)
+```
+
+该公式来自于：https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing。
+
+其中，`core_count`是CPU核心， `effective_spindle_count` 的含义是有效主轴数，如果你的服务器使用的是带有16个磁盘的RAID，那么`valid_spindle_count=16`。它实质上是服务器可以管理多少个并行I / O请求的度量。旋转硬盘一次（通常）一次只能处理一个I / O请求，如果你有16个，则系统可以同时处理16个I / O请求。
+
 
 
 ## MySQL监控指标
