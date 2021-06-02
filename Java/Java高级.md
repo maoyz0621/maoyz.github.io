@@ -36,13 +36,22 @@ MQ异步 - 吞吐
 - `synchronized` 关键字通过一对字节码指令 `monitorenter/monitorexit` 实现， 这对指令被 JVM 规范所描述。
 - `java.util.concurrent.Lock` 通过 Java 代码搭配`sun.misc.Unsafe` 中的本地调用实现的
 
-能用synchronized解决问题的优先使用。CAS自旋消耗资源。一般情况下，
+能用synchronized解决问题的优先使用。CAS自旋消耗资源。
+
+|            | ReentrantLock                  | synchronized    |
+| ---------- | ------------------------------ | --------------- |
+| 锁实现机制 | 依赖AQS                        | 监视器模式      |
+| 灵活性     | 支持响应中断、超时、尝试获取锁 | 不灵活          |
+| 释放方式   | 显示调用unlock()               | 自动释放监视器  |
+| 锁类型     | 公平锁&非公平锁                | 非公平锁        |
+| 条件队列   | 关联多个条件队列               | 关联1个条件队列 |
+| 可重入性   | 可重入                         | 可重入          |
 
 ### CAS
 
 compare and swap，比较并交换，是一种乐观锁
 
-该指令概念上存在 3 个参数， 第一个参数【目标地址】， 第二个参数【值1】， 第三个参数【值2】， 指令会比较【目标地址存储的内容】和 【值1】 是否一致， 如果一致， 则将【值 2】 填写到【目标地址】
+该指令概念上存在3个参数，第一个参数【目标地址】，第二个参数【值1】，第三个参数【值2】， 指令会比较【目标地址存储的内容】和【值1】是否一致， 如果一致，则将【值 2】填写到【目标地址】
 
 - ReentrantLock
 - ReentrantReadWriteLock
@@ -64,10 +73,641 @@ compare and swap，比较并交换，是一种乐观锁
 
 AbstractQueuedSynchronizer，提供了一种实现阻塞锁和一系列依赖FIFO等待队列的同步器的框架
 
-|                                                      |
-| :--------------------------------------------------: |
-| <img src="./AQS/images/AQS.png" style="zoom:90%;" /> |
+|                                                            |
+| :--------------------------------------------------------: |
+|           <img src="image/Java/AQS体系.png"  />            |
+|         <img src="image/Java/AQS体系精简.png"  />          |
+|    <img src="./AQS/images/AQS.png" style="zoom:90%;" />    |
+| <img src="image/Java/AQS内部结构.png" style="zoom:80%;" /> |
+|               ![](image/Java/AQS架构图.png)                |
 
+原理 -> 数据结构 -> AQS同步状态 -> AQS等待队列 -> 解锁过程 -> 中断机制
+
+### 原理
+
+如果被请求的共享资源空闲，就将当前的请求资源设置为有效的工作线程。如果被占用，就需要一定的阻塞、唤醒机制来保证锁分配。
+
+> CLH：Craig、Landin and Hagersten队列，是单向链表
+
+AQS是变体的虚拟双向队列（FIFO），通过将每条请求共享资源的线程封装成一个节点来实现锁的分配。
+
+
+
+### AQS数据结构
+
+```java
+static final class Node {
+    /** Marker to indicate a node is waiting in shared mode */
+    static final Node SHARED = new Node();
+    /** Marker to indicate a node is waiting in exclusive mode */
+    static final Node EXCLUSIVE = null;
+    /** waitStatus value to indicate thread has cancelled */
+    static final int CANCELLED =  1;
+    /** waitStatus value to indicate successor's thread needs unparking */
+    static final int SIGNAL    = -1;
+    /** waitStatus value to indicate thread is waiting on condition */
+    static final int CONDITION = -2;
+    /** waitStatus value to indicate the next acquireShared should unconditionally propagate */
+    static final int PROPAGATE = -3;
+
+    volatile int waitStatus;
+    
+    volatile Node prev;       
+    volatile Node next;      
+    volatile Thread thread;
+    
+    Node nextWaiter;
+}
+```
+
+- 属性值：
+
+| 方法和属性值 | 含义                              |
+| :----------- | :-------------------------------- |
+| waitStatus   | 当前节点在队列中的等待状态        |
+| thread       | 表示处于该节点的线程              |
+| prev         | 前驱指针                          |
+| predecessor  | 返回前驱节点，没有的话抛出npe     |
+| nextWaiter   | 指向下一个处于CONDITION状态的节点 |
+| next         | 后继指针                          |
+
+- 线程两种锁的模式
+
+| 模式      | 含义                           |
+| :-------- | :----------------------------- |
+| SHARED    | 表示线程以共享的模式等待锁     |
+| EXCLUSIVE | 表示线程正在以独占的方式等待锁 |
+
+- waitStatus
+
+| 枚举      | 含义                                                |
+| :-------- | :-------------------------------------------------- |
+| 0         | 当一个Node被初始化的时候的默认值                    |
+| CANCELLED | 为1，因为超时或中断，表示线程获取锁的请求已经取消了 |
+| CONDITION | 为-2，表示节点在等待队列中，节点线程等待唤醒        |
+| PROPAGATE | 为-3，当前线程处在SHARED情况下，该字段才会使用      |
+| SIGNAL    | 为-1，表示线程已经准备好了，就等资源释放了          |
+
+### 同步状态
+
+同步状态的管理，`volatile int state`，用于标识是否持有锁。
+
+![加锁过程](image/Java/state加锁过程-独占模式.png)
+
+![加锁过程](image/Java/state加锁过程-共享模式.png)
+
+实现过程中，要么独占是否，要么共享方式，tryAcquire-tryRelease、tryAcquireShared-tryReleaseShared，也可以同时实现，`ReentrantReadWriteLock`。
+
+### 独占模式
+
+#### 独占锁
+
+独占模式下线程获取资源。如果获取到资源，线程直接返回，否则进入等待队列，直到获取到资源为止，且整个过程忽略中断的影响。这也正是lock()的语义，当然不仅仅只限于lock()。获取到资源后，线程就可以去执行其临界区代码了。
+
+大致过程：acquire -> tryAcquire -> addWaiter -> acquireQueued
+
+##### acquire
+
+```java
+public final void acquire(int arg) {
+    if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        selfInterrupt();
+}
+```
+
+具体流程：
+
+   1. tryAcquire()   尝试直接去获取资源，如果成功则直接返回；
+   2. addWaiter()  将该线程加入等待队列的尾部，并标记为独占模式；
+   3. acquireQueued()  使线程在等待队列中获取资源，一直获取到资源后才返回。如果在整个等待过程中被中断过，则返回true，否则返回false。
+   4. 如果线程在等待过程中被中断过，它是不响应的。只是获取资源后才再进行自我中断selfInterrupt()，将中断补上。
+
+　
+
+##### tryAcquire
+
+　　尝试去获取独占资源。如果获取成功，则直接返回true，否则直接返回false。
+
+```java
+protected boolean tryAcquire(int arg) {
+    throw new UnsupportedOperationException();
+}
+```
+
+由子类实现，采用了模板方法设计模式。ReentrantLock.Sync类，Sync的子类实现：FairSync、NonfairSync。
+
+- 公平锁
+
+```java
+// FairSync
+protected final boolean tryAcquire(int acquires) {
+    final Thread current = Thread.currentThread();
+    // 原子操作
+    int c = getState();
+    if (c == 0) {
+        if (!hasQueuedPredecessors() && compareAndSetState(0, acquires)) {
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+    }
+    // 当前线程是否等于持有锁的那个线程，--> 可重入锁的逻辑在此
+    else if (current == getExclusiveOwnerThread()) {
+        int nextc = c + acquires;
+        if (nextc < 0)
+            throw new Error("Maximum lock count exceeded");
+        setState(nextc);
+        return true;
+    }
+    return false;
+}
+```
+
+- 非公平锁
+
+```java
+// NonfairSync
+final boolean nonfairTryAcquire(int acquires) {
+    final Thread current = Thread.currentThread();
+    int c = getState();
+    if (c == 0) {
+        if (compareAndSetState(0, acquires)) {
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+    }
+    // 当前线程是否等于持有锁的那个线程，--> 可重入锁的逻辑在此
+    else if (current == getExclusiveOwnerThread()) {
+        int nextc = c + acquires;
+        if (nextc < 0) // overflow
+            throw new Error("Maximum lock count exceeded");
+        setState(nextc);
+        return true;
+    }
+    return false;
+}
+```
+
+###### hasQueuedPredecessors
+
+公平锁加锁时判断等待队列中是否存在有效节点hasQueuedPredecessors，如果返回false，说明当前线程可以争取共享资源；如果返回true，说明队列中存在有效节点，当前线程必须加入到等待队列中。
+
+```java
+public final boolean hasQueuedPredecessors() {
+    // The correctness of this depends on head being initialized
+    // before tail and on head.next being accurate if the current
+    // thread is first in queue.
+    Node t = tail; // Read fields in reverse initialization order
+    Node h = head;
+    Node s;
+    return h != t && ((s = h.next) == null || s.thread != Thread.currentThread());
+}
+```
+
+1. `h != t`返回false的情况
+    1.1 当h和t都为null，返回false。此时说明队列为空，还从来没有Node入队。
+    1.2 当h和t都指向同一个Node，也返回false。此时说明队列中只有一个dummy node，那说明没有线程在队列中。
+    
+2. `h != t`返回true，且`(s = h.next) == null`返回true
+
+    2.1 既然`h != t`返回true，说明h和t不相等，先考虑特殊情况（上面讲到的出现“head不为null，tail为null”的情况，此时head是空node，next成员肯定为null），那么说明有一个线程正在执行enq，且它正好执行到`if (compareAndSetHead(new Node()))`到`tail = head;`的间隙。但这个线程肯定不是当前线程，所以不用判断后面短路的`s.thread != Thread.currentThread()`了，因为当前线程连enq都没开始执行，但另一个线程都开始执行enq了，那不就是说明当前线程排在别人后面了，别的线程马上就要入队了。
+    2.2 既然`h != t`返回true，说明h和t不相等，再考虑二者都不为null。那此时队列中已经至少有一个等待中的线程了，那说明当前线程肯定排在别人后面了。
+
+3. `h != t`返回true，且`(s = h.next) == null`返回false，且`s.thread != Thread.currentThread()`返回true
+
+    现在知道head不为null，而且head.next也不为null了（(s = h.next) == null返回false）。我们也知道队列中第一个等待的线程存放在head.next里（注意，head为dummy node，不存放线程），那么如果head.next的线程不是当前线程，那即说明当前线程已经排在别人线程后面了。
+    
+
+- 公平锁：公平锁讲究先来先到，线程在获取锁时，如果这个锁的等待队列中已经有线程在等待，那么当前线程就会进入等待队列中;
+- 非公平锁：不管是否有等待队列，如果可以获取锁，则立刻占有锁对象。也就是说队列的第一个排队线程在unpark()，之后还是需要竞争锁（存在线程竞争的情况下）
+
+##### addWaiter
+
+​		获取锁失败时，将当前线程加入到等待队列的尾部，并返回当前线程所在的节点。
+
+```java
+// addWaiter(Node.EXCLUSIVE)
+private Node addWaiter(Node mode) {
+    Node node = new Node(Thread.currentThread(), mode);
+    // Try the fast path of enq; backup to full enq on failure
+    Node pred = tail;
+    if (pred != null) {
+        node.prev = pred;
+        // CAS 设置尾结点
+        if (compareAndSetTail(pred, node)) {
+            pred.next = node;
+            return node;
+        }
+    }
+    // pred=null（说明等待队列中没有元素），或者当前Pred指针和Tail指向的位置不同（说明被别的线程已经修改）
+    enq(node);
+    return node;
+}
+
+// 将node加入队尾
+private Node enq(final Node node) {
+    // CAS"自旋"，直到成功加入队尾
+    for (;;) {
+        Node t = tail;
+        if (t == null) { // Must initialize
+            // 队列为空，进行初始化一个头结点(并不是当前线程节点，而是调用了无参构造函数的节点)出来作为head结点，并将tail也指向它
+            if (compareAndSetHead(new Node()))
+                tail = head;
+        } else {//正常流程，放入队尾
+            node.prev = t;
+            if (compareAndSetTail(t, node)) {
+                t.next = node;
+                return t;
+            }
+        }
+    }
+}
+```
+
+1. 通过当前线程和锁模式（Node.EXCLUSIVE或Node.SHARED）新建一个节点
+2. pred指针指向尾结点tail
+3. 将new node的prev指向pred
+
+##### acquireQueued
+
+​		线程获取锁失败，已经被放入等待队列尾部了。**进入等待状态休息，直到其他线程彻底释放资源后唤醒自己，自己再拿到资源，然后就可以去干自己想干的事了**。
+
+```java
+final boolean acquireQueued(final Node node, int arg) {
+    // 标记是否成功拿到资源
+    boolean failed = true;
+    try {
+        // 标记等待过程中线程是否中断过
+        boolean interrupted = false;
+        // 开始自旋，要么获取锁，要么中断
+        for (;;) {
+            // 当前节点的前驱节点
+            final Node p = node.predecessor();
+            // 如果是头结点，说明当前节点在队列的首部，就尝试获取锁（别忘了头结点是虚节点）
+            if (p == head && tryAcquire(arg)) {
+                // 获取锁成功，将当前节点设置成头节点
+                setHead(node);
+                p.next = null; // help GC
+                failed = false;
+                return interrupted;
+            }
+            // p为头结点且当前没有获取到锁（可能是非公平锁被抢占）；或者p不是头节点，这个时候判断当前node是否要被阻塞（被阻塞条件，waitStatus=-1），防止无限循环浪费资源
+            // 自旋获取锁失败之后是否需要睡眠
+            if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
+                interrupted = true;
+        }
+    } finally {
+        if (failed)
+            cancelAcquire(node);
+    }
+}
+```
+![](image/Java/AQS-acquireQueued.png)
+
+###### shouldParkAfterFailedAcquire
+
+​		靠前驱节点判断当前线程是否应该被阻塞
+
+```java
+private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+    // 当前头节点的状态
+    int ws = pred.waitStatus;
+    // 说明头节点处于唤醒状态
+    if (ws == Node.SIGNAL)
+        /*
+         * This node has already set status asking a release
+         * to signal it, so it can safely park.
+         */
+        return true;
+    if (ws > 0) {
+        /*
+         * Predecessor was cancelled. Skip over predecessors and
+         * indicate retry.
+         */
+        do {
+            // 循环向前查找取消节点，把取消节点从队列中剔除
+            node.prev = pred = pred.prev;
+        } while (pred.waitStatus > 0);
+        pred.next = node;
+    } else {
+        /*
+         * waitStatus must be 0 or PROPAGATE.  Indicate that we
+         * need a signal, but don't park yet.  Caller will need to
+         * retry to make sure it cannot acquire before parking.
+         */
+        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+    }
+    return false;
+}
+```
+![](image/Java/AQS-shouldParkAfterFailedAcquire.png)
+
+###### parkAndCheckInterrupt
+
+　　主要用于挂起当前线程，阻塞调用栈，返回当前线程的中断状态。
+
+```java
+private final boolean parkAndCheckInterrupt() {
+    // 阻塞当前线程
+    LockSupport.park(this);
+    // 返回当前线程的中断状态
+    return Thread.interrupted();
+}
+```
+
+###### cancelAcquire
+
+​		释放节点通知到被挂起的线程，将Node的状态标记为CANCELLED
+
+```java
+private void cancelAcquire(Node node) {
+    // Ignore if node doesn't exist
+    if (node == null)
+        return;
+	// 设置该节点不关联任何线程，也就是虚节点
+    node.thread = null;
+
+    // Skip cancelled predecessors
+    Node pred = node.prev;
+    // 通过前驱节点，跳过取消状态的node
+    while (pred.waitStatus > 0)
+        node.prev = pred = pred.prev;
+
+    // predNext is the apparent node to unsplice. CASes below will
+    // fail if not, in which case, we lost race vs another cancel
+    // or signal, so no further action is necessary.
+    // 获取前驱节点的后继节点
+    Node predNext = pred.next;
+
+    // Can use unconditional write instead of CAS here.
+    // After this atomic step, other Nodes can skip past us.
+    // Before, we are free of interference from other threads.
+    node.waitStatus = Node.CANCELLED;
+
+    // If we are the tail, remove ourselves.
+    // 如果当前节点是tail节点，将从后往前的第一个非取消状态的节点设置为tail节点
+  	// 更新失败的话，则进入else，如果更新成功，将tail的后继节点设置为null
+    if (node == tail && compareAndSetTail(node, pred)) {
+        compareAndSetNext(pred, predNext, null);
+    } else {
+        // If successor needs signal, try to set pred's next-link
+        // so it will get one. Otherwise wake it up to propagate.
+        int ws;
+        // 如果当前节点不是head的后继节点，1:判断当前节点前驱节点的是否为SIGNAL，2:如果不是，则把前驱节点设置为SINGAL看是否成功
+        // 如果1和2中有一个为true，再判断当前节点的线程是否为null
+        // 如果上述条件都满足，把当前节点的前驱节点的后继指针指向当前节点的后继节点
+        if (pred != head &&
+            ((ws = pred.waitStatus) == Node.SIGNAL || (ws <= 0 && compareAndSetWaitStatus(pred, ws, Node.SIGNAL))) &&
+            pred.thread != null) {
+            Node next = node.next;
+            if (next != null && next.waitStatus <= 0)
+                compareAndSetNext(pred, predNext, next);
+        } else {
+            // 如果当前节点是head的后继节点，或者上述条件不满足，那就唤醒当前节点的后继节点
+            unparkSuccessor(node);
+        }
+
+        node.next = node; // help GC
+    }
+}
+```
+
+(1) 当前节点是尾节点。
+
+(2) 当前节点是head的后继节点。
+
+(3) 当前节点不是head的后继节点，也不是尾节点。
+
+|                        尾节点                        |
+| :--------------------------------------------------: |
+|      ![尾节点](image/Java/当前节点是尾节点.png)      |
+|                **head节点的后继节点**                |
+| ![后继节点](image/Java/当前节点是head的后继节点.png) |
+|                     **普通节点**                     |
+|         ![普通节点](image/Java/普通节点.png)         |
+
+> 执行cancelAcquire的时候，当前节点的前置节点可能已经从队列中出去了（已经执行过Try代码块中的shouldParkAfterFailedAcquire方法了），如果此时修改Prev指针，有可能会导致Prev指向另一个已经移除队列的Node，因此这块变化Prev指针不安全。 shouldParkAfterFailedAcquire方法中，会执行下面的代码，其实就是在处理Prev指针。shouldParkAfterFailedAcquire是获取锁失败的情况下才会执行，进入该方法后，说明共享资源已被获取，当前节点之前的节点都不会出现变化，因此这个时候变更Prev指针比较安全。
+
+#### 独占锁释放
+
+
+
+```java
+public final boolean release(int arg) {
+    if (tryRelease(arg)) {
+        Node h = head;
+        // 头节点不为空 && 头结点等待状态不为0
+        if (h != null && h.waitStatus != 0)
+            // 唤醒头结点的后继节点
+            unparkSuccessor(h);
+        return true;
+    }
+    return false;
+}
+```
+
+
+
+##### tryRelease
+
+​		尝试去释放同步状态。如果释放成功，则直接返回true，否则直接返回false。
+
+```java
+protected boolean tryRelease(int arg) {
+    throw new UnsupportedOperationException();
+}
+```
+
+由子类实现，采用了模板方法设计模式。ReentrantLock.Sync类，Sync的子类：FairSync、NonfairSync
+
+
+
+```
+protected final boolean tryRelease(int releases) {
+    int c = getState() - releases;
+    if (Thread.currentThread() != getExclusiveOwnerThread())
+        throw new IllegalMonitorStateException();
+    boolean free = false;
+    if (c == 0) {
+        free = true;
+        setExclusiveOwnerThread(null);
+    }
+    setState(c);
+    return free;
+}
+```
+
+
+
+
+
+
+
+##### unparkSuccessor
+
+​		唤醒头结点的后继节点
+
+```java
+private void unparkSuccessor(Node node) {
+    /*
+     * If status is negative (i.e., possibly needing signal) try
+     * to clear in anticipation of signalling.  It is OK if this
+     * fails or if status is changed by waiting thread.
+     * 获取当前节点的等待状态
+     */
+    int ws = node.waitStatus;
+    if (ws < 0)
+        // 小于0，CAS设置成0
+        compareAndSetWaitStatus(node, ws, 0);
+
+    /*
+     * Thread to unpark is held in successor, which is normally
+     * just the next node.  But if cancelled or apparently null,
+     * traverse backwards from tail to find the actual
+     * non-cancelled successor.
+     * 获取当前节点的后继节点
+     */
+    Node s = node.next;
+    // 后继节点为空 或 其等待状态大于0（表示取消状态）
+    if (s == null || s.waitStatus > 0) {
+        s = null;
+        // 从尾节点遍历，查找状态不为取消状态的节点
+        for (Node t = tail; t != null && t != node; t = t.prev)
+            if (t.waitStatus <= 0)
+                s = t;
+    }
+    if (s != null)
+        // 唤醒后继节点
+        LockSupport.unpark(s.thread);
+}
+```
+
+
+
+### 共享模式
+
+在同一时刻可以有多个线程获取同步状态（独占模式在同一时刻只有1个线程获取同步状态）。
+
+```java
+public final void acquireShared(int arg) {
+    if (tryAcquireShared(arg) < 0)
+        doAcquireShared(arg);
+}
+```
+
+
+
+#### tryAcquireShared
+
+```java
+protected int tryAcquireShared(int arg) {
+    throw new UnsupportedOperationException();
+}
+```
+
+ReentrantReadWriteLock.Sync类，Semaphore.FairSync、NonfairSync，CountDownLatch.Sync
+
+#### doAcquireShared
+
+```java
+private void doAcquireShared(int arg) {
+    final Node node = addWaiter(Node.SHARED);
+    boolean failed = true;
+    try {
+        boolean interrupted = false;
+        for (;;) {
+            final Node p = node.predecessor();
+            if (p == head) {
+                int r = tryAcquireShared(arg);
+                if (r >= 0) {
+                    setHeadAndPropagate(node, r);
+                    p.next = null; // help GC
+                    if (interrupted)
+                        selfInterrupt();
+                    failed = false;
+                    return;
+                }
+            }
+            if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
+                interrupted = true;
+        }
+    } finally {
+        if (failed)
+            cancelAcquire(node);
+    }
+}
+```
+
+#### setHeadAndPropagate
+
+```java
+private void setHeadAndPropagate(Node node, int propagate) {
+    Node h = head; // Record old head for check below
+    setHead(node);
+    /*
+     * Try to signal next queued node if:
+     *   Propagation was indicated by caller,
+     *     or was recorded (as h.waitStatus either before
+     *     or after setHead) by a previous operation
+     *     (note: this uses sign-check of waitStatus because
+     *      PROPAGATE status may transition to SIGNAL.)
+     * and
+     *   The next node is waiting in shared mode,
+     *     or we don't know, because it appears null
+     *
+     * The conservatism in both of these checks may cause
+     * unnecessary wake-ups, but only when there are multiple
+     * racing acquires/releases, so most need signals now or soon
+     * anyway.
+     */
+    if (propagate > 0 || h == null || h.waitStatus < 0 ||
+        (h = head) == null || h.waitStatus < 0) {
+        Node s = node.next;
+        if (s == null || s.isShared())
+            doReleaseShared();
+    }
+}
+```
+
+
+
+#### doReleaseShared
+
+是否共享同步状态
+
+```java
+private void doReleaseShared() {
+    /*
+     * Ensure that a release propagates, even if there are other
+     * in-progress acquires/releases.  This proceeds in the usual
+     * way of trying to unparkSuccessor of head if it needs
+     * signal. But if it does not, status is set to PROPAGATE to
+     * ensure that upon release, propagation continues.
+     * Additionally, we must loop in case a new node is added
+     * while we are doing this. Also, unlike other uses of
+     * unparkSuccessor, we need to know if CAS to reset status
+     * fails, if so rechecking.
+     */
+    for (;;) {
+        Node h = head;
+        if (h != null && h != tail) {
+            int ws = h.waitStatus;
+            if (ws == Node.SIGNAL) {
+                if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
+                    continue;            // loop to recheck cases
+                unparkSuccessor(h);
+            }
+            else if (ws == 0 && !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
+                continue;                // loop on failed CAS
+        }
+        if (h == head)                   // loop if head changed
+            break;
+    }
+}
+```
+
+https://tech.meituan.com/2019/12/05/aqs-theory-and-apply.html
+
+https://blog.csdn.net/qq_21040559/article/details/112388069
 
 
 ## DCL
@@ -181,7 +821,7 @@ jdk8版本是默认开启指针压缩的，可以通过配置vm参数开启关�
 
 - **ptr_to_heavyweight_monitor**：重量级锁状态下，指向对象监视器Monitor的指针。如果两个不同的线程同时在同一个对象上竞争，则必须将轻量级锁定升级到Monitor以管理等待的线程。在重量级锁定的情况下，JVM在对象的ptr_to_heavyweight_monitor设置指向Monitor的指针。
 
-> 分析 synchronize 锁优化 和 JVM 垃圾回收年龄代的时候会有很大作用
+> 分析synchronize锁优化和JVM垃圾回收年龄代的时候会有很大作用
 
 
 
@@ -309,25 +949,73 @@ reference开启UseCompressedOops占4字节，不开启UseCompressedOops占8字�
 
 ## 对象的创建过程
 
-|                                  |
-| :------------------------------: |
-| ![](image/Java/对象创建过程.png) |
+|                                                             |
+| :---------------------------------------------------------: |
+| <img src="image/Java/对象创建过程.png" style="zoom:80%;" /> |
 
-1. 首先jvm要检查类A是否已经被加载到了内存，即类的符号引用是否已经在常量池中，并且检查这个符号引用代表的类是否已被加载、解析和初始化过的。如果还没有，需要先触发类的加载、解析、初始化。然后在堆上创建对象。
+#### 类加载
 
-2. 为新生对象分配内存。
-　　对象所需内存的大小在类加载完成后便可完全确定，为对象分配空间的任务具体便等同于一块确定大小 的内存从Java堆中划分出来，怎么划呢？假设Java堆中内存是绝对规整的，所有用过的内存都被放在一边，空闲的内存被放在另一边，中间放着一个指针作 为分界点的指示器，那所分配内存就仅仅是把那个指针向空闲空间那边挪动一段与对象大小相等的距离，这种分配方式称为“指针碰撞”（Bump The Pointer）。如果Java堆中的内存并不是规整的，已被使用的内存和空闲的内存相互交错，那就没有办法简单的进行指针碰撞了，虚拟机就必须维护一个列表，记录上哪些内存块是可用的，在分配的时候从列表中找到一块足够大的空间划分给对象实例，并更新列表上的记录，这种分配方式称为“空闲列表”（Free List）。选择哪种分配方式由Java堆是否规整决定，而Java堆是否规整又由所采用的垃圾收集器是否带有压缩整理功能决定。因 此在使用Serial、ParNew等带Compact过程的收集器时，系统采用的分配算法是指针碰撞，而使用CMS这种基于Mark-Sweep算法的 收集器时（说明一下，CMS收集器可以通过UseCMSCompactAtFullCollection或 CMSFullGCsBeforeCompaction来整理内存），就通常采用空闲列表。
-除如何划分可用空间之外，还有另外一个需要考虑的问题是对象创建在虚拟机中是非常频繁的行为，即使是仅仅修改一个指针所指向的位置，在并发情况下也并不是 线程安全的，可能出现正在给对象A分配内存，指针还没来得及修改，对象B又同时使用了原来的指针来分配内存。解决这个问题有两个方案，一种是对分配内存空 间的动作进行同步——实际上虚拟机是采用CAS配上失败重试的方式保证更新操作的原子性；另外一种是把内存分配的动作按照线程划分在不同的空间之中进行， 即每个线程在Java堆中预先分配一小块内存，称为本地线程分配缓冲区，（TLAB ，Thread Local Allocation Buffer），哪个线程要分配内存，就在哪个线程的TLAB上分配，只有TLAB用完，分配新的TLAB时才需要同步锁定。虚拟机是否使用TLAB，可以通过-XX:+/-UseTLAB参数来设定。
-
-3. 完成实例数据部分的初始化工作（初始化为0值）
-　　内存分配完成之后，虚拟机需要将分配到的内存空间都初始化为零值（不包括对象头），如果使用TLAB的话，这一个工作也可以提前至TLAB分配时进行。这 步操作保证了对象的实例字段在Java代码中可以不赋初始值就直接使用，程序能访问到这些字段的数据类型所对应的零值。
-
-4. 完成对象头的填充：如对象自身的运行时数据、类型指针等。
-　　接下来，虚拟机要对对象进行必要的设置，例如这个对象是哪个类的实例、如何才能找到类的元数据信息、对象的哈希码、对象的GC分代年龄等信息。这些信息存放在对象的对象头（Object Header）之中。根据虚拟机当前的运行状态的不同，如是否启用偏向锁等，对象头会有不同的设置方式。
-
-5. 在上面工作都完成之后，在虚拟机的视角来看，一个新的对象已经产生了。但是在Java程序的视角看来，初始化才正式开始，开始调用<init>方法完成初始复制和构造函数，所有的字段都为零值。因此一般来说（由字节码中是否跟随有invokespecial指令所决定），new指令之后会接着就是执 行<init>方法，把对象按照程序员的意愿进行初始化，这样一个真正可用的对象才算完全创建出来。
+首先jvm要检查类A是否已经被加载到了内存，即类的符号引用是否已经在常量池中，并且检查这个符号引用代表的类是否已被加载、解析和初始化过的。如果还没有，需要先触发类的加载、解析、初始化，然后在堆上创建对象。
 
 
+
+#### 分配内存
+
+在类加载检查通过后，虚拟机将为新生对象分配内存。
+
+##### 内存分配方式
+
+1. **指针碰撞**
+
+   如果Java堆中内存是**绝对规整**的，所有用过的内存都被放在一边，空闲的内存被放在另一边，中间放着一个指针作为分界点的指示器，那所分配内存就仅仅是把那个指针向空闲空间那边挪动一段与对象大小相等的距离，这种分配方式称为**“指针碰撞”（Bump The Pointer）**。
+
+2. **空闲列表**
+
+   如果Java堆中的内存并**不是规整**的，已被使用的内存和空闲的内存相互交错，那就没有办法简单的进行指针碰撞了，虚拟机就必须维护一个列表，记录上哪些内存块是可用的，在分配的时候从列表中找到一块足够大的空间划分给对象实例，并更新列表上的记录，这种分配方式称为**“空闲列表”（Free List）**。
+
+> 选择哪种分配方式由Java堆是否规整决定，而Java堆是否规整又由所采用的垃圾收集器是否带有压缩整理功能决定。因此在使用Serial、ParNew等带Compact过程的收集器时，系统采用的分配算法是指针碰撞，而使用CMS这种基于Mark-Sweep算法的收集器时（说明一下，CMS收集器可以通过UseCMSCompactAtFullCollection或 CMSFullGCsBeforeCompaction来整理内存），就通常采用空闲列表
+
+
+
+##### 内存分配时处理并发安全问题
+
+对象创建在虚拟机中是非常频繁的行为，即使是仅仅修改一个指针所指向的位置，在并发情况下也并不是线程安全的，可能出现正在给对象A分配内存，指针还没来得及修改，对象B又同时使用了原来的指针来分配内存。
+
+- CAS：失败重试，区域加锁，保证指针更新操作的原子性
+
+- TLAB：（Thread Local Allocation Buffer）把内存分配的动作按照线程划分在不同的空间中进行，即每个线程在Java堆中预先分配一小块内存，称为**本地线程分配缓冲区**，哪个线程要分配内存，就在哪个线程的TLAB上分配，只有TLAB用完，分配新的TLAB时才需要同步锁定。虚拟机是否使用TLAB，可以通过-XX:+/-UseTLAB参数来设定。
+
+  
+
+#### 完成实例数据部分的初始化工作（初始化为0值）
+
+内存分配完成之后，虚拟机需要将分配到的内存空间都初始化为零值（不包括对象头），如果使用TLAB的话，这一工作也可以提前至TLAB分配时进行。这步操作保证了对象的实例字段在Java代码中可以不赋初始值就直接使用，程序能访问到这些字段的数据类型所对应的零值。
+
+| 类型                  | 默认值         |
+| --------------------- | -------------- |
+| byte                  | (byte)0        |
+| short                 | (short)0       |
+| int                   | 0              |
+| long                  | 0L             |
+| float                 | 0.0f           |
+| double                | 0.0d           |
+| boolean               | false          |
+| char                  | '/uoooo'(null) |
+| reference（引用类型） | null           |
+
+#### 设置对象头
+
+虚拟机要对对象进行必要的设置，例如这个对象是哪个类的实例、如何才能找到类的元数据信息、对象的哈希码、对象的GC分代年龄等信息。这些信息存放在对象的**对象头（Object Header）**之中。根据虚拟机当前的运行状态的不同，如是否启用偏向锁等，对象头会有不同的设置方式。
+
+
+
+#### 执行\<init>方法
+
+在上面工作都完成之后，在虚拟机的视角来看，一个新的对象已经产生了。但是在Java程序的视角看来，初始化才正式开始，开始调用\<init>方法完成初始复制和构造函数，所有的字段都为零值。因此一般来说（由字节码中是否跟随有invokespecial指令所决定），new指令之后会接着就是执 行\<init>方法（**子类的< init >方法中会首先对父类< init >方法的调用**），把对象按照程序员的意愿进行初始化，然后将内存地址赋给栈内存中的变量，这样一个真正可用的对象才算完全创建出来。
+
+> <init> 实例初始化方法，对象构造器方法。1.父类变量初始化块/父类语句块 2.父类构造函数 3.子类变量初始化块/子类语句块 4.子类构造函数。
+>
+> <client> 类初始化方法，类构造器方法。1.父类静态变量初始化/父类静态语句块 2.子类静态变量初始化/子类静态语句块。
 
 ```cpp
 // 确保常量池中存放的是已解释的类
@@ -396,34 +1084,34 @@ reference开启UseCompressedOops占4字节，不开启UseCompressedOops占8字�
 
 - **句柄**
 
-​        Java堆中将会划分出一块内存来作为**句柄池**，reference中存储的就是对象的句柄地址，而句柄中包含了对象实例数据与类型数据的具体各自的地址信息。
+​        Java堆中将会划分出一块内存来作为**句柄池**，**reference**中存储的就是**对象的句柄地址**，而句柄中包含了对象实例数据与类型数据的具体各自的地址信息。
 
-> 最大好处就是reference中存储的是稳定句柄地址，在对象被移动（垃圾收集时移动对象是非常普遍的行为）时只会改变句柄中的实例数据指针，而reference本身不需要被修改。 
+> 最大好处就是reference中存储的是稳定句柄地址，在对象被移动（垃圾回收时，内存地址发生变动）时只会改变句柄中的实例数据指针，而reference本身不需要被修改。 
 
-|                  句柄访问对象                  |
-| :--------------------------------------------: |
-| ![句柄访问对象](./image/Java/句柄访问对象.png) |
+|                         句柄访问对象                         |
+| :----------------------------------------------------------: |
+| <img src="./image/Java/句柄访问对象.png" alt="句柄访问对象" style="zoom:80%;" /> |
 
 
 
 - **直接指针**
 
-　　Java堆对象的布局中就必须考虑如何放置访问类型数据的相关信息，reference中存储的直接就是对象地址。 
+　　**reference**中直接存储的对象地址， 对象实例数据中存储类型的指针地址。
 
-> 最大的好处就是速度更快，它节省了一次指针定位的时间开销，由于对象访问的在Java中非常频繁，因此这类开销积小成多也是一项非常可观的执行成本。就虚拟机HotSpot而言，它是使用**直接指针**方式进行对象访问
+> 最大的好处就是速度更快，它节省了一次**对象实例指针定位**的时间开销，由于对象访问的在Java中非常频繁，因此这类开销积小成多也是一项非常可观的执行成本。就虚拟机HotSpot而言，它是使用**直接指针**方式进行对象访问
 
-|                    直接指针访问对象                    |
-| :----------------------------------------------------: |
-| ![直接指针访问对象](./image/Java/直接指针访问对象.png) |
+|                       直接指针访问对象                       |
+| :----------------------------------------------------------: |
+| <img src="./image/Java/直接指针访问对象.png" alt="直接指针访问对象" style="zoom:80%;" /> |
 
 
 
 ## 锁的四种状态
 
-|                                                           |
-| :-------------------------------------------------------: |
-| <img src="./image/Java/对象创建.png" style="zoom:80%;" /> |
-|                                                           |
+|                                                            |
+| :--------------------------------------------------------: |
+| <img src="./image/Java/对象创建.png" style="zoom: 67%;" /> |
+|                                                            |
 
 
 

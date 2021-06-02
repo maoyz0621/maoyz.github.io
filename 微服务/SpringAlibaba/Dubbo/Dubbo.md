@@ -298,6 +298,130 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
 
 ## 服务引入底层原理
 
+- 服务上线
+
+consumer本身在zk节点下的注册；创建监听器来感知zk节点的变化。provider上下线时会引起对应zk节点的变化，监听器感知到节点变化后，会调用NotifyListener的notify方法，更新内存中的provider列表；与此同时，consumer还会将最新的provider列表写入`~/.dubbo`目录下的文件中，这样做可以保证在zk挂掉的情况下，consumer依然能通过本地的缓存文件找到provider的地址。拿到provider列表后，接下来consumer就可以根据约定好的协议进行远程调用了，当然在这一步还可以做负载均衡。
+
+- 服务下线
+
+服务下线过程中，dubbo有两处代码来处理dubbo的下线。一处是ServiceBean中的detroy()方法，由Spring在销毁bean的时候调用；另一处是DubboShutdownHook，是JVM退出时的钩子线程，会在JVM退出之前执行。
+
+> org.apache.dubbo.config.DubboShutdownHook
+
+```java
+public static void destroyAll() {
+    if (destroyed.compareAndSet(false, true)) {
+        AbstractRegistryFactory.destroyAll();
+        destroyProtocols();
+    }
+}
+
+public static void destroyProtocols() {
+    ExtensionLoader<Protocol> loader = ExtensionLoader.getExtensionLoader(Protocol.class);
+    for (String protocolName : loader.getLoadedExtensions()) {
+        try {
+            Protocol protocol = loader.getLoadedExtension(protocolName);
+            if (protocol != null) {
+                // 对应协议销毁
+                protocol.destroy();
+            }
+        } catch (Throwable t) {
+            logger.warn(t.getMessage(), t);
+        }
+    }
+}
+	// org.apache.dubbo.registry.support.AbstractRegistryFactory#destroyAll
+    public static void destroyAll() {
+        if (!destroyed.compareAndSet(false, true)) {
+            return;
+        }
+        // Lock up the registry shutdown process
+        LOCK.lock();
+        try {
+            // 遍历所有的注册信息，销毁
+            for (Registry registry : getRegistries()) {
+                try {
+                    registry.destroy();
+                } catch (Throwable e) {
+                    LOGGER.error(e.getMessage(), e);
+                }
+            }
+            // 清空注册信息
+            REGISTRIES.clear();
+        } finally {
+            // Release the lock
+            LOCK.unlock();
+        }
+    }
+```
+
+对于dubbo协议
+
+> org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol#destroy
+
+```java
+@Override
+public void destroy() {
+	// 1. 关闭provier
+    for (String key : new ArrayList<>(serverMap.keySet())) {
+        ProtocolServer protocolServer = serverMap.remove(key);
+
+        if (protocolServer == null) {
+            continue;
+        }
+
+        RemotingServer server = protocolServer.getRemotingServer();
+
+        try {
+            server.close(ConfigurationUtils.getServerShutdownTimeout());
+        } catch (Throwable t) {
+            logger.warn(t.getMessage(), t);
+        }
+    }
+	// 2. 关闭consuer
+    for (String key : new ArrayList<>(referenceClientMap.keySet())) {
+        List<ReferenceCountExchangeClient> clients = referenceClientMap.remove(key);
+
+        if (CollectionUtils.isEmpty(clients)) {
+            continue;
+        }
+
+        for (ReferenceCountExchangeClient client : clients) {
+            closeReferenceCountExchangeClient(client);
+        }
+    }
+
+    super.destroy();
+}
+```
+
+对于server.close：org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeServer#close(int)
+
+```java
+public void close(final int timeout) {
+	// 
+    startClose();
+    if (timeout > 0) {
+        final long max = (long) timeout;
+        final long start = System.currentTimeMillis();
+        if (getUrl().getParameter(Constants.CHANNEL_SEND_READONLYEVENT_KEY, true)) {
+            sendChannelReadOnlyEvent();
+        }
+        while (HeaderExchangeServer.this.isRunning() && System.currentTimeMillis() - start < max) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                logger.warn(e.getMessage(), e);
+            }
+        }
+    }
+    doClose();
+    server.close(timeout);
+}
+```
+
+对于客户端关闭，实际调用`HeaderExchangeClient.close()`方法。停止与provider的心跳、重连，然后关闭NettyClient。
+
 
 
 ## 服务负载均衡底层原理
@@ -559,3 +683,42 @@ public class NotifyImpl implements Notify{
 - `onthrow`方法第一个参数为调用异常，其余为调用方法的参数。
 
 上述配置中，`sayHello`方法为同步调用，因此事件通知方法的执行也是同步执行。可以配置 `async=true`让方法调用为异步，这时事件通知的方法也是异步执行的。特别强调一下，`oninvoke`方法不管是否异步调用，都是同步执行的。
+
+
+
+## 服务提供方停机过程？
+
+1. 从注册中心剔除自己，从而确保消费者不要在拉取它
+2. sleep一段时间，等到服务消费，接收到服务中心通知该服务提供者下线，加大在不重试情况下的优雅停机成功率
+3. 广播readonly事件给所有的consumer本服务下线
+4. sleep 10 ms，保证consumer收到消息
+5. 先标记为不接收新请求，当新请求过来时直接报错，让客户端重试其它机器
+6. 关闭心跳线程
+7. 检测线程池中的线程是否有正在运行，如果有，等待所有线程执行完毕，除非超时，则强制关闭。
+
+
+
+- 注册中心宕机，服务间是否可以继续通信？
+
+可以通信，启动dubbo时，消费者会从zk拉取注册的生产者的地址接口等数据，缓存在本地。每次调用时，按照本地存储的地址进行调用；（但前提是你没有增加新的服务，如果你要调用新的服务，则是不能办到的）
+另外如果服务的提供者全部宕机，服务消费者会无法使用，并无限次重连等待服务者恢复；
+
+
+
+## 注册信息
+
+- 持久节点
+
+- 临时节点
+
+![](images/dubbo_zk.jpg)
+
+
+
+
+
+
+1. 羊群效应
+2. 长连接
+3. 注册中心本地缓存，消费者如何感知生产者下线
+4. 
