@@ -17,6 +17,53 @@ cd src
 
 
 
+![](image/Redis/Redis哨兵.jpg)
+
+哨兵作用：
+
+1. 通过发送命令，让Redis服务器返回监控其运行状态，包括主服务器和从服务器。
+2. 当哨兵监测到master宕机，会自动将slave切换成master，然后通过**发布订阅模式**通知其他的从服务器，修改配置文件，让它们切换主机
+3. 各个哨兵之间还会进行监控，这样就形成了多哨兵模式。
+
+用文字描述一下**故障切换（failover）**的过程。假设主服务器宕机，哨兵1先检测到这个结果，系统并不会马上进行failover过程，仅仅是哨兵1主观的认为主服务器不可用，这个现象成为**主观下线**。当后面的哨兵也检测到主服务器不可用，并且数量达到一定值时，那么哨兵之间就会进行一次投票，投票的结果由一个哨兵发起，进行failover操作。切换成功后，就会通过发布订阅模式，让各个哨兵把自己监控的从服务器实现切换主机，这个过程称为**客观下线**。
+
+
+
+```bash
+# 使得Redis服务器可以跨网络访问
+bind 0.0.0.0
+# 设置密码
+requirepass "123456"
+# 指定主服务器，注意：有关slaveof的配置只是配置从服务器，主服务器不需要配置
+slaveof 192.168.11.128 6379
+# 主服务器密码，注意：有关slaveof的配置只是配置从服务器，主服务器不需要配置
+masterauth 123456
+```
+
+sentinel.conf
+
+```css
+# 禁止保护模式
+protected-mode no
+# 配置监听的主服务器，这里sentinel monitor代表监控，mymaster代表服务器的名称，可以自定义，192.168.11.128代表监控的主服务器，6379代表端口，2代表只有两个或两个以上的哨兵认为主服务器不可用的时候，才会进行failover操作。
+sentinel monitor mymaster 192.168.11.128 6379 2
+# sentinel author-pass定义服务的密码，mymaster是服务名称，123456是Redis服务器密码
+# sentinel auth-pass <master-name> <password>
+sentinel auth-pass mymaster 123456
+```
+
+
+
+配置项 参数类型 作用   port 整数 启动哨兵进程端口  dir 文件夹目录 哨兵进程服务临时文件夹，默认为/tmp，要保证有可写入的权限  sentinel down-after-milliseconds <服务名称><毫秒数（整数）> 指定哨兵在监控Redis服务时，当Redis服务在一个默认毫秒数内都无法回答时，单个哨兵认为的主观下线时间，默认为30000（30秒）  sentinel parallel-syncs <服务名称><服务器数（整数）> 指定可以有多少个Redis服务同步新的主机，一般而言，这个数字越小同步时间越长，而越大，则对网络资源要求越高  sentinel failover-timeout <服务名称><毫秒数（整数）> 指定故障切换允许的毫秒数，超过这个时间，就认为故障切换失败，默认为3分钟  sentinel notification-script <服务名称><脚本路径> 指定sentinel检测到该监控的redis实例指向的实例异常时，调用的报警脚本。该配置项可选，比较常用
+
+
+
+sentinel down-after-milliseconds配置项只是一个哨兵在超过规定时间依旧没有得到响应后，会自己认为主机不可用。对于其他哨兵而言，并不是这样认为。哨兵会记录这个消息，当拥有认为主观下线的哨兵达到sentinel monitor所配置的数量时，就会发起一次投票，进行failover，此时哨兵会重写Redis的哨兵配置文件，以适应新场景的需要。
+
+
+
+https://www.cnblogs.com/kevingrace/p/9004460.html
+
 ## Redis集群（Cluster）模式
 
 数据分片：没有使用一致性hash，而是**哈希槽**。
@@ -227,6 +274,14 @@ M: 90e6c9a6be2d917f8e308e5f87630f5d66c12ff7 192.168.107.129:6379
 ```
 
 集群完成！！！
+
+
+
+## **Codis**
+
+https://www.jianshu.com/p/1ecbd1a88924
+
+
 
 
 
