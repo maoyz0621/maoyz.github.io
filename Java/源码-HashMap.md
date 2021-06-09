@@ -79,7 +79,7 @@ static final float DEFAULT_LOAD_FACTOR = 0.75f;
 static final int TREEIFY_THRESHOLD = 8;
 // 当桶(bucket)上的结点数小于这个值（6）时树转链表
 static final int UNTREEIFY_THRESHOLD = 6;
-// 桶中结构转化为红黑树对应的table的最小大小
+// 桶中结构转化为红黑树对应的table的最小值
 static final int MIN_TREEIFY_CAPACITY = 64;
 // 存放元素的数组，长度是2的幂次方
 transient Node<K,V>[] table;
@@ -103,7 +103,7 @@ final float loadFactor;
 
 - 临界值threshold
 
-  threshold = capacity \* loadFactor，当Size>=threshold的时候，那么就要考虑对数组的扩增了，也就是说，这个的意思就是 衡量数组是否需要扩增的一个标准。
+  threshold = capacity \* loadFactor，当Size>=threshold的时候，那么就要考虑对数组的扩增了，也就是说，这个的意思就是衡量数组是否需要扩增的一个标准。
 
 
 
@@ -220,6 +220,7 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
                     p.next = newNode(hash, key, value, null);
                     // 6 校验节点数，如果追加节点之后，（TREEIFY_THRESHOLD=8）链表长度>=8
                     if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                        // 数组空间大于64，n = tab.length) < MIN_TREEIFY_CAPACITY
                         treeifyBin(tab, hash);
                     break;
                 }

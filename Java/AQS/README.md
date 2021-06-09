@@ -52,7 +52,7 @@ public class Main {
 
 那么为什么会出现这样的问题呢？
 
-![image-20200717161505347](images/image-20200717161505347.png)
+<img src="images/image-20200717161505347.png" alt="image-20200717161505347" style="zoom: 50%;" />
 
 ## 解决方法1
 
