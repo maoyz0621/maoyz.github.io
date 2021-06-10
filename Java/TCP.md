@@ -38,7 +38,7 @@ URL：Uniform Resource Locator
 
   ### 子网掩码与IP地址
 
-  <img src="image/IP地址.jpg" style="zoom:67%;" />
+  <img src="image/IP地址.jpg" style="zoom: 50%;" />
 
   现在已经知道了主机A的IP地址和子网掩码，把它们转化成二进制的形式。通过二进制对应子网掩码的1的部分对应IP地址的网络号，子网掩码为0的部分对应主机号。
 

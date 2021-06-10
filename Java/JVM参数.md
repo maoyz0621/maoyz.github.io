@@ -676,9 +676,9 @@ Java 11，支持 TB 级别的堆，ZGC 非常高效，能够做到 10ms 以下�
 
 > Colored Pointers  着色指针
 
-|                                                    |
-| :------------------------------------------------: |
-| <img src="./image/GC/ZGC.png" style="zoom:80%;" /> |
+|                                                     |
+| :-------------------------------------------------: |
+| <img src="./image/GC/ZGC.png" style="zoom: 67%;" /> |
 
 对象指针必须是64位，同样的也就无法支持压缩指针了（CompressedOops，压缩指针也是32位）。（ZGC仅支持64位平台），指针可以处理更多的内存，因此可以使用一些位来存储状态。 ZGC将限制最大支持4Tb堆（42-bits），那么会剩下22位可用，它目前使用了4位： Finalizable， Remapped， Marked0和Marked1。
 

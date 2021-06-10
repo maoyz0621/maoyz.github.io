@@ -4,9 +4,9 @@
 
 模拟电商网站购物场景中的【下单】和【支付】业务
 
-###1）下单
+### 1）下单
 
-![](img/下单组件图.png)
+<img src="img/下单组件图.png" style="zoom: 67%;" />
 
 1. 用户请求订单系统下单
 2. 订单系统通过RPC调用订单服务下单
@@ -17,9 +17,9 @@
 
 ------
 
-###2）支付
+### 2）支付
 
-![](img/支付组件图.png)
+<img src="img/支付组件图.png" style="zoom:80%;" />
 
 1. 用户请求支付系统
 2. 支付系统调用第三方支付平台API进行发起支付流程
@@ -36,23 +36,23 @@
 
 如何保证数据的完整性？
 
-![](img/下单失败流程图.png)
+<img src="img/下单失败流程图.png"  />
 
 <u>使用MQ保证在下单失败后系统数据的完整性</u>
 
 ![](img/下单时序图(2).png)
 
-###问题2
+### 问题2
 
 用户通过第三方支付平台（支付宝、微信）支付成功后，第三方支付平台要通过回调API异步通知商家支付系统用户支付结果，支付系统根据支付结果修改订单状态、记录支付日志和给用户增加积分。
 
 商家支付系统如何保证在收到第三方支付平台的异步通知时，如何快速给第三方支付凭条做出回应？
 
-![](img/支付流程.png)
+<img src="img/支付流程.png" style="zoom:80%;" />
 
 <u>通过MQ进行数据分发，提高系统处理性能</u>
 
-![](img/支付成功数据分发流程图.png)
+<img src="img/支付成功数据分发流程图.png" style="zoom:80%;" />
 
 # 2. 技术分析
 
@@ -193,7 +193,7 @@ public class Consumer implements RocketMQListener<String> {
 mvn install -Dmaven.skip.test=true
 ```
 
-![](../%E6%96%87%E6%A1%A3/img/dubbo.png)
+
 
 ### 2.3.1 搭建Zookeeper集群
 
@@ -252,8 +252,6 @@ server.3=192.168.25.140:2883:3883
 #### 3）启动集群
 
 启动集群就是分别启动每个实例。
-
-![](../%E6%96%87%E6%A1%A3/img/zk.png)
 
 
 
@@ -752,7 +750,7 @@ private void checkOrder(TradeOrder order) {
 }
 ```
 
-###4）生成预订单
+### 4）生成预订单
 
 ![](img/生成预订单.png)
 
@@ -833,7 +831,7 @@ private Long savePreOrder(TradeOrder order) {
 }
 ```
 
-###5）扣减库存
+### 5）扣减库存
 
 * 通过dubbo调用商品服务完成扣减库存
 
@@ -882,7 +880,7 @@ public Result reduceGoodsNum(TradeGoodsNumberLog goodsNumberLog) {
 }
 ```
 
-###6）扣减优惠券
+### 6）扣减优惠券
 
 * 通过dubbo完成扣减优惠券
 
@@ -926,7 +924,7 @@ public Result changeCouponStatus(TradeCoupon coupon) {
 }
 ```
 
-###7）扣减用户余额
+### 7）扣减用户余额
 
 * 通过用户服务完成扣减余额
 
@@ -1012,7 +1010,7 @@ public Result changeUserMoney(TradeUserMoneyLog userMoneyLog) {
 }
 ```
 
-###8）确认订单 
+### 8）确认订单 
 
 ```java
 private void updateOrderStatus(TradeOrder order) {
@@ -1422,13 +1420,13 @@ public class OrderTest {
 }
 ```
 
-###1）准备测试数据
+### 1）准备测试数据
 
 * 用户数据
 * 商品数据
 * 优惠券数据
 
-###2）测试下单成功流程
+### 2）测试下单成功流程
 
 ```java
 @Test    
@@ -1453,7 +1451,7 @@ public void add(){
 
 执行完毕后,查看数据库中用户的余额、优惠券数据，及订单的状态数据
 
-###3）测试下单失败流程
+### 3）测试下单失败流程
 
 代码同上。
 
@@ -1552,25 +1550,15 @@ public Result callbackPayment(TradePay tradePay) {
 ```java
 @Bean
 public ThreadPoolTaskExecutor getThreadPool() {
-
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-
     executor.setCorePoolSize(4);
-
     executor.setMaxPoolSize(8);
-
     executor.setQueueCapacity(100);
-
     executor.setKeepAliveSeconds(60);
-
     executor.setThreadNamePrefix("Pool-A");
-
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-
     executor.initialize();
-
     return executor;
-
 }
 ```
 

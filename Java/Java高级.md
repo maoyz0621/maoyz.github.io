@@ -495,7 +495,7 @@ private void cancelAcquire(Node node) {
 public final boolean release(int arg) {
     if (tryRelease(arg)) {
         Node h = head;
-        // 头节点不为空 && 头结点等待状态不为0
+        // head节点不为空 && head结点等待状态不为0，不是初始化节点情况，解除线程挂起状态
         if (h != null && h.waitStatus != 0)
             // 唤醒头结点的后继节点
             unparkSuccessor(h);
@@ -505,7 +505,11 @@ public final boolean release(int arg) {
 }
 ```
 
+1. `h == null`   head还没初始化。初始情况下，head == null，第一个节点入队，head会被初始化一个虚拟节点。所以说，这里如果还没来得及入队，就会出现head == null 的情况。
 
+2. `h != null && waitStatus == 0`  表明next节点对应的线程仍在运行中，不需要唤醒。
+
+3. `h != null && waitStatus < 0` 表明next节点可能被阻塞了，需要唤醒。
 
 ##### tryRelease
 
@@ -552,7 +556,7 @@ private void unparkSuccessor(Node node) {
      * If status is negative (i.e., possibly needing signal) try
      * to clear in anticipation of signalling.  It is OK if this
      * fails or if status is changed by waiting thread.
-     * 获取当前节点的等待状态
+     * 获取head节点的等待状态
      */
     int ws = node.waitStatus;
     if (ws < 0)
@@ -564,24 +568,34 @@ private void unparkSuccessor(Node node) {
      * just the next node.  But if cancelled or apparently null,
      * traverse backwards from tail to find the actual
      * non-cancelled successor.
-     * 获取当前节点的后继节点
+     * 获取head节点的next节点
      */
     Node s = node.next;
-    // 后继节点为空 或 其等待状态大于0（表示取消状态）
+    // 后继节点为空 或 其等待状态大于0（表示取消状态），就找到队列最开始的非cancelled的节点
     if (s == null || s.waitStatus > 0) {
         s = null;
-        // 从尾节点遍历，查找状态不为取消状态的节点
+        // 就从tail节点开始找，到队首，找到队列第一个waitStatus<0的节点。
         for (Node t = tail; t != null && t != node; t = t.prev)
             if (t.waitStatus <= 0)
                 s = t;
     }
+    // 如果当前节点的下个节点不为空，而且状态<=0，就把当前节点unpark
     if (s != null)
         // 唤醒后继节点
         LockSupport.unpark(s.thread);
 }
 ```
 
+> 我们从这里可以看到，节点入队并不是原子操作，也就是说，node.prev = pred; compareAndSetTail(pred, node) 这两个地方可以看作Tail入队的原子操作，但是此时pred.next = node;还没执行，如果这个时候执行了unparkSuccessor方法，就没办法从前往后找了，所以需要从后往前找。还有一点原因，在产生CANCELLED状态节点的时候，先断开的是Next指针，Prev指针并未断开，因此也是必须要从后往前遍历才能够遍历完全部的Node。
+>
+> 综上所述，如果是从前往后找，由于极端情况下入队的非原子操作和CANCELLED节点产生过程中断开Next指针的操作，可能会导致无法遍历所有的节点。所以，唤醒对应的线程后，对应的线程就会继续往下执行。继续执行acquireQueued方法以后，中断如何处理？
 
+
+
+但为什么获取了锁以后还要中断线程呢？
+
+1. 当中断线程被唤醒时，并不知道被唤醒的原因，可能是当前线程在等待中被中断，也可能是释放了锁以后被唤醒。因此我们通过Thread.interrupted()方法检查中断标记（该方法返回了当前线程的中断状态，并将当前线程的中断标识设置为False），并记录下来，如果发现该线程被中断过，就再中断一次。
+2. 线程在等待资源的过程中被唤醒，唤醒后还是会不断地去尝试获取锁，直到抢到锁为止。也就是说，在整个流程中，并不响应中断，只是记录中断记录。最后抢到锁返回了，那么如果被中断过的话，就需要补充一次中断。
 
 ### 共享模式
 
@@ -1267,7 +1281,7 @@ synchronized关键字在JavaSE1.6之后进行了主要包括为了减少获得�
 
 1. 对象的创建过程？（半初始化过程）
 
-```
+```cpp
 Code:
     0: new           #2                  // class java/lang/Object    申请一块内存
     3: dup                               // 复制

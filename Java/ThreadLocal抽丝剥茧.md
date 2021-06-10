@@ -279,7 +279,7 @@ public static Connection getConnection() {
 
 如果我们不去看源代码的话，可能会猜测 ThreadLocal 是这样子设计的：每个ThreadLocal都创建一个Map，然后用线程作为Map的key，要存储的局部变量作为Map的value，这样就能达到各个线程的局部变量隔离的效果。这是最简单的设计方法，JDK最早期的ThreadLocal确实是这样设计的，但现在早已不是了。
 
-![image-20200710214857638](images/image-20200710214857638.png)
+<img src="images/image-20200710214857638.png" alt="image-20200710214857638" style="zoom:80%;" />
 
 ### 现在的设计
 
@@ -290,11 +290,11 @@ public static Connection getConnection() {
 - Thread内部的Map是由ThreadLocal维护的，由ThreadLocal负责向map获取和设置线程的变量值。
 - 对于不同的线程，每次获取副本值时，别的线程并不能获取到当前线程的副本值，形成了副本的隔离，互不干扰。
 
-![image-20200710215038748](images/image-20200710215038748.png)
+<img src="images/image-20200710215038748.png" alt="image-20200710215038748" style="zoom: 67%;" />
 
 ### 对比
 
-![image-20200710215128743](images/image-20200710215128743.png)
+<img src="images/image-20200710215128743.png" alt="image-20200710215128743" style="zoom:67%;" />
 
 从上面变成JDK8的设计有什么好处？
 
@@ -445,7 +445,7 @@ Java中的引用有4种类型：强、软、弱、虚。当前这个问题主要
 
 此时ThreadLocal的内存图（实线表示强引用）如下：
 
-![image-20200710222559109](images/image-20200710222559109.png)
+<img src="images/image-20200710222559109.png" alt="image-20200710222559109" style="zoom:80%;" />
 
 - 假设在业务代码中使用完ThreadLocal，threadLocal Ref被回收了
 - 但是因为threadLocalMap的Entry强引用了threadLocal，造成threadLocal无法被回收。
@@ -455,7 +455,7 @@ Java中的引用有4种类型：强、软、弱、虚。当前这个问题主要
 
 ### 如果key使用弱引用，那么会出现内存泄漏？
 
-![image-20200710222847567](images/image-20200710222847567.png)
+<img src="images/image-20200710222847567.png" alt="image-20200710222847567" style="zoom:80%;" />
 
 - 同样假设在业务代码中使用完ThreadLocal，threadLocal Ref被回收了。
 - 由于ThreadLocalMap只持有ThreadLocal的弱引用，没有任何强引用指向threadlocal实例，所以threadloca就可以顺利被gc回收，此时Entry中的key=null。

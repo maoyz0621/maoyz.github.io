@@ -1,10 +1,6 @@
-https://www.jianshu.com/p/4a275e779afa
 
-https://juejin.im/post/5af02571f265da0b9e64fcfd#heading-7
 
-http://jm.taobao.org/
-
-https://blog.csdn.net/qq_27529917/article/details/79857207
+# RocketMQ
 
 
 
@@ -106,3 +102,11 @@ nohup sh /opt/rocketmq-all-4.7.0-bin/bin/mqbroker -c /opt/rocketmq-conf/broker-1
 	RocketMQ在发送消息时，会首先获取路由信息。如果是新的消息，由于MQServer上面还没有创建对应的Topic，这个时候，如果上面的配置打开的话，会返回默认TOPIC的（RocketMQ会在每台broker上面创建名为TBW102的TOPIC）路由信息，然后Producer会选择一台Broker发送消息，选中的broker在存储消息时，发现消息的topic还没有创建，就会自动创建topic。
 	后果就是：以后所有该TOPIC的消息，都将发送到这台broker上，达不到负载均衡的目的。
 	所以基于目前RocketMQ的设计，建议关闭自动创建TOPIC的功能，然后根据消息量的大小，手动创建TOPIC。
+
+https://www.jianshu.com/p/4a275e779afa
+
+https://juejin.im/post/5af02571f265da0b9e64fcfd#heading-7
+
+http://jm.taobao.org/
+
+https://blog.csdn.net/qq_27529917/article/details/79857207
