@@ -343,9 +343,9 @@ public class MessageListenerImpl implements MessageListener {
 
   消息消费的场景下，消息已投递到消费者并完成业务处理，当客户端给服务端反馈应答的时候网络闪断。 为了保证消息至少被消费一次，消息队列 RocketMQ 的服务端将在网络恢复后再次尝试投递之前已被处理过的消息，消费者后续会收到两条内容相同并且 Message ID 也相同的消息。
 
-- 负载均衡时消息重复（包括但不限于网络抖动、Broker 重启以及订阅方应用重启）
+- 负载均衡时消息重复（包括但不限于网络抖动、Broker重启以及订阅方应用重启）
 
-  当消息队列 RocketMQ 的 Broker 或客户端重启、扩容或缩容时，会触发 Rebalance，此时消费者可能会收到重复消息。
+  当消息队列 RocketMQ的Broker或客户端重启、扩容或缩容时，会触发Rebalance，此时消费者可能会收到重复消息。
 
 ### 1.6.2 处理方式
 

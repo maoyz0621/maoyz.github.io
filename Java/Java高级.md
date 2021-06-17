@@ -1138,7 +1138,7 @@ reference开启UseCompressedOops占4字节，不开启UseCompressedOops占8字�
   如果已经计算了对象的hashcode ,则表示该锁不能偏向 .直接升级为轻量级锁.(对象的hashcode和偏向线程id只能存储一个)
   
   1. 当第一个线程A来获取资源的时候，这个时候只有线程A一个，没有其他线程来竞争，他会将biased_lock标志位置为1，锁标志为01, 表示已经偏向它的状态．线程ID也会记录A的id.
-2. 当A线程再次获取该资源的时候，JVM发现mark word里面的线程id是A的id，锁的标志位是01，biased_lock是1，表示A已经获得该偏向锁．
+  2. 当A线程再次获取该资源的时候，JVM发现mark word里面的线程id是A的id，锁的标志位是01，biased_lock是1，表示A已经获得该偏向锁．
 
   
 
@@ -1230,7 +1230,7 @@ Java内存屏障主要有Load和Store两类。
 - 静态方法：当前类的Class对象
 - 同步方法块：括号里配置的对象
 
-JVM基于进入和退出monitor对象实现的。代码块同步是使用monitorenter和monitorexit指令实现的，monitorenter指令是在编译后插入到同步代码块开始的位置，monitorexit是插在方法结束处和异常处。
+JVM基于进入和退出monitor对象实现的。代码块同步是使用`monitorenter`和`monitorexit`指令实现的，`monitorenter`指令是在编译后插入到同步代码块开始的位置，`monitorexit`是插在方法结束处和异常处。
 
 synchronized关键字在JavaSE1.6之后进行了主要包括为了减少获得锁和释放锁带来的性能消耗而引入的偏向锁和轻量级锁以及其它各种优化之后执行效率有了显著提升。
 
@@ -1255,7 +1255,7 @@ synchronized关键字在JavaSE1.6之后进行了主要包括为了减少获得�
 
 - 不能保证原子性
 
-通过**内存屏障**来防止指令被重排序
+通过**内存屏障**来防止指令被重排序?
 
 > 在每个volatile写操作前插入StoreStore屏障，在写操作后插入StoreLoad屏障；
 > 在每个volatile读操作前插入LoadLoad屏障，在读操作后插入LoadStore屏障；

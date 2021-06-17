@@ -80,7 +80,7 @@
 
 返回值最少一个：实体类集合
 
-返回值空值：不是null，空结合，size = 0
+返回值空值：不是null，空List，size = 0
 
 #### 多表
 
@@ -355,7 +355,7 @@ Interceptor
 Invocation
 ```
 
-```
+```java
 @Intercepts({
         @Signature(type=Executor.class, method="update", args={MappedStatement.class, Object.class}),
         @Signature(type=Executor.class, method="query", args={MappedStatement.class, Object.class,RowBounds.class,ResultHandler.class})
@@ -363,26 +363,26 @@ Invocation
 
 invocation.getArgs() 与 args参数对应;
 
-type=Executor,ParameterHandler,ResultSetHandler,StatementHandler
-method对应type指定类中的方法
-args对应method方法中的参数值
+// type = Executor,ParameterHandler,ResultSetHandler,StatementHandler
+// method对应type指定类中的方法
+// args对应method方法中的参数类型
 ```
 
 
 mapper接口方法重载，无法映射到java的重载，不支持
-```
+```java
 /**
-	* 　根据id查询
+* 　根据id查询
 */
 User selectById(Integer id) throws SQLException;
 
 /**
-	* 参数不同的同名方法
+* 参数不同的同名方法
 */
 User selectById(Integer id, String lastName) throws SQLException;
 ```
 
-对应的xml同名id只能有一个
+>  对应的xml同名id只能有一个
 
 `Available parameters are [arg1, arg0, param1, param2]`
 

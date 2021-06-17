@@ -488,7 +488,7 @@ private static Object doGetResource(Object actualKey) {
 
 ```
 
-其中重要的是ThreadLocal<Map<Object, Object>> resources = new NamedThreadLocal<Map<Object, Object>>("Transactional resources")，其中key为SqlSessionFactory，如果map中存在这个key，则可能返回相同的sqlsessionHolder，那么resources 的set方法
+其中重要的是`ThreadLocal<Map<Object, Object>> resources = new NamedThreadLocal<Map<Object, Object>>("Transactional resources")`，其中key为SqlSessionFactory，如果map中存在这个key，则可能返回相同的sqlsessionHolder，那么resources 的set方法
 
 ```java
 public static void bindResource(Object key, Object value) throws IllegalStateException {

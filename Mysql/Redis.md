@@ -2,21 +2,50 @@
 
 ## 数据类型
 
-**字符串（Strings**
+- **字符串（String）**：最大不能超过512MB
 
-**列表（Lists）**：双向链表（LinkedList）、压缩表（ZipList）
+  i. int 长整型
+  ii. embstr 短字符(<=39字节)
+  iii. raw 长字符(>39)
 
-**集合（Sets）**：整型集合、哈希表
+- **列表（List）**
 
-**哈希（Hashes）**：哈希表、压缩表
+  压缩表（ZipList）：当列表的元素个数小于list-max-ziplist-entries配置（默认512个），同时列表中每个元素的值都小于list-max-ziplist-value配置时（默认64字节），Redis会选用ziplist来作为列表的内部实现来减少内存的使用。
 
-**有序集合（Sorted sets）**：压缩表、跳跃表
+  双向链表（LinkedList）：当列表类型无法满足ziplist的条件时，Redis会使用LinkedList作为列表的内部实现。
 
-**Bitmaps 和 HyperLogLogs**
+- **哈希（Hash）**
 
-**Streams**
+  压缩表：当field个数不超过hash-max-ziplist-entries(默认为512个)时,并且没有大value(64个字节以上算大)
 
-**GEO**
+  哈希表：ziplist的两个条件只要有一个不符合就会转换为hashtable
+
+- **集合（Set）**
+
+  整型集合：当集合中的元素都是整数且元素个数小于set-max-intset-entries配置（默认512个）时，Redis会选用intset来作为集合的内部实现，从而减少内存的使用。
+
+  哈希表：当集合类型无法满足intset的条件时，Redis会使用hashtable作为集合的内部实现。
+
+  i. 给用户添加标签
+
+  ii.抽奖：生成随机数,集合不能存放相同的元素,因此随机pop出一个元素,可以作为中奖的号码
+  iii. 社交需求:可以给用户推荐有相同兴趣的人,用于交友。
+
+- **有序集合（Sorted set）**
+
+  压缩表：当有序集合的元素个数小于zset-max-ziplist-entries配置（默认128个），同时每个元素的值都小于zset-max-ziplist-value配置（默认64字节）时，Redis会用ziplist来作为有序集合的内部实现，ziplist可以有效减少内存的使用。
+
+  跳跃表：当ziplist条件不满足时，有序集合会使用skiplist作为内部实现，因为此时ziplist的读写效率会下降。
+
+  i. 用户点赞数排行
+  ii. 排行榜
+  iii. 展示用户信息及用户分数
+
+- **Bitmaps 和 HyperLogLogs**
+
+- **Streams**
+
+- **GEO**
 
 
 
@@ -82,7 +111,7 @@ auto-aof-rewrite-percentage  100  # 增长到一定大小的时候Redis能够调
 auto-aof-rewrite-min-size  64mb  # 设置允许重写的最小aof文件大小，避免了达到约定百分比但尺寸仍然很小的情况还要重写
 ```
 
-​		缺点：数据量很大的时候，比RDB的启动效率低。
+缺点：数据量很大的时候，比RDB的启动效率低。
 
 
 
@@ -196,7 +225,7 @@ save 60 10000		# 60秒内有10000个更改
 
 ## 内存淘汰策略
 
-当超过能够使用的最大内存（大于**maxmemory**）时，便会触发主动淘汰内存方式，，设置**maxmemory-policy**
+当超过能够使用的最大内存（大于**maxmemory**）时，便会触发主动淘汰内存方式，设置**maxmemory-policy**
 
 LRU（Least Recently Used）：最近最少使用，其核心思想是“**如果数据最近被访问过，那么将来被访问的几率也更高**”。
 

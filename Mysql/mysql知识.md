@@ -632,8 +632,8 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 
 #### Extra
 
-1. distinct：一旦找到与行相匹配的行，不找搜索
-2. Using index：对
+1. distinct：一旦找到与行相匹配的行，不再搜索
+2. Using index：使用了覆盖索引
 3. Using where：先读取整行数据，在按照where条件筛选
 4. Using temporary：创建临时表，常见于排序和分组（group  by，order  by）一般需要优化
 5. Using filesort：文件排序，order  by，一般需要优化
@@ -647,7 +647,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 
 #### 隔离性级别
 
-##### read uncommitted 读未提交
+##### Read Uncommitted 读未提交
 
 ```
 - 事务A和事务B，事务A未提交的数据，事务B可以读取到
@@ -655,18 +655,21 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 - 这种隔离级别最低，这种级别一般是在理论上存在，数据库隔离级别一般都高于该级别
 ```
 
-##### read committed 读已提交
+> 会导致脏读
+
+##### Read Committed 读已提交
 
 ```
 - 事务A和事务B，事务A提交了数据，事务B才能读取到
 - 这种隔离级别高于读未提交
 - 换句话说，对方事务提交之后的数据，当前事务才能读取到
-- 这种级别可以避免“脏数据”
-- 这种隔离级别会导致“不可重复读取”
+- 这种级别可以避免“脏数据”，这种隔离级别会导致“不可重复读取”
 - Oracle默认隔离级别
 ```
 
-##### repeatable read 可重复读
+> 会导致“不可重复读”
+
+##### Repeatable Read 可重复读
 
 ```
 - 事务A和事务B，事务A提交之后的数据，事务B读取不到
@@ -674,24 +677,26 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 - 这种隔离级别高于读已提交
 - 换句话说，对方提交之后的数据，我还是读取不到
 - 这种隔离级别可以避免“不可重复读取”，达到可重复读取
-- 比如1点和2点读到数据是同一个
+- 读不加锁，只有写才加锁，读写互不阻塞，
 - MySQL默认级别
-- 虽然可以达到可重复读取，但是会导致“幻像读”
+- 虽然可以达到可重复读取，但是会导致“幻读”
 ```
 
-##### serializable 串行化 
+> 会导致“幻读”
+
+##### Serializable 串行化 
 
 ```
 - 事务A和事务B，事务A在操作数据库时，事务B只能排队等待
 - 这种隔离级别很少使用，吞吐量太低，用户体验差
-- 这种级别可以避免“幻像读”，每一次读取的都是数据库中真实存在数据，事务A与事务B串行，而不并发
+- 这种级别可以避免“幻读”，每一次读取的都是数据库中真实存在数据，事务A与事务B串行，而不并发
 ```
 
 #### 设置隔离级别
 
 ##### 配置文件my.ini
 
-```
+```ini
 – READ-UNCOMMITTED
 – READ-COMMITTED
 – REPEATABLE-READ

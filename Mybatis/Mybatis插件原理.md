@@ -103,10 +103,10 @@ invocation.getArgs() 与 @Signature中args参数对应
 
 拦截器使用了责任链模式+动态代理+反射机制
 
-|                         |
-| :---------------------: |
-| ![](.\image\插件_1.png) |
-| ![](.\image\插件_2.png) |
+|                                                    |
+| :------------------------------------------------: |
+| <img src=".\image\插件_1.png" style="zoom:80%;" /> |
+|              ![](.\image\插件_2.png)               |
 
 ```java
 public class InterceptorChain {

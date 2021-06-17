@@ -13,7 +13,7 @@
 2. Executor执行器有哪些？
 
    - SimpleExecutor：每执行一次 update或select，就开启一个Statement对象，用完立刻关闭Statement对象
-   - ReuseExecutor：执行 update 或 select，以 sql 作为 key 查找 Statement 对象，存在就使用，不存在就创建，用完后，不关闭Statement对象，而是放置于Map<String, Statement>内，供下一次使用。简言之，就是重建使用 Statement 对象
+   - ReuseExecutor：执行 update 或 select，以 sql 作为 key 查找 Statement 对象，存在就使用，不存在就创建，用完后，不关闭Statement对象，而是放置于Map<String, Statement>内，供下一次使用。简言之，就是重复使用 Statement 对象
    - Batch Executor：执行 update (没有 select, JDBC 批处理不支持 select), 将所有sql都添加到批处理中(addBatch()),等待统一执行(executeBatch()), 它缓存了多个Statement对象，每个Statement对象都是addBatch()完毕后， 等待逐一执行executeBatch()批处理。与JDBC批处理相同。
 
 > 作用范围：Executor的这些特点，都严格限制在SqISession生命周期范围内。
@@ -72,9 +72,9 @@
 
     Mybatis原生使用的SqlSession是DefaultSqlSession，而整合Spring之后是SqlSessionTemplate，具体执行的是
 
-    SqlSessionTemplate.SqlSessionInterceptor，其中执行完之后closeSqlSession，而closeSqlSession会根据是否开启事务，决定**Releasing transactional SqlSession**或**Closing non transactional SqlSessio**n。
+    SqlSessionTemplate.SqlSessionInterceptor，其中执行完之后closeSqlSession，而closeSqlSession会根据是否开启事务，决定**Releasing transactional SqlSession**或**Closing non transactional SqlSession**。
 
-    > 当同一个线程开启事务时同一个sql查询多次会走一级缓存，而不开启事务时，每一查询都是不同的sqlsession即缓存为“失效”状态
+    > 当同一个线程开启事务时同一个sql查询多次会走一级缓存，而不开启事务时，每一次查询都是不同的sqlsession即缓存为“失效”状态
 
     
 

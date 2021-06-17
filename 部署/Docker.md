@@ -145,7 +145,11 @@ mvn clean package -Dmaven.test.skip=true dockerfile:build
     </build>
 ```
 
-+ Dockerfile
+### Dockerfile指令
+
+<img src="image/Docker.jpg"  />
+
+<img src="image/DockerFile.jpg" style="zoom:80%;" />
 
 - FROM    指定基础镜像,是必备的指令，并且必须是第一条指令  
 - ENV  
@@ -237,3 +241,110 @@ cpu.cfs_quota_us
 ```
 
 ```
+
+
+
+
+
+### 联合文件系统
+
+
+
+bootfs（boot file system）
+
+rootfs（root file system）
+
+### 分层的镜像
+
+## 容器数据券
+
+所有的docker容器内的卷，没有指定目录的时候，默认/var/lib/docker/volumes/xxx__data
+
+### Docker网络
+
+
+
+## Docker Compose
+
+### 安装步骤
+
+1. 离线安装包： **docker-compose-Linux-x86_64**
+2. `sudo mv docker-compose-Linux-x86_64 /usr/local/bin/docker-compose`
+3. 添加可执行权限：`sudo chmod +x /usr/local/bin/docker-compose`
+4. 查看：`docker-compose -v`
+
+### 文档说明
+
+> 官方文档  https://docs.docker.com/compose/compose-file
+
+Compose is a tool for defining and running multi-container Docker applications. With Compose, you use a YAML file to configure your application’s services. Then, with a single command, you create and start all the services from your configuration. To learn more about all the features of Compose, see [the list of features](https://docs.docker.com/compose/#features).
+
+Compose works in all environments: production, staging, development, testing, as well as CI workflows. You can learn more about each case in [Common Use Cases](https://docs.docker.com/compose/#common-use-cases).
+
+Using Compose is basically a three-step process:（三步走）
+
+1. Define your app’s environment with a `Dockerfile` so it can be reproduced anywhere.
+2. Define the services that make up your app in `docker-compose.yml` so they can be run together in an isolated environment.
+3. Run `docker-compose up` and Compose starts and runs your entire app.
+
+### 配置文件
+
+YAML配置文件示例：docker-compose.yml
+
+```yaml
+version: "3.8"
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/code
+      - logvolume01:/var/log
+    links:
+      - redis
+  redis:
+    image: redis
+    deploy:
+      replicas: 6
+      placement:
+        max_replicas_per_node: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+volumes:
+  logvolume01: {}
+  
+  
+---
+version: ""  # 版本号
+services:  # 服务
+  服务1:
+    # 服务配置
+    build:
+    image:
+    ports:
+    network:
+    depends_on:  # 依赖哪些服务
+      - 服务2
+    ...
+  服务2:
+    # 服务配置
+    image:
+    deploy:  # 部署
+    ...
+# 其他配置
+volumes:
+network:
+configs:
+```
+
++ 服务services：
++ 项目progect：一组关联的容器
+
+网络规则：
+
+![Docker网络](image/Docker网络.jpg)
+
