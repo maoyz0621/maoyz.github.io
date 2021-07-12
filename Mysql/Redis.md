@@ -41,17 +41,51 @@
   ii. 排行榜
   iii. 展示用户信息及用户分数
 
-- **Bitmaps 和 HyperLogLogs**
+- **Bitmaps **：位图
+
+  > 位存储
+
+  统计用户信息，活跃数，打卡，只要2个状态的都可以使用Bitmaps.
+
+  - SETBIT key offset value：指定偏移量原来储存的位
+  - GETBIT key offset ：字符串值指定偏移量上的位(bit)
+  - BITCOUNT  key [start] [end]：被设置为 `1` 的位的数量
+  - BITPOS  key bit [start] [end]：整数回复
+  - BITOP operation destkey key [key …]：保存到 `destkey` 的字符串的长度，和输入 `key` 中最长的字符串长度相等。
+  - BITFIELD
+
+- **HyperLogLog**：基数统计
+
+  > 基数：不重复的元素
+
+  存在一定范围内的误差
+
+  - PFADD  key  element  [element ...\]：添加指定元素到 HyperLogLog 中。
+
+  - PFCOUNT  key  [key ...\]：返回给定 HyperLogLog 的基数估算值。
+
+  - PFMERGE destkey  sourcekey  [sourcekey ...\]：将多个 HyperLogLog 合并为一个 HyperLogLog
 
 - **Streams**
 
-- **GEO**
+- **Geo经纬度**
+
+  推理地理位置、两地之间的距离，底层使用的**Zset**
+
+  - GEOADD：添加地理位置的坐标。
+  - GEOPOS：获取地理位置的坐标。
+  - GEODIST：计算两个位置之间的距离。
+  - GEORADIUS：根据用户给定的经纬度坐标来获取指定范围内的地理位置集合。
+  - GEORADIUSBYMEMBER：根据储存在位置集合里面的某个地点获取指定范围内的地理位置集合，中心点是由给定的位置元素决定的， 而不是使用经度和纬度来决定中心点。
+  - GEOHASH：返回一个或多个位置对象的 geohash 值。
+
+  i. （我附近的人）
 
 
 
 ## Pipeline（管道）
 
-​		一次请求/响应服务器能实现处理新的请求即使旧的请求还未被响应。这样就可以将*多个命令*发送到服务器，而不用等待回复，最后在一个步骤中读取该答复。
+​		一次请求/响应服务器能实现处理新的请求即使旧的请求还未被响应。这样就可以将多个命令发送到服务器，而不用等待回复，最后在一个步骤中读取该答复。
 
 ​		大量 pipeline 应用场景可通过 Redis [脚本]（Redis 版本 >= 2.6）得到更高效的处理，后者在服务器端执行大量工作。脚本的一大优势是可通过最小的延迟读写数据，让读、计算、写等操作变得非常快（pipeline 在这种情况下不能使用，因为客户端在写命令前需要读命令返回的结果）。
 
@@ -62,7 +96,7 @@
 
 
 
-#### 使用Pipeline或者Lua脚本减少请求次数
+### 使用Pipeline或者Lua脚本减少请求次数
 
 (1) 批量操作的命令，如mget，mset等
 
@@ -70,9 +104,7 @@
 
 (3) Lua脚本
 
-
-
-redis确实不是单线程的,更确切地说法是redis的核心业务线程只有一个,但是可以配置多个I/O线程，除此之外还有执行RDB序列化操作的时候也会开启线程
+> redis确实不是单线程的,更确切地说法是redis的核心业务线程只有一个,但是可以配置多个I/O线程，除此之外还有执行RDB序列化操作的时候也会开启线程
 
 
 
@@ -84,18 +116,29 @@ redis确实不是单线程的,更确切地说法是redis的核心业务线程只
 
 ### AOF（Append-Only File）
 
-|                                  |
-| :------------------------------: |
-| ![](./image/Redis/Redis-AOF.png) |
+|                                                           |
+| :-------------------------------------------------------: |
+|             ![](./image/Redis/Redis-AOF.png)              |
+| <img src="./image/Redis/AOF流程.png" style="zoom:65%;" /> |
 
-​		记录每次对服务器写的操作,当服务器重启的时候会重新执行这些命令来恢复原始的数据，AOF命令以redis协议追加保存每次写的操作到文件末尾，Redis还能对AOF文件进行后台重写，使得AOF文件的体积不至于过大.
+​		以日志的形式记录每个对服务器写操作，只许追加文件不可修改文件，当服务器重启的时候会重新执行这些命令来恢复原始的数据，AOF命令以redis协议追加保存每次写的操作到文件末尾，Redis还能对AOF文件进行后台重写，使得AOF文件的体积不至于过大。**appendonly.aof**文本文件
 
-> appendonly       yes
+> appendonly       yes      # 默认不开启
+
+执行流程：
+
+1）所有的写入命令会追加到aof_buf中。
+
+2）AOF缓冲区根据对应的策略向硬盘做同步操作。
+
+3）随着AOF文件越来越大，需要定期对AOF文件进行重写，达到压缩的目的。
+
+4）当Redis服务器重启时，可以加载AOF文件进行数据恢复。
 
 **设置Redis调用fsync的频率**
 推荐使用每秒fsync一次的方式（默认的方式），因为它速度快，安全性也不错。相关同步策略配置如下：
 
-```
+```shell
 appendfsync   always       # 每次有数据修改时都会写入AOF文件
 appendfsync   everysec     # 每秒同步一次，默认策略
 appendfsync   no           # 从不同步，高效但不会持久化
@@ -103,23 +146,29 @@ appendfsync   no           # 从不同步，高效但不会持久化
 
 其它配置项：
 
+```shell
+# 指定更新日志文件名，默认为appendonly.aof
+appendfilename  appendonly.aof
+# 设置为yes表示rewrite期间对新写操作不fsync,暂时存在内存中,等rewrite完成后再写入。Linux默认fsync策略是30秒。可能丢失30秒数据
+no-appendfsync-on-rewrite no
+# 增长到一定大小的时候Redis能够调用bgrewriteaof对日志文件进行重写。当前AOF文件大小是上次日志重写得到AOF文件大小的二倍（设置为100）时，自动启动新的日志重写过程
+auto-aof-rewrite-percentage  100
+# 设置允许重写的最小aof文件大小，避免了达到约定百分比但尺寸仍然很小的情况还要重写
+auto-aof-rewrite-min-size  64mb
 ```
-appendfilename  appendonly.aof   # 指定更新日志文件名，默认为appendonly.aof
-no-appendfsync-on-rewrite no   # 设置为yes表示rewrite期间对新写操作不fsync,暂时存在内存中,等rewrite完成后再写入。Linux默认fsync策略是30秒。可能丢失30秒数据
-auto-aof-rewrite-percentage  100  # 增长到一定大小的时候Redis能够调用bgrewriteaof对日志文件进行重写。当前AOF文件大小是上次日志重写得
-到AOF文件大小的二倍（设置为100）时，自动启动新的日志重写过程
-auto-aof-rewrite-min-size  64mb  # 设置允许重写的最小aof文件大小，避免了达到约定百分比但尺寸仍然很小的情况还要重写
-```
 
-缺点：数据量很大的时候，比RDB的启动效率低。
+> 缺点：数据量很大的时候，比RDB的启动效率低。
 
+如果**appendonly.aof**出现损坏，`redis-check-aof --fix appendonly.aof`
 
+<img src="./image/Redis/aof文件修复.png" style="zoom:80%;" />
 
 ### RDB文件（Redis  DataBase）
 
-|                                  |
-| :------------------------------: |
-| ![](./image/Redis/Redis-RDB.png) |
+|                                                           |
+| :-------------------------------------------------------: |
+|             ![](./image/Redis/Redis-RDB.png)              |
+| <img src="./image/Redis/RDB流程.png" style="zoom:50%;" /> |
 
 
 
@@ -127,19 +176,47 @@ auto-aof-rewrite-min-size  64mb  # 设置允许重写的最小aof文件大小，
 save 900 1			# 900秒（15分钟）内有1个更改
 save 300 10			# 300秒（5分钟）内有10个更改
 save 60 10000		# 60秒内有10000个更改
+
+stop-writes-on-bgsave-error yes
+
+# 快照，可以设置是否进行压缩存储，LZF算法进行压缩
+rdbcompression yes
+
+# 数据校验
+rdbchecksum yes
+
+# 快照的文件名
+dbfilename dump.rdb
+
+rdb-del-sync-files no
+
+# 快照文件的存放路径
+dir ./
 ```
 
-> 同步数据
+> 同步数据，在指定的时间间隔对数据进行快照存储。非常适用于数据的备份、灾难恢复。
 
-​		在指定的时间间隔对数据进行快照存储。
+**dump.rdb**二进制文件
 
-​		非常适用于数据的备份、灾难恢复。
+执行流程：
 
-​		RDB在保存RDB文件时主进程唯一需要做的就是**fork出一个子进程**，接下来的写操作全部由子进程来做进行持久化，主进程不需要再做其他IO操作，所以RDB持久化方式可以最大化redis的性能。
+1）执行bgsave命令，Redis父进程判断当前是否存在正在执行的子进程，如RDB/AOF子进程，如果存在bgsave命令直接返回。
 
-缺点：
+2）父进程执行fork操作创建子进程，fork操作过程中父进程会阻塞，通过info stats命令查看latest_fork_usec选项，可以获取最近一个fork操作的耗时，单位为微秒。
+
+3）父进程fork完成后，bgsave命令返回“Background saving started”信息并不再阻塞父进程，可以继续响应其他命令。
+
+4）子进程创建RDB文件，根据父进程内存生成临时快照文件，完成后对原有文件进行原子替换。执行lastsave命令可以获取最后一次生成RDB的时间，对应info统计的rdb_last_save_time选项。
+
+5）进程发送信号给父进程表示完成，父进程更新统计信息。
+
+​		RDB在保存RDB文件时主进程唯一需要做的就是单独**fork出一个子进程**，接下来的写操作全部由子进程来做进行持久化，会先将数据写入到一个临时文件中，待持久化过程都结束了，在用这个临时文件替换上次的持久化好的文件。主进程不需要再做其它IO操作，所以RDB持久化方式可以最大化redis的性能。
+
+缺点：不能实时保存数据，最后一次持久化的数据可能会在宕机的时候出现丢失
 
 ​		
+
+> 恢复rdb文件？将rdb文件放在redis启动目录即可，会自动检查dump.rdb恢复其中的数据
 
 1. RDB过程中Redis会停止对外服务吗？
 
@@ -149,7 +226,7 @@ save 60 10000		# 60秒内有10000个更改
 
 ### 混合持久化（4.x）
 
-​		AOF重写时子进程将当前时间点的数据快照保存为RDB文件格式，而后将父进程积累命令保存为AOF格式。[RDB file] [AOF tail]
+​		AOF重写时子进程将当前时间点的数据快照保存为RDB文件格式，而后将父进程积累命令保存为AOF格式。**[RDB file] [AOF tail]**
 
 > aof-use-rdb-preamble   yes
 
@@ -184,7 +261,7 @@ save 60 10000		# 60秒内有10000个更改
 
   Redis 会将每个设置了过期时间的 key 放入到一个独立的字典中，以后会定期遍历这个字典来删除到期的 key。
 
-  Redis默认是每隔 100ms（**设置hz 10**）就**随机抽取**一些设置了过期时间的key，检查其是否过期，如果过期就删除。为什么要随机呢？你想一想假如 redis 存了几十万个 key ，每隔100ms就遍历所有的设置过期时间的 key 的话，就会给 CPU 带来很大的负载。而是采用了一种简单的贪心策略。
+  Redis默认是每隔 100ms（**设置hz 10**）就**随机抽取**一些设置了过期时间的key，检查其是否过期，如果过期就删除。为什么要随机？假如 redis 存了几十万个 key ，每隔100ms就遍历所有的设置过期时间的 key 的话，就会给 CPU 带来很大的负载。而是采用了一种简单的贪心策略。
 
   ```
   # Not all tasks are performed with the same frequency, but Redis checks for
@@ -258,29 +335,6 @@ LFU（Least Frequently Used）：最不经常使用，使用频率最少，其�
 ```
 ############################## MEMORY MANAGEMENT ################################
 
-# Set a memory usage limit to the specified amount of bytes.
-# When the memory limit is reached Redis will try to remove keys
-# according to the eviction policy selected (see maxmemory-policy).
-#
-# If Redis can't remove keys according to the policy, or if the policy is
-# set to 'noeviction', Redis will start to reply with errors to commands
-# that would use more memory, like SET, LPUSH, and so on, and will continue
-# to reply to read-only commands like GET.
-#
-# This option is usually useful when using Redis as an LRU or LFU cache, or to
-# set a hard memory limit for an instance (using the 'noeviction' policy).
-#
-# WARNING: If you have replicas attached to an instance with maxmemory on,
-# the size of the output buffers needed to feed the replicas are subtracted
-# from the used memory count, so that network problems / resyncs will
-# not trigger a loop where keys are evicted, and in turn the output
-# buffer of replicas is full with DELs of keys evicted triggering the deletion
-# of more keys, and so forth until the database is completely emptied.
-#
-# In short... if you have replicas attached it is suggested that you set a lower
-# limit for maxmemory so that there is some free RAM on the system for replica
-# output buffers (but this is not needed if the policy is 'noeviction').
-#
 # maxmemory <bytes>
 
 # MAXMEMORY POLICY: how Redis will select what to remove when maxmemory
@@ -374,7 +428,695 @@ watch机制（乐观锁）监控key发生变化
 - EXEC：执行事务的commands队列；
 - DISCARD：结束事务，并清除commands队列；
 
+## 配置文件
 
+### INCLUDES
+
+```
+################################## INCLUDES ###################################
+#
+# include /path/to/local.conf
+# include /path/to/other.conf
+```
+
+如果将此配置写在redis.conf 文件的开头，那么后面的配置会覆盖引入文件的配置，如果想以引入文件的配置为主，那么需要将 include 配置写在 redis.conf 文件的末尾
+
+### MODULES
+
+```
+################################## MODULES #####################################
+
+# Load modules at startup. If the server is not able to load modules
+# it will abort. It is possible to use multiple loadmodule directives.
+#
+# loadmodule /path/to/my_module.so
+# loadmodule /path/to/other_module.so
+```
+
+redis3.0的爆炸功能是新增了集群，而redis4.0就是在3.0的基础上新增了许多功能，其中这里的自定义模块配置就是其中之一 。loadmodule 配置将引入自定义模块来新增一些功能
+
+### NETWORK
+
+```
+################################## NETWORK #####################################
+
+# By default, if no "bind" configuration directive is specified, Redis listens
+# for connections from all the network interfaces available on the server.
+# It is possible to listen to just one or multiple selected interfaces using
+# the "bind" configuration directive, followed by one or more IP addresses.
+#
+# Examples:
+#
+# bind 192.168.1.100 10.0.0.1
+# bind 127.0.0.1 ::1
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+bind 127.0.0.1
+port 6379
+timeout 0
+tcp-keepalive 300
+```
+
+①、bind：绑定redis服务器网卡IP，默认为127.0.0.1，即本地回环地址。这样的话，访问redis服务只能通过本机的客户端连接，而无法通过远程连接。如果bind选项为空的话，那会接受所有来自于可用网络接口的连接。
+
+②、port：指定redis运行的端口，默认是6379。由于Redis是单线程模型，因此单机开多个Redis进程的时候会修改端口。
+
+③、timeout：设置客户端连接时的超时时间，单位为秒。当客户端在这段时间内没有发出任何指令，那么关闭该连接。默认值为0，表示不关闭。
+
+④、tcp-keepalive ：单位是秒，表示将周期性的使用SO_KEEPALIVE检测客户端是否还处于健康状态，避免服务器一直阻塞，官方给出的建议值是300s，如果设置为0，则不会周期性的检测。
+
+### GENERAL
+
+```
+################################# GENERAL #####################################
+
+# By default Redis does not run as a daemon. Use 'yes' if you need it.
+# Note that Redis will write a pid file in /var/run/redis.pid when daemonized.
+daemonize no
+
+# If you run Redis from upstart or systemd, Redis can interact with your
+# supervision tree. Options:
+#   supervised no      - no supervision interaction
+#   supervised upstart - signal upstart by putting Redis into SIGSTOP mode
+#   supervised systemd - signal systemd by writing READY=1 to $NOTIFY_SOCKET
+#   supervised auto    - detect upstart or systemd method based on
+#                        UPSTART_JOB or NOTIFY_SOCKET environment variables
+# Note: these supervision methods only signal "process is ready."
+#       They do not enable continuous liveness pings back to your supervisor.
+supervised no
+
+pidfile /var/run/redis_6379.pid
+
+# Specify the server verbosity level.
+# This can be one of:
+# debug (a lot of information, useful for development/testing)
+# verbose (many rarely useful info, but not a mess like the debug level)
+# notice (moderately verbose, what you want in production probably)
+# warning (only very important / critical messages are logged)
+loglevel notice
+
+# output for logging but daemonize, logs will be sent to /dev/null
+logfile ""
+
+# To enable logging to the system logger, just set 'syslog-enabled' to yes,
+# and optionally update the other syslog parameters to suit your needs.
+# syslog-enabled no
+
+# Specify the syslog identity.
+# syslog-ident redis
+
+# Specify the syslog facility. Must be USER or between LOCAL0-LOCAL7.
+# syslog-facility local0
+
+# 设置数据库的数目
+databases 16
+
+always-show-logo yes
+```
+
+通用配置
+
+①、daemonize：设置为yes表示指定Redis以守护进程的方式启动（后台启动）。默认值为 no
+
+②、pidfile：配置PID文件路径，当redis作为守护进程运行的时候，它会把 pid 默认写到 /var/redis/run/redis_6379.pid 文件里面
+
+③、loglevel ：定义日志级别。默认值为notice，有如下4种取值：
+
+　　debug（记录大量日志信息，适用于开发、测试阶段）
+
+　　verbose（较多日志信息）
+
+　　notice（适量日志信息，使用于生产环境）
+
+　　warning（仅有部分重要、关键信息才会被记录）
+
+④、logfile ：配置log文件地址,默认打印在命令行终端的窗口上
+
+⑤、databases：设置数据库的数目。默认的数据库是DB 0 ，可以在每个连接上使用select <dbid> 命令选择一个不同的数据库，dbid是一个介于0到databases - 1 之间的数值。默认值是 16，也就是说默认Redis有16个数据库。
+
+### SNAPSHOTTING
+
+```
+################################ SNAPSHOTTING  ################################
+#
+#   save <seconds> <changes>
+#   In the example below the behaviour will be to save:
+#   after 900 sec (15 min) if at least 1 key changed
+#   after 300 sec (5 min) if at least 10 keys changed
+#   after 60 sec if at least 10000 keys changed
+
+save 900 1
+save 300 10
+save 60 10000
+
+stop-writes-on-bgsave-error yes
+
+# 快照，可以设置是否进行压缩存储，LZF算法进行压缩。
+rdbcompression yes
+
+# Since version 5 of RDB a CRC64 checksum is placed at the end of the file.
+# This makes the format more resistant to corruption but there is a performance
+# hit to pay (around 10%) when saving and loading RDB files, so you can disable it
+# for maximum performances.
+#
+# RDB files created with checksum disabled have a checksum of zero that will
+# tell the loading code to skip the check.
+# 数据校验
+rdbchecksum yes
+
+# 快照的文件名
+dbfilename dump.rdb
+
+# Remove RDB files used by replication in instances without persistence
+# enabled. By default this option is disabled, however there are environments
+# where for regulations or other security concerns, RDB files persisted on
+# disk by masters in order to feed replicas, or stored on disk by replicas
+# in order to load them for the initial synchronization, should be deleted
+# ASAP. Note that this option ONLY WORKS in instances that have both AOF
+# and RDB persistence disabled, otherwise is completely ignored.
+#
+# An alternative (and sometimes better) way to obtain the same effect is
+# to use diskless replication on both master and replicas instances. However
+# in the case of replicas, diskless is not always an option.
+rdb-del-sync-files no
+
+# The working directory.
+# Note that you must specify a directory here, not a file name.
+# 快照文件的存放路径
+dir ./
+```
+
+快照，持久化配置
+
+①、save：这里是用来配置触发 Redis的持久化条件，也就是什么时候将内存中的数据保存到硬盘
+
+②、stop-writes-on-bgsave-error ：默认值为yes。当启用了RDB且最后一次后台保存数据失败，Redis是否停止接收数据。这会让用户意识到数据没有正确持久化到磁盘上，否则没有人会注意到灾难（disaster）发生了。如果Redis重启了，那么又可以重新开始接收数据了
+
+③、rdbcompression ；默认值是yes。对于存储到磁盘中的快照，可以设置是否进行压缩存储。如果是的话，redis会采用LZF算法进行压缩。如果你不想消耗CPU来进行压缩的话，可以设置为关闭此功能，但是存储在磁盘上的快照会比较大。
+
+④、rdbchecksum ：默认值是yes。在存储快照后，我们还可以让redis使用CRC64算法来进行数据校验，但是这样做会增加大约10%的性能消耗，如果希望获取到最大的性能提升，可以关闭此功能。
+
+⑤、dbfilename ：设置快照的文件名，默认是 dump.rdb
+
+⑥、dir：设置快照文件的存放路径，这个配置项一定是个目录，而不能是文件名。使用上面的 dbfilename 作为保存的文件名。
+
+### REPLICATION
+
+```
+################################# REPLICATION #################################
+
+# Master-Replica replication. Use replicaof to make a Redis instance a copy of
+# another Redis server. A few things to understand ASAP about Redis replication.
+#
+#   +------------------+      +---------------+
+#   |      Master      | ---> |    Replica    |
+#   | (receive writes) |      |  (exact copy) |
+#   +------------------+      +---------------+
+#
+# 1) Redis replication is asynchronous, but you can configure a master to
+#    stop accepting writes if it appears to be not connected with at least
+#    a given number of replicas.
+# 2) Redis replicas are able to perform a partial resynchronization with the
+#    master if the replication link is lost for a relatively small amount of
+#    time. You may want to configure the replication backlog size (see the next
+#    sections of this file) with a sensible value depending on your needs.
+# 3) Replication is automatic and does not need user intervention. After a
+#    network partition replicas automatically try to reconnect to masters
+#    and resynchronize with them.
+#
+# replicaof <masterip> <masterport>
+
+# If the master is password protected (using the "requirepass" configuration
+# directive below) it is possible to tell the replica to authenticate before
+# starting the replication synchronization process, otherwise the master will
+# refuse the replica request.
+#
+# masterauth <master-password>
+#
+# However this is not enough if you are using Redis ACLs (for Redis version
+# 6 or greater), and the default user is not capable of running the PSYNC
+# command and/or other commands needed for replication. In this case it's
+# better to configure a special user to use with replication, and specify the
+# masteruser configuration as such:
+#
+# masteruser <username>
+#
+# When masteruser is specified, the replica will authenticate against its
+# master using the new AUTH form: AUTH <username> <password>.
+
+# When a replica loses its connection with the master, or when the replication
+# is still in progress, the replica can act in two different ways:
+#
+# 1) if replica-serve-stale-data is set to 'yes' (the default) the replica will
+#    still reply to client requests, possibly with out of date data, or the
+#    data set may just be empty if this is the first synchronization.
+#
+# 2) if replica-serve-stale-data is set to 'no' the replica will reply with
+#    an error "SYNC with master in progress" to all the kind of commands
+#    but to INFO, replicaOF, AUTH, PING, SHUTDOWN, REPLCONF, ROLE, CONFIG,
+#    SUBSCRIBE, UNSUBSCRIBE, PSUBSCRIBE, PUNSUBSCRIBE, PUBLISH, PUBSUB,
+#    COMMAND, POST, HOST: and LATENCY.
+#
+replica-serve-stale-data yes
+
+# You can configure a replica instance to accept writes or not. Writing against
+# a replica instance may be useful to store some ephemeral data (because data
+# written on a replica will be easily deleted after resync with the master) but
+# may also cause problems if clients are writing to it because of a
+# misconfiguration.
+#
+# Since Redis 2.6 by default replicas are read-only.
+#
+# Note: read only replicas are not designed to be exposed to untrusted clients
+# on the internet. It's just a protection layer against misuse of the instance.
+# Still a read only replica exports by default all the administrative commands
+# such as CONFIG, DEBUG, and so forth. To a limited extent you can improve
+# security of read only replicas using 'rename-command' to shadow all the
+# administrative / dangerous commands.
+replica-read-only yes
+
+# Replication SYNC strategy: disk or socket.
+#
+# New replicas and reconnecting replicas that are not able to continue the
+# replication process just receiving differences, need to do what is called a
+# "full synchronization". An RDB file is transmitted from the master to the
+# replicas.
+#
+# The transmission can happen in two different ways:
+#
+# 1) Disk-backed: The Redis master creates a new process that writes the RDB
+#                 file on disk. Later the file is transferred by the parent
+#                 process to the replicas incrementally.
+# 2) Diskless: The Redis master creates a new process that directly writes the
+#              RDB file to replica sockets, without touching the disk at all.
+#
+# With disk-backed replication, while the RDB file is generated, more replicas
+# can be queued and served with the RDB file as soon as the current child
+# producing the RDB file finishes its work. With diskless replication instead
+# once the transfer starts, new replicas arriving will be queued and a new
+# transfer will start when the current one terminates.
+#
+# When diskless replication is used, the master waits a configurable amount of
+# time (in seconds) before starting the transfer in the hope that multiple
+# replicas will arrive and the transfer can be parallelized.
+#
+# With slow disks and fast (large bandwidth) networks, diskless replication
+# works better.
+repl-diskless-sync no
+
+# When diskless replication is enabled, it is possible to configure the delay
+# the server waits in order to spawn the child that transfers the RDB via socket
+# to the replicas.
+#
+# This is important since once the transfer starts, it is not possible to serve
+# new replicas arriving, that will be queued for the next RDB transfer, so the
+# server waits a delay in order to let more replicas arrive.
+#
+# The delay is specified in seconds, and by default is 5 seconds. To disable
+# it entirely just set it to 0 seconds and the transfer will start ASAP.
+repl-diskless-sync-delay 5
+
+# -----------------------------------------------------------------------------
+# WARNING: RDB diskless load is experimental. Since in this setup the replica
+# does not immediately store an RDB on disk, it may cause data loss during
+# failovers. RDB diskless load + Redis modules not handling I/O reads may also
+# cause Redis to abort in case of I/O errors during the initial synchronization
+# stage with the master. Use only if your do what you are doing.
+# -----------------------------------------------------------------------------
+#
+# Replica can load the RDB it reads from the replication link directly from the
+# socket, or store the RDB to a file and read that file after it was completely
+# recived from the master.
+#
+# In many cases the disk is slower than the network, and storing and loading
+# the RDB file may increase replication time (and even increase the master's
+# Copy on Write memory and salve buffers).
+# However, parsing the RDB file directly from the socket may mean that we have
+# to flush the contents of the current database before the full rdb was
+# received. For this reason we have the following options:
+#
+# "disabled"    - Don't use diskless load (store the rdb file to the disk first)
+# "on-empty-db" - Use diskless load only when it is completely safe.
+# "swapdb"      - Keep a copy of the current db contents in RAM while parsing
+#                 the data directly from the socket. note that this requires
+#                 sufficient memory, if you don't have it, you risk an OOM kill.
+repl-diskless-load disabled
+
+# Replicas send PINGs to server in a predefined interval. It's possible to
+# change this interval with the repl_ping_replica_period option. The default
+# value is 10 seconds.
+#
+# repl-ping-replica-period 10
+
+# The following option sets the replication timeout for:
+#
+# 1) Bulk transfer I/O during SYNC, from the point of view of replica.
+# 2) Master timeout from the point of view of replicas (data, pings).
+# 3) Replica timeout from the point of view of masters (REPLCONF ACK pings).
+#
+# It is important to make sure that this value is greater than the value
+# specified for repl-ping-replica-period otherwise a timeout will be detected
+# every time there is low traffic between the master and the replica.
+#
+# repl-timeout 60
+
+# Disable TCP_NODELAY on the replica socket after SYNC?
+#
+# If you select "yes" Redis will use a smaller number of TCP packets and
+# less bandwidth to send data to replicas. But this can add a delay for
+# the data to appear on the replica side, up to 40 milliseconds with
+# Linux kernels using a default configuration.
+#
+# If you select "no" the delay for data to appear on the replica side will
+# be reduced but more bandwidth will be used for replication.
+#
+# By default we optimize for low latency, but in very high traffic conditions
+# or when the master and replicas are many hops away, turning this to "yes" may
+# be a good idea.
+repl-disable-tcp-nodelay no
+
+# Set the replication backlog size. The backlog is a buffer that accumulates
+# replica data when replicas are disconnected for some time, so that when a
+# replica wants to reconnect again, often a full resync is not needed, but a
+# partial resync is enough, just passing the portion of data the replica
+# missed while disconnected.
+#
+# The bigger the replication backlog, the longer the time the replica can be
+# disconnected and later be able to perform a partial resynchronization.
+#
+# The backlog is only allocated once there is at least a replica connected.
+#
+# repl-backlog-size 1mb
+
+# After a master has no longer connected replicas for some time, the backlog
+# will be freed. The following option configures the amount of seconds that
+# need to elapse, starting from the time the last replica disconnected, for
+# the backlog buffer to be freed.
+#
+# Note that replicas never free the backlog for timeout, since they may be
+# promoted to masters later, and should be able to correctly "partially
+# resynchronize" with the replicas: hence they should always accumulate backlog.
+#
+# A value of 0 means to never release the backlog.
+#
+# repl-backlog-ttl 3600
+
+# The replica priority is an integer number published by Redis in the INFO
+# output. It is used by Redis Sentinel in order to select a replica to promote
+# into a master if the master is no longer working correctly.
+#
+# A replica with a low priority number is considered better for promotion, so
+# for instance if there are three replicas with priority 10, 100, 25 Sentinel
+# will pick the one with priority 10, that is the lowest.
+#
+# However a special priority of 0 marks the replica as not able to perform the
+# role of master, so a replica with priority of 0 will never be selected by
+# Redis Sentinel for promotion.
+#
+# By default the priority is 100.
+replica-priority 100
+
+# It is possible for a master to stop accepting writes if there are less than
+# N replicas connected, having a lag less or equal than M seconds.
+#
+# The N replicas need to be in "online" state.
+#
+# The lag in seconds, that must be <= the specified value, is calculated from
+# the last ping received from the replica, that is usually sent every second.
+#
+# This option does not GUARANTEE that N replicas will accept the write, but
+# will limit the window of exposure for lost writes in case not enough replicas
+# are available, to the specified number of seconds.
+#
+# For example to require at least 3 replicas with a lag <= 10 seconds use:
+#
+# min-replicas-to-write 3
+# min-replicas-max-lag 10
+#
+# Setting one or the other to 0 disables the feature.
+#
+# By default min-replicas-to-write is set to 0 (feature disabled) and
+# min-replicas-max-lag is set to 10.
+
+# A Redis master is able to list the address and port of the attached
+# replicas in different ways. For example the "INFO replication" section
+# offers this information, which is used, among other tools, by
+# Redis Sentinel in order to discover replica instances.
+# Another place where this info is available is in the output of the
+# "ROLE" command of a master.
+#
+# The listed IP and address normally reported by a replica is obtained
+# in the following way:
+#
+#   IP: The address is auto detected by checking the peer address
+#   of the socket used by the replica to connect with the master.
+#
+#   Port: The port is communicated by the replica during the replication
+#   handshake, and is normally the port that the replica is using to
+#   listen for connections.
+#
+# However when port forwarding or Network Address Translation (NAT) is
+# used, the replica may be actually reachable via different IP and port
+# pairs. The following two options can be used by a replica in order to
+# report to its master a specific set of IP and port, so that both INFO
+# and ROLE will report those values.
+#
+# There is no need to use both the options if you need to override just
+# the port or the IP address.
+#
+# replica-announce-ip 5.5.5.5
+# replica-announce-port 1234
+```
+
+
+
+①、slave-serve-stale-data：默认值为yes。当一个 slave 与 master 失去联系，或者复制正在进行的时候，slave 可能会有两种表现：
+
+ 　　1) 如果为 yes ，slave 仍然会应答客户端请求，但返回的数据可能是过时，或者数据可能是空的在第一次同步的时候 
+
+ 　　2) 如果为 no ，在你执行除了 info he salveof 之外的其他命令时，slave 都将返回一个 "SYNC with master in progress" 的错误
+
+②、slave-read-only：配置Redis的Slave实例是否接受写操作，即Slave是否为只读Redis。默认值为yes。
+
+③、repl-diskless-sync：主从数据复制是否使用无硬盘复制功能。默认值为no。
+
+④、repl-diskless-sync-delay：当启用无硬盘备份，服务器等待一段时间后才会通过套接字向从站传送RDB文件，这个等待时间是可配置的。 这一点很重要，因为一旦传送开始，就不可能再为一个新到达的从站服务。从站则要排队等待下一次RDB传送。因此服务器等待一段 时间以期更多的从站到达。延迟时间以秒为单位，默认为5秒。要关掉这一功能，只需将它设置为0秒，传送会立即启动。默认值为5。
+
+⑤、repl-disable-tcp-nodelay：同步之后是否禁用从站上的TCP_NODELAY 如果你选择yes，redis会使用较少量的TCP包和带宽向从站发送数据。但这会导致在从站增加一点数据的延时。 Linux内核默认配置情况下最多40毫秒的延时。如果选择no，从站的数据延时不会那么多，但备份需要的带宽相对较多。默认情况下我们将潜在因素优化，但在高负载情况下或者在主从站都跳的情况下，把它切换为yes是个好主意。默认值为no。
+
+### SECURITY
+
+```
+################################## SECURITY ###################################
+
+# Warning: since Redis is pretty fast an outside user can try up to
+# 1 million passwords per second against a modern box. This means that you
+# should use very strong passwords, otherwise they will be very easy to break.
+# Note that because the password is really a shared secret between the client
+# and the server, and should not be memorized by any human, the password
+# can be easily a long string from /dev/urandom or whatever, so by using a
+# long and unguessable password no brute force attack will be possible.
+
+# Redis ACL users are defined in the following format:
+#
+#   user <username> ... acl rules ...
+#
+# For example:
+#
+#   user worker +@list +@connection ~jobs:* on >ffa9203c493aa99
+#
+# The special username "default" is used for new connections. If this user
+# has the "nopass" rule, then new connections will be immediately authenticated
+# as the "default" user without the need of any password provided via the
+# AUTH command. Otherwise if the "default" user is not flagged with "nopass"
+# the connections will start in not authenticated state, and will require
+# AUTH (or the HELLO command AUTH option) in order to be authenticated and
+# start to work.
+#
+# The ACL rules that describe what an user can do are the following:
+#
+#  on           Enable the user: it is possible to authenticate as this user.
+#  off          Disable the user: it's no longer possible to authenticate
+#               with this user, however the already authenticated connections
+#               will still work.
+#  +<command>   Allow the execution of that command
+#  -<command>   Disallow the execution of that command
+#  +@<category> Allow the execution of all the commands in such category
+#               with valid categories are like @admin, @set, @sortedset, ...
+#               and so forth, see the full list in the server.c file where
+#               the Redis command table is described and defined.
+#               The special category @all means all the commands, but currently
+#               present in the server, and that will be loaded in the future
+#               via modules.
+#  +<command>|subcommand    Allow a specific subcommand of an otherwise
+#                           disabled command. Note that this form is not
+#                           allowed as negative like -DEBUG|SEGFAULT, but
+#                           only additive starting with "+".
+#  allcommands  Alias for +@all. Note that it implies the ability to execute
+#               all the future commands loaded via the modules system.
+#  nocommands   Alias for -@all.
+#  ~<pattern>   Add a pattern of keys that can be mentioned as part of
+#               commands. For instance ~* allows all the keys. The pattern
+#               is a glob-style pattern like the one of KEYS.
+#               It is possible to specify multiple patterns.
+#  allkeys      Alias for ~*
+#  resetkeys    Flush the list of allowed keys patterns.
+#  ><password>  Add this passowrd to the list of valid password for the user.
+#               For example >mypass will add "mypass" to the list.
+#               This directive clears the "nopass" flag (see later).
+#  <<password>  Remove this password from the list of valid passwords.
+#  nopass       All the set passwords of the user are removed, and the user
+#               is flagged as requiring no password: it means that every
+#               password will work against this user. If this directive is
+#               used for the default user, every new connection will be
+#               immediately authenticated with the default user without
+#               any explicit AUTH command required. Note that the "resetpass"
+#               directive will clear this condition.
+#  resetpass    Flush the list of allowed passwords. Moreover removes the
+#               "nopass" status. After "resetpass" the user has no associated
+#               passwords and there is no way to authenticate without adding
+#               some password (or setting it as "nopass" later).
+#  reset        Performs the following actions: resetpass, resetkeys, off,
+#               -@all. The user returns to the same state it has immediately
+#               after its creation.
+#
+# ACL rules can be specified in any order: for instance you can start with
+# passwords, then flags, or key patterns. However note that the additive
+# and subtractive rules will CHANGE MEANING depending on the ordering.
+# For instance see the following example:
+#
+#   user alice on +@all -DEBUG ~* >somepassword
+#
+# This will allow "alice" to use all the commands with the exception of the
+# DEBUG command, since +@all added all the commands to the set of the commands
+# alice can use, and later DEBUG was removed. However if we invert the order
+# of two ACL rules the result will be different:
+#
+#   user alice on -DEBUG +@all ~* >somepassword
+#
+# Now DEBUG was removed when alice had yet no commands in the set of allowed
+# commands, later all the commands are added, so the user will be able to
+# execute everything.
+#
+# Basically ACL rules are processed left-to-right.
+#
+# For more information about ACL configuration please refer to
+# the Redis web site at https://redis.io/topics/acl
+
+# ACL LOG
+#
+# The ACL Log tracks failed commands and authentication events associated
+# with ACLs. The ACL Log is useful to troubleshoot failed commands blocked 
+# by ACLs. The ACL Log is stored in memory. You can reclaim memory with 
+# ACL LOG RESET. Define the maximum entry length of the ACL Log below.
+acllog-max-len 128
+
+# Using an external ACL file
+#
+# Instead of configuring users here in this file, it is possible to use
+# a stand-alone file just listing users. The two methods cannot be mixed:
+# if you configure users here and at the same time you activate the exteranl
+# ACL file, the server will refuse to start.
+#
+# The format of the external ACL user file is exactly the same as the
+# format that is used inside redis.conf to describe users.
+#
+# aclfile /etc/redis/users.acl
+
+# requirepass foobared
+
+# rename-command CONFIG b840fc02d524045429941cc15f59e41cb7be6c52
+#
+# It is also possible to completely kill a command by renaming it into
+# an empty string:
+#
+# rename-command CONFIG ""
+```
+
+①、rename-command：命令重命名，对于一些危险命令例如：
+
+　　flushdb（清空数据库）、flushall（清空所有记录）、config（客户端连接后可配置服务器）、keys
+
+　　作为服务端redis-server，常常需要禁用以上命令来使得服务器更加安全，禁用的具体做法是是：
+
+- rename-command FLUSHALL ""
+
+也可以保留命令但是不能轻易使用，重命名这个命令即可：
+
+- rename-command FLUSHALL abcdefg
+
+　　这样，重启服务器后则需要使用新命令来执行操作，否则服务器会报错unknown command。
+
+②、requirepass:设置redis连接密码
+
+　　比如: requirepass 123 表示redis的连接密码为123.
+
+### CLIENTS
+
+```
+################################### CLIENTS ####################################
+#
+# maxclients 10000
+```
+
+①、maxclients ：设置客户端最大并发连接数，默认无限制，Redis可以同时打开的客户端连接数为Redis进程可以打开的最大文件。 描述符数-32（redis server自身会使用一些），如果设置 maxclients为0 。表示不作限制。当客户端连接数到达限制时，Redis会关闭新的连接并向客户端返回max number of clients reached错误信息
+
+### APPEND ONLY MODE
+
+```
+############################## APPEND ONLY MODE ###############################
+
+appendonly no
+
+# The name of the append only file (default: "appendonly.aof")
+
+appendfilename "appendonly.aof"
+
+# The fsync() call tells the Operating System to actually write data on disk
+# instead of waiting for more data in the output buffer. Some OS will really flush
+# data on disk, some other OS will just try to do it ASAP.
+#
+# Redis supports three different modes:
+#
+# no: don't fsync, just let the OS flush the data when it wants. Faster.
+# always: fsync after every write to the append only log. Slow, Safest.
+# everysec: fsync only one time every second. Compromise.
+
+# appendfsync always
+appendfsync everysec
+# appendfsync no
+
+no-appendfsync-on-rewrite no
+
+
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+
+
+aof-load-truncated yes
+
+# When rewriting the AOF file, Redis is able to use an RDB preamble in the
+# AOF file for faster rewrites and recoveries. When this option is turned
+# on the rewritten AOF file is composed of two different stanzas:
+#
+#   [RDB file][AOF tail]
+
+aof-use-rdb-preamble yes
+```
+
+①、appendonly：默认redis使用的是rdb方式持久化，这种方式在许多应用中已经足够用了。但是redis如果中途宕机，会导致可能有几分钟的数据丢失，根据save来策略进行持久化，Append Only File是另一种持久化方式， 可以提供更好的持久化特性。Redis会把每次写入的数据在接收后都写入appendonly.aof文件，每次启动时Redis都会先把这个文件的数据读入内存里，先忽略RDB文件。默认值为no。
+
+②、appendfilename ：aof文件名，默认是"appendonly.aof"
+
+③、appendfsync：aof持久化策略的配置；no表示不执行fsync，由操作系统保证数据同步到磁盘，速度最快；always表示每次写入都执行fsync，以保证数据同步到磁盘；everysec表示每秒执行一次fsync，可能会导致丢失这1s数据
+
+④、no-appendfsync-on-rewrite：在aof重写或者写入rdb文件的时候，会执行大量IO，此时对于everysec和always的aof模式来说，执行fsync会造成阻塞过长时间，no-appendfsync-on-rewrite字段设置为默认设置为no。如果对延迟要求很高的应用，这个字段可以设置为yes，否则还是设置为no，这样对持久化特性来说这是更安全的选择。  设置为yes表示rewrite期间对新写操作不fsync，暂时存在内存中,等rewrite完成后再写入，默认为no，建议yes。Linux的默认fsync策略是30秒。可能丢失30秒数据。默认值为no。
+
+⑤、auto-aof-rewrite-percentage：默认值为100。aof自动重写配置，当目前aof文件大小超过上一次重写的aof文件大小的百分之多少进行重写，即当aof文件增长到一定大小的时候，Redis能够调用bgrewriteaof对日志文件进行重写。当前AOF文件大小是上次日志重写得到AOF文件大小的二倍（设置为100）时，自动启动新的日志重写过程。
+
+⑥、auto-aof-rewrite-min-size：64mb。设置允许重写的最小aof文件大小，避免了达到约定百分比但尺寸仍然很小的情况还要重写。
+
+⑦、aof-load-truncated：aof文件可能在尾部是不完整的，当redis启动的时候，aof文件的数据被载入内存。重启可能发生在redis所在的主机操作系统宕机后，尤其在ext4文件系统没有加上data=ordered选项，出现这种现象 redis宕机或者异常终止不会造成尾部不完整现象，可以选择让redis退出，或者导入尽可能多的数据。如果选择的是yes，当截断的aof文件被导入的时候，会自动发布一个log给客户端然后load。如果是no，用户必须手动redis-check-aof修复AOF文件才可以。默认值为 yes。
 
 ## 删除bigKey
 

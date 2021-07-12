@@ -288,7 +288,7 @@ M: 53497b9d7a7c8ecbde46d16ac803cd7ec53bfd17 172.18.0.4:7002
 
 
 
-docker 搭建zookeeper
+## docker搭建zookeeper
 
 ```sh
 docker run --name zk -p 2181:2181 -p 2888:2888 -p 3888:3888 --restart always -d zookeeper:latest
@@ -296,19 +296,19 @@ docker run --name zk -p 2181:2181 -p 2888:2888 -p 3888:3888 --restart always -d 
 
 -p　　端口映射
 
-　　--name　　容器实例名称
+--name　　容器实例名称
 
-　　-d　　后台运行
+-d　　后台运行
 
-　　2181　　Zookeeper客户端交互端口
+2181　　Zookeeper客户端交互端口
 
-　　2888　　Zookeeper集群端口
+2888　　Zookeeper集群端口
 
-　　3888　　Zookeeper选举端口
+3888　　Zookeeper选举端口
 
 
 
-docker搭建zookeeper集群
+## docker搭建zookeeper集群
 
 
 
@@ -373,7 +373,7 @@ server.3=zk-2183:2888:3888
 
 
 
-docker 搭建rocketmq
+## docker 搭建rocketmq
 
 nameserve服务
 
