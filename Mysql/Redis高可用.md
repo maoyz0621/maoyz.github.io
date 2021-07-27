@@ -4,16 +4,21 @@
 
 ### 主从复制原理
 
+
+
+127.0.0.1:6379> auth root
+OK
+
 #### 全量同步
 
-发生在Slave初始化阶段，将Master上所有的数据都复制一份，执行步骤：
+将Master上所有的数据都复制一份，执行步骤：
 
-|                                                             |
+|                          全量同步                           |
 | :---------------------------------------------------------: |
 | <img src="./image/Redis/全量同步.png" style="zoom: 50%;" /> |
 
 1. 从服务器连接主服务器，不管它是第一次连接还是再次连接都没有关系，从服务器发送SYNC命令，刚开始是 Psync 命令，Psync ? -1表示要求 master 主机同步数据
-2. 主机会向从机发送 runid （redis-cli info server）和 offset，因为slave并没有对应的offset，所以是全量复制
+2. 主机会向从机发送 run_id （`redis-cli info server`）和 offset，因为slave并没有对应的offset，所以是全量复制
 3. 从服务器slave会保存主机master的基本信息 save masterInfo
 4. 主服务器接收到命令，开启一个后台进程执行BGSAVE命令（异步执行）生成RDB文件，并使用缓冲区记录此后的所有写命令
 5. BGSAVE执行完成后，向所有的从服务器发送快照文件，并在发送期间继续记录所有的写命令
@@ -25,7 +30,7 @@
 
 #### 增量同步
 
-|                                                             |
+|                          增量同步                           |
 | :---------------------------------------------------------: |
 | <img src="./image/Redis/增量同步.png" style="zoom: 50%;" /> |
 
@@ -38,7 +43,7 @@ Slave初始化后开始正常工作时主服务器发生的写操作同步到从
   3. 从机slave 会继续尝试连接主机
   4. 从机slave 会把自己当前 runid 和偏移量传输给主机 master，并且执行 pysnc 命令同步
   5. 如果 master 发现你的偏移量是在缓冲区的范围内，就会返回 continue 命令
- 6. 同步了offset 的部分数据，所以部分复制的基础就是偏移量 offset。
+ 6. 同步了offset 的部分数据，所以部分复制的基础就是偏移量**offset**
 
 #### 服务器运行ID（run_id）
 
@@ -50,7 +55,8 @@ Slave初始化后开始正常工作时主服务器发生的写操作同步到从
 
 ​		如果从节点保存的run_id与主节点的run_id相同，说明主从节点之前同步过，主节点会继续尝试使用部分复制（到底能不能部分复制还要看offset和复制积压缓冲区的情况）
 
-​		如果从节点保存的run_id与主节点的run_id不同，说明从节点在断线前同步的Redis节点并不是当前的主节点，只能进行**全量复制**
+> ​		如果从节点保存的run_id与主节点的run_id不同，说明从节点在断线前同步的Redis节点并不是当前的主节点，只能进行**全量复制**
+>
 
 #### 复制偏移量
 
@@ -64,7 +70,9 @@ Slave初始化后开始正常工作时主服务器发生的写操作同步到从
 
 #### 主从同步策略
 
-master-slave刚连接的时候，进行全量同步；全量同步结束之后，进行增量同步。Redis策略：首先先尝试进行增量同步，如不成功，要求从服务器进行全量同步
+master-slave刚连接的时候，进行全量同步；全量同步结束之后，进行增量同步。
+
+Redis策略：首先先尝试进行增量同步，如不成功，则要求从服务器进行全量同步
 
 从节点将offset发送给主节点后，主节点根据offset和缓冲区大小决定能否执行增量同步
 
@@ -80,7 +88,7 @@ Redis主从复制不阻塞主服务器端，采用异步复制。也就是说当
 
 - 主从节点彼此都有心跳检测机制，各自模拟成对方的客户端进行通信，通过`client list`命令查看复制相关客户端信息，主节点的连接状态为`flags=M`，从节点连接状态`flags=S`，`flags=N`表示No
 - 主节点默认**每隔10秒对从节点发送ping命令**，判断从节点的存活性和连接状态。可通过参数`repl-ping-slave-period`控制发送频率。
-- 从节点在主线程中每隔1秒发送repl conf ack {offset} 命令，给主节点上报自身当前的复制偏移量。
+- 从节点在主线程中每隔1秒发送`repl conf ack {offset} `命令，给主节点上报自身当前的复制偏移量。
   
 
 1. 什么时候会发生全量同步？
@@ -111,6 +119,8 @@ d) Redis Slave掉线期间，master保存在内存的offset可用，也就是mas
 
 很显然，会发生全量同步，因为增量同步的条件之一run id已经不能满足
 
+
+
 ### 哨兵原理
 
 ​		哨兵(Sentinel) 是一个分布式系统，可以在一个架构中运行多个哨兵(sentinel) 进程，这些进程使用流言协议(gossipprotocols)来接收关于Master是否下线的信息，并使用投票协议(agreement protocols)来决定是否执行自动故障迁移，以及选择哪个Slave作为新的Master.
@@ -122,16 +132,14 @@ d) Redis Slave掉线期间，master保存在内存的offset可用，也就是mas
 
 > 哨兵(sentinel) 的一些设计思路和zookeeper非常类似
 
-
+- sentinel.conf
 
 ```
-# bind 127.0.0.1 192.168.1.1
-# protected-mode no
-## 配置端口
-# port <sentinel-port>
+## 注释掉
+# protected-mode yes
 port 26379
-## 以守护进程模式启动
-daemonize no
+## 注释掉
+# daemonize yes
 
 pidfile /var/run/redis-sentinel.pid
 
@@ -140,7 +148,6 @@ logfile "sentinel_26379.log"
 
 # sentinel announce-ip <ip>
 # sentinel announce-port <port>
-# sentinel announce-ip 1.2.3.4
 
 ## 存放备份文件以及日志等文件的目录
 # dir <working-directory>
@@ -193,11 +200,11 @@ sentinel deny-scripts-reconfig yes
 # SENTINEL rename-command mymaster CONFIG CONFIG
 ```
 
-- sentinel monitor mymaster 127.0.0.1 6379 2
+- sentinel monitor mymaster 192.168.107.128 6379 2
 
   `sentinel monitor <master-name> <ip> <redis-port> <quorum>`，
 
-  quorum：**客观下线的一个依据**，至少有 quorum 个Sentinel主观的认为这个Master有故障，才会对这个Master进行下线以及故障转移。因为有的时候，某个sentinel节点可能因为自身网络原因，导致无法连接Master，而此时Master并没有出现故障，所以这就需要多个sentinel都一致认为该master有问题，才可以进行下一步操作，这就保证了公平性和高可用。
+  quorum：**客观下线的一个依据**，至少有quorum个Sentinel主观的认为这个Master有故障，才会对这个Master进行下线以及故障转移。（因为有的时候，某个sentinel节点可能因为自身网络原因，导致无法连接Master，而此时Master并没有出现故障，所以这就需要多个sentinel都一致认为该master有问题，才可以进行下一步操作，这就保证了公平性和高可用。）
 
 - sentinel down-after-milliseconds mymaster 30000
 
@@ -216,9 +223,9 @@ sentinel deny-scripts-reconfig yes
 
 #### 实现原理
 
-1. **监控（Monitoring）**： Sentinel 会不断地检查你的主服务器和从服务器是否运作正常。
-2. **提醒（Notification）**： 当被监控的某个 Redis 服务器出现问题时， Sentinel 可以通过 API 向管理员或者其他应用程序发送通知。
-3. **自动故障迁移（Automatic failover）**： 当一个主服务器不能正常工作时， Sentinel 会开始一次自动故障迁移操作， 它会将失效主服务器的其中一个从服务器升级为新的主服务器， 并让失效主服务器的其他从服务器改为复制新的主服务器； 当客户端试图连接失效的主服务器时， 集群也会向客户端返回新主服务器的地址， 使得集群可以使用新主服务器代替失效服务器。
+1. **监控（Monitoring）**：Sentinel会不断检查主服务器和从服务器是否运作正常。
+2. **提醒（Notification）**：当被监控的某个Redis服务器出现问题时，Sentinel 可以通过API 向管理员或者其他应用程序发送通知。
+3. **自动故障迁移（Automatic failover）**：当一个主服务器不能正常工作时，Sentinel会开始一次自动故障迁移操作， 它会将失效主服务器的其中一个从服务器升级为新的主服务器，并让失效主服务器的其他从服务器改为复制新的主服务器；当客户端试图连接失效的主服务器时，集群也会向客户端返回新主服务器的地址，使得集群可以使用新主服务器代替失效服务器。
 
 #### 哨兵作用
 
@@ -310,7 +317,7 @@ Sentinel 自动故障迁移使用 Raft 算法来选举领头（leader） Sentine
 
 更高的配置纪元总是优于较低的纪元， 因此每个 Sentinel 都会主动使用更新的纪元来代替自己的配置。
 
-简单来说， 可以将 Sentinel 配置看作是一个带有版本号的状态。 一个状态会以最后写入者胜出（last-write-wins）的方式（也即是，最新的配置总是胜出）传播至所有其他 Sentinel 。
+简单来说， 可以将 Sentinel 配置看作是一个带有版本号的状态。 一个状态会以最后写入者胜出（last-write-wins）的方式（ 也即是，最新的配置总是胜出）传播至所有其他 Sentinel 。
 
 举个例子， 当出现网络分割（network partitions）时， 一个 Sentinel 可能会包含了较旧的配置， 而当这个 Sentinel 接到其他 Sentinel 发来的版本更新的配置时， Sentinel 就会对自己的配置进行更新。
 
@@ -318,7 +325,7 @@ Sentinel 自动故障迁移使用 Raft 算法来选举领头（leader） Sentine
 
 #### 故障转移
 
-当Master宕机，选一个合适的Slave来晋升为Master的操作，Redis-Sentinel会自动完成这个，不需要我们手动来实现。
+当Master宕机，选一个合适的Slave来晋升为Master的操作，Sentinel会自动完成这个，不需要我们手动来实现。
 
 ##### 大致流程
 
@@ -340,3 +347,4 @@ Sentinel 自动故障迁移使用 Raft 算法来选举领头（leader） Sentine
 基于主从复制，主从可以切换，故障可以转移，但不容易在线扩容
 
 ### 集群原理
+
