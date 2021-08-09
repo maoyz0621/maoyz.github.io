@@ -167,26 +167,37 @@ chmod 777 kibana.yml
 
 
 
+```sh
+## 创建局域网
+docker network create elastic
 
+## 
+docker run --name elasticsearch --net elastic -p 9200:9200 -p 9300:9300 -e discovery.type=single-node -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -e http.cors.enabled=true -e http.cors.allow-origin=* -e http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization -e "http.cors.allow-credentials=true"  -d elasticsearch:7.9.3
+
+docker run --name kib01-test --net elastic -p 5601:5601 -e "ELASTICSEARCH_HOSTS=http://elasticsearch:9200" -d kibana:7.9.3
+
+
+
+```
 
 ### 创建容器并运行
 
 ```
 # 拉取镜像
-docker pull docker.elastic.co/kibana/kibana:7.8.1
+docker pull docker.elastic.co/kibana/kibana:7.9.3
 
 # 后台创建并运行容器
 docker run -it --name kibana -p 5601:5601 
 -v /usr/local/kibana/logs/kibana.log:/usr/share/kibana/logs/kibana.log 
 -v /usr/local/kibana/data:/usr/share/kibana/data 
 -v /usr/local/kibana/conf/kibana.1.yml:/usr/share/kibana/config/kibana.yml 
--d kibana:7.9.3
+-d docker.elastic.co/kibana/kibana:7.9.3
 
 docker run -it --name kibana -p 5601:5601 
 -e elasticsearch.hosts=["http://192.168.107.110:9200"]
 -v /usr/local/kibana/logs/kibana.log:/usr/share/kibana/logs/kibana.log 
 -v /usr/local/kibana/data:/usr/share/kibana/data 
--d kibana:7.9.3
+-d docker.elastic.co/kibana/kibana:7.9.3
 ```
 
 

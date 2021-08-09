@@ -1,6 +1,138 @@
-# ElassticSearch-6.x
+# ElassticSearch - 6.x/7.x
 
-## 返回数据结构
+## 前言
+
+一个分布式实时文档存储，所有字段可以被索引与搜索
+
+ES查询服务，ES数据的同步，mapping、索引的更新，隔离对业务的入侵
+
+
+
+## 核心概念
+
+- 索引（Index）
+- 类型（Type）
+- 文档（Document）
+- 字段（Field）
+- 映射（Mapping）
+
+### 索引（Index）
+
+文档的集合，就是数据库
+
+### 类型（Type）
+
+| 版本 | Type                             |
+| ---- | -------------------------------- |
+| 5.x  | 支持多种type                     |
+| 6.x  | 只能有一种type                   |
+| 7.x  | 不在支持自定义索引类型，默认_doc |
+
+### 文档（Document）
+
+一个Index中，包含多个文档，索引一篇文档时，Index -> Type -> Document Id，基础信息单元，也是一条数据，以JSON格式存在
+
+### 字段（Field）
+
+文档的字段
+
+### 映射（Mapping）
+
+某个字段的数据类型、默认值、分析器、是否被索引
+
+- 核⼼数据类型
+- 复杂数据类型
+- 专⽤数据类型
+
+#### 核心数据
+
+##### 字符串数据类型
+
+- text  ⽤于全⽂索引，搜索时会自动使用分词器进⾏分词再匹配
+- keyword  不分词，搜索时需要匹配完整的值
+
+##### 数值数据类型
+
+- 整型： byte，short，integer，long
+- 浮点型： float, half_float, scaled_float，double
+
+##### 日期类型
+
+##### Boolean
+
+- boolean   # true、false
+
+
+
+#### 复杂数据
+
+##### Object
+
+- object
+
+```json
+#定义mapping
+"user" : {
+    "type":"object"
+}
+
+
+#插入|更新字段的值，值写成json对象的形式
+"user" : {
+    "name":"chy",
+    "age":12
+}
+
+
+#搜索时，字段名使用点号连接
+"match":{
+     "user.name":"chy"
+ }
+```
+
+##### Array
+
+没有专门的数组类型，定义mapping，写成元素的类型
+
+```json
+#ES没有专门的数组类型，定义mapping，写成元素的类型
+"arr" : {
+    "type":"integer"
+}
+
+
+#插入|更新字段的值。元素可以是各种类型，但元素的类型要相同
+"arr" : [1,3,4]
+```
+
+
+
+#### 专用数据
+
+- GEO 地理位置相关类型
+
+### 倒排索引
+
+
+
+## ES和MySQL的对应关系
+
+| MySQL              | ES               |
+| ------------------ | ---------------- |
+| Database（数据库） | Index（索引）    |
+| Table（表）        | Type（类型）     |
+| Row（行）          | Document（文档） |
+| Column（列）       | Field（字段）    |
+| Schema（方案）     | Mapping（映射）  |
+| Index（索引）      | 所有字段都被索引 |
+| select *           | GET  http://     |
+| update *           | PUT  http://     |
+| delete *           | DELETE  http://  |
+| 索引               | 全文索引         |
+
+
+
+## 数据结构
 
 索引，类似数据库的“数据库”
 
@@ -11,17 +143,18 @@
     "_shards": {
         "total": 5,
         "successful": 5,
-        "failed": 0
+        "skipped" : 0,
+    	"failed" : 0
     },
     "hits": {
         "total": 76,
-        "max_score": null,
+        "max_score": 1.0,
         "hits": [
             {
-                "_index": "tmsorder_20210719",
-                "_type": "tmsorder",
+                "_index": "order_20210719",
+                "_type": "_doc",
                 "_id": "100000000001175380",
-                "_score": null,
+                "_score": 1.0,
                 "_routing": "100000000000290432",
                 "_source": {},
                 "sort": [
@@ -59,93 +192,490 @@
 - _score
 - _source 结果值JSON
 
+### 索引
 
+#### 创建索引
 
-## Spring整合ES
+索引别名作用：
 
-### 注解
+```json
+## 创建空索引
+PUT /hao
 
-#### @Document
+## 创建索引,指定别名
+PUT /hao/_alias/haoIndex
+{
+	"settings": {
+		"index": {
+			"number_of_shards": "2",
+			"number_of_replicas": "0"
+		}
+	},
+	"mappings": {
+		"_doc": {
+			"properties": {
+				"name": {
+					"type": "keyword"
+				},
+				"age": {
+					"type": "long"
+				},
+				"address": {
+					"type": "text"
+				},
+				"birthday": {
+					"type": "date",
+					"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis"
+				}
+			}
+		}
+	}
+}
+```
 
-注解作用在类上，标记实体类为文档对象，常用属性如下：
+#### 查看索引
 
-（1）indexName：对应索引库名称；
+```json
+GET /bookdb_index/_settings
 
-（2）type：对应在索引库中的类型；
-
-（3）shards：分片数
-
-（4）replicas：副本数；
-
-#### @Field
-
-作用在成员变量，标记为文档的字段，并制定映射属性；
-
-（1）@Id：作用在成员变量，标记一个字段为id主键；一般id字段或是域不需要存储也不需要分词；
-
-（2）type：字段的类型，取值是枚举，FieldType；
-
-（3）index：是否索引，布尔值类型，默认是true；
-
-（4）store：是否存储，布尔值类型，默认值是false；
-
-（5）analyzer：分词器名称
-
-
-【 @Field(type = FieldType.Keyword)和 @Field(type = FieldType.Text)区别】
-在早期elasticsearch5.x之前的版本存储字符串只有string字段；但是在elasticsearch5.x之后的版本存储了Keyword和Text，都是存储字符串的。
-FieldType.Keyword存储字符串数据时，不会建立索引；
-FieldType.Text在存储字符串数据的时候，会自动建立索引，也会占用部分空间资源。
-
-
-【注意】（1）@Field(index=true)表示是否索引，如果是索引表示该字段(或者叫域)能能够搜索。
-【注意】（2）@Field(analyzer="ik_max_word",searchAnalyzer="ik_max_word")表示是否分词，如果是分词就会按照分词的单词搜索，如果不是分词就按照整体搜索。
-【注意】（3）@Field(store=true)是否存储，也就是页面上显示。**
-
-
-
-### QueryBuilder
-
- * termQuery("key", obj) 完全匹配
- * termsQuery("key", obj1, obj2..)   一次匹配多个值
- * matchQuery("key", Obj) 单个匹配, field不支持通配符, 前缀具高级特性
- * multiMatchQuery("text", "field1", "field2"..);  匹配多个字段, field有通配符忒行
- * matchAllQuery();         匹配所有文件
-
-*** 组合查询**
-
- * must(QueryBuilders) :   AND
- * mustNot(QueryBuilders): NOT
- * should:                  : OR
- */
-
-
- * 只查询一个id的
- * QueryBuilders.idsQuery(String...type).ids(Collection<String> ids)
-
-
-
-/**
- * 通配符查询, 支持 * 
- * 匹配任何字符序列, 包括空
- * 避免* 开始, 会检索大量内容造成效率缓慢
- */
- QueryBuilders.wildcardQuery("user", "ki*hy");
-
-
-
-
- // 命中的记录数
-    long totalHits = response.getHits().totalHits();
-    
-    for (SearchHit searchHit : response.getHits()) {
-        // 打分
-        float score = searchHit.getScore();
+{
+  "bookdb_index" : {
+    "settings" : {
+      "index" : {
+        "creation_date" : "1627916851099",
+        "number_of_shards" : "1",
+        "number_of_replicas" : "1",
+        "uuid" : "CE8SwKDQQ_WXuGiEViyhtQ",
+        "version" : {
+          "created" : "7090399"
+        },
+        "provided_name" : "bookdb_index"
+      }
     }
+  }
+}
+```
+
+
+
+#### 更新索引
+
+```json
+PUT /hao/_settings
+{
+  "number_of_replicas": 2
+}
+```
+
+
+
+#### 复制索引
+
+索引复制，只会复制数据，`不会复制索引配置`。复制的时候，可以添加查询条件。
+
+```json
+POST _reindex
+{
+  "source": {"index":"hao"},
+  "dest": {"index":"hao_new"}
+}
+```
+
+#### 索引别名
+
+- `add`可以为索引创建别名，如果这个别名是唯一的，该别名可以代替索引名称。
+
+```json
+POST /_aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "hao",
+        "alias": "hao_alias"
+      }
+    }
+  ]
+}
+```
+
+- `remove`移除索引别名
+
+```
+POST /_aliases
+{
+  "actions": [
+    {
+      "remove": {
+        "index": "hao",
+        "alias": "hao_alias"
+      }
+    }
+  ]
+}
+```
+
+- 查看索引别名
+
+```
+GET /hao/_alias
+
+{
+  "hao" : {
+    "aliases" : {
+      "haoIndex" : { },
+      "hao_alias" : { }
+    }
+  }
+}
+```
+
+
+
+#### 删除索引
+
+```json
+## 索引名称
+DELETE /hao
+```
+
+
+
+#### 索引打开/关闭
+
+- 索引打开
+
+```
+POST /hao/_open
+```
+
+- 索引关闭
+
+```
+POST /hao/_close
+```
+
+
+
+### 创建映射
+
+```json
+GET /bookdb_index/_mapping
+
+{
+  "bookdb_index" : {
+    "mappings" : {
+      "properties" : {
+        "authors" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "num_reviews" : {
+          "type" : "long"
+        },
+        "publish_date" : {
+          "type" : "date"
+        },
+        "publisher" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "summary" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "title" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+```
+
+
+
+### 新增数据
+
+#### 单条数据
+
+```json
+## 新增数据,id=10
+POST /bookdb_index/_doc/10
+{
+	"title": "Elasticsearch: The Definitive Guide",
+	"authors": [
+		"clinton gormley",
+		"zachary tong"
+	],
+	"summary": "A distibuted real-time search and analytics engine",
+	"publish_date": "2015-02-07",
+	"num_reviews": 20,
+	"publisher": "oreilly"
+}
+```
+
+#### 批量新增
+
+```json
+## 批量新增,_bulk
+POST /bookdb_index/_bulk
+
+{ "index": { "_id": 1 }}
+{ "title": "Elasticsearch: The Definitive Guide", "authors": ["clinton gormley", "zachary tong"], "summary" : "A distibuted real-time search and analytics engine", "publish_date" : "2015-02-07", "num_reviews": 20, "publisher": "oreilly" }
+{ "index": { "_id": 2 }}
+{ "title": "Taming Text: How to Find, Organize, and Manipulate It", "authors": ["grant ingersoll", "thomas morton", "drew farris"], "summary" : "organize text using approaches such as full-text search, proper name recognition, clustering, tagging, information extraction, and summarization", "publish_date" : "2013-01-24", "num_reviews": 12, "publisher": "manning" }
+{ "index": { "_id": 3 }}
+{ "title": "Elasticsearch in Action", "authors": ["radu gheorge", "matthew lee hinman", "roy russo"], "summary" : "build scalable search applications using Elasticsearch without having to do complex low-level programming or understand advanced data science algorithms", "publish_date" : "2015-12-03", "num_reviews": 18, "publisher": "manning" }
+```
+
+### 更新文档
+
+#### 更新不存在
+
+#### 全数据更新
+
+```
+PUT /bookdb_index/_doc/9
+{
+	"title": "Elasticsearch: The Definitive Guide",
+	"authors": [
+		"clinton gormley9",
+		"zachary tong9"
+	],
+	"summary": "A distibuted real-time search and analytics engine",
+	"publish_date": "2015-02-07",
+	"num_reviews": 20
+}
+```
+
+有，就删除旧文档，新建新文档，没有，就新增文档
+
+> 使用PUT的_doc方法操作， 必须把所有的数据都传入， 否则会丢失数据
+
+#### 部分数据更新
+
+```json
+POST /bookdb_index/_update/9
+{
+	"doc": {
+		"title": "Elasticsearch: The Definitive Guide112",
+		"authors": [
+			"clinton gormley9-1",
+			"zachary tong9-1"
+		]
+	}
+}
+```
+
+如果指定ID的文档不存在，会报错 'document missing'
+
+#### 搜索更新
+
+先进行查询在进行更新
+
+```json
+POST /bookdb_index/_update_by_query
+{
+  "query": {
+    "match": {
+      "user": "Aben2"
+    }
+  },
+  "script": {
+    "source": "ctx._source.city = params.city;ctx._source.province = params.province;ctx._source.country = params.country",
+    "lang": "painless",
+    "params": {
+      "city": "上海",
+      "province": "上海",
+      "country": "中国"
+    }
+  }
+}
+```
+
+说明：会搜索'user'='Aben2'的文档， 并按照script.source的更新操作， 把source.params的数据更新到文档。
+
+```json
+POST edd/_update_by_query
+{
+  "query": {
+    "match": {
+      "姓名": "张彬"
+    }
+  },
+  "script": {
+    "source": "ctx._source["签到状态"] = params["签到状态"]",
+    "lang": "painless",
+    "params" : {
+      "签到状态":"已签到"
+    }
+  }
+}
+```
+
+> 对于那些名字是中文字段的文档来说，在painless语言中，直接打入中文字段名字，并不能被认可。我们可以使用如下的方式来操作：
+
+#### UPSERT
+
+更新或插入，即如果存在则更新文档，否则插入新文档，这类似于mysql中的replace。
+
+使用doc_as_upsert合并到ID为3的文档中，或者如果不存在则插入一个新文档:
+
+```json
+POST /twitter/_update/3
+{
+     "doc": {
+       "author": "Albert Paro",
+       "title": "Elasticsearch 5.0 Cookbook",
+       "description": "Elasticsearch 5.0 Cookbook Third Edition",
+       "price": "54.99"
+      },
+     "doc_as_upsert": true
+}
+```
+
+### 文档
+
+#### 判断文档是否存在
+
+```json
+HEAD  /hao/_doc/1
+
+## 表示_id=1的文档不存在
+{"statusCode":404,"error":"Not Found","message":"404 - Not Found"}
+
+## 表示_id=1的文档存在
+200 - OK
+```
+
+
+
+#### 删除一个文档
+
+##### 删除一个指定id的文档
+
+```json
+DELETE /hao/_doc/1
+
+## "result" : "not_found",没有此文档
+{
+  "_index" : "hao",
+  "_type" : "_doc",
+  "_id" : "1",
+  "_version" : 1,
+  "result" : "not_found",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 6,
+  "_primary_term" : 2
+}
+
+## "result" : "deleted",删除成功
+{
+  "_index" : "hao",
+  "_type" : "_doc",
+  "_id" : "AbRlJnsBq32WbFllsnEI",
+  "_version" : 2,
+  "result" : "deleted",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 19,
+  "_primary_term" : 2
+}
+```
+
+##### 先查询后删除
+
+删除sex='男'的所有数据
+
+```json
+POST /hao/_delete_by_query
+{
+  "query": {
+    "match": {
+      "sex": "男"
+    }
+  }
+}
+
+## 删除 "total" : 5， "deleted" : 5
+{
+  "took" : 24,
+  "timed_out" : false,
+  "total" : 5,
+  "deleted" : 5,
+  "batches" : 1,
+  "version_conflicts" : 0,
+  "noops" : 0,
+  "retries" : {
+    "bulk" : 0,
+    "search" : 0
+  },
+  "throttled_millis" : 0,
+  "requests_per_second" : -1.0,
+  "throttled_until_millis" : 0,
+  "failures" : [ ]
+}
+
+## 删除 "total" : 0, "deleted" : 0
+{
+  "took" : 14,
+  "timed_out" : false,
+  "total" : 0,
+  "deleted" : 0,
+  "batches" : 0,
+  "version_conflicts" : 0,
+  "noops" : 0,
+  "retries" : {
+    "bulk" : 0,
+    "search" : 0
+  },
+  "throttled_millis" : 0,
+  "requests_per_second" : -1.0,
+  "throttled_until_millis" : 0,
+  "failures" : [ ]
+}
+```
 
 
 
 ### 结构化查询
+
+主要分为两种类型：精确匹配和全文检索匹配
+
+- 精确匹配：term、exists、term set、range、prefix、ids、wildcard、regexp、fuzzy、
+- 全文检索：match、match_phrase、multi_match、match_phrase_prefix、query_string
+
+`GET /索引库名/_search`
 
 #### 精确查询(term)
 
@@ -160,7 +690,7 @@ FieldType.Text在存储字符串数据的时候，会自动建立索引，也会
 
 示例：
 
-```
+```json
 {
     "query": {
         "term": {
@@ -194,21 +724,20 @@ FieldType.Text在存储字符串数据的时候，会自动建立索引，也会
 }
 ```
 
-**QueryBuilders.termsQuery()**  多个内容在一个字段中进行查询
+**QueryBuilders.termsQuery()**  多个筛选值在一个字段中进行查询
 
 #### 匹配查询(match)
 
-match查询是一个标准查询，不管需要全文本查询还是精确查询基本上都要用到它。
+match查询是一个标准查询，不管需要全文本查询还是精确查询基本上都要用到它
 
-如果使用matc 查询一个全文本字段，它会在真正查询之前用分析器先分析match一下查询字符：
+如果使用match 查询一个全文本字段，它会在真正查询之前用分析器先分析match一下查询字符：
 
 示例：匹配查询全部数据与分页
 
 ```json
 {
     "query": {
-        "match_all": {
-            
+        "match_all": { 
         }
     },
     "from": 0,
@@ -243,8 +772,6 @@ searchSourceBuilder.sort("salary", SortOrder.ASC);
 { "match": { "tag": "full_text" }}
 ```
 
-
-
 匹配查询数据
 
 ```json
@@ -257,12 +784,13 @@ searchSourceBuilder.sort("salary", SortOrder.ASC);
 }
 ```
 
-QueryBuilders.matchQuery()
+`QueryBuilders.matchQuery()`
 
- 3、模糊查询(fuzzy)
+####  模糊查询(fuzzy)
+
  模糊查询所有以 三 结尾的姓名
 
-```
+```json
 {
     "query": {
         "fuzzy": {
@@ -272,8 +800,7 @@ QueryBuilders.matchQuery()
 }
 ```
 
-
-QueryBuilders.fuzzyQuery("name", "三").fuzziness(Fuzziness.AUTO)
+`QueryBuilders.fuzzyQuery("name", "三").fuzziness(Fuzziness.AUTO)`
 
 #### 包含查询(exists )
 
@@ -315,7 +842,7 @@ exists 查询可以用于查找文档中是否包含指定字段或没有某个�
 }
 ```
 
-**QueryBuilders.rangeQuery("age").gte(30).lte(34)**
+`QueryBuilders.rangeQuery("age").gte(30).lte(34)`
 
 #### 多字段查询(multi_match)
 
@@ -333,7 +860,7 @@ exists 查询可以用于查找文档中是否包含指定字段或没有某个�
 }
 ```
 
- **QueryBuilders.multiMatchQuery()**
+`QueryBuilders.multiMatchQuery()`
 
 #### 通配符查询(wildcard)
 
@@ -349,7 +876,7 @@ exists 查询可以用于查找文档中是否包含指定字段或没有某个�
 }
 ```
 
-**QueryBuilders.wildcardQuery("name.keyword", "*三")**
+`QueryBuilders.wildcardQuery("name.keyword", "*三")`
 
 #### 布尔查询(bool)
 
@@ -471,6 +998,74 @@ boolQueryBuilder
 
 
 
+### 查询结果只展示部分字段
+
+```json
+GET student/_search
+
+{
+  "query": {
+    "match": {
+      "age": "12"
+    }
+  },
+  "_source": {
+    "includes": [
+      "name"
+    ]
+  }
+}
+```
 
 
-八、聚合查询操作示例
+
+### 聚合查询
+
+类似关系型数据库中的`group by`
+
+分词作用
+
+ES的聚合查询
+
+#### Bucket（分桶） 
+
+根据字段值，范围或其他条件将文档分组为桶（也称为箱）。
+
+#### Metric（计算）
+
+从字段值计算指标（例如总和或平均值）的指标聚合。
+
+#### Pipeline（管道）
+
+子聚合，从其他聚合（而不是文档或字段）获取输入。
+
+#### Metrix（矩阵）
+
+
+
+### 数据同步方案
+
+#### 业务层代码双写
+
+#### 定时任务同步
+
+#### 基于MySql的增量binlog解析
+
+MySQL binlog表监听 + Canal + MQ
+
+##### 所有表监听
+
+#### 增量同步和全量同步
+
+索引更新方案：
+
+1. 新建带版本号的新索引
+2. 暂停增量更新
+3. 执行全量数据导入
+4. 切换对外别名的指向
+5. 删除旧索引
+6. 开启增量更新
+
+
+
+首次查询从库，未查询到，强制查询主库；
