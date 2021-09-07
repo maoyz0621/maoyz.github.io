@@ -6,8 +6,6 @@
 
 ES查询服务，ES数据的同步，mapping、索引的更新，隔离对业务的入侵
 
-
-
 ## 核心概念
 
 - 索引（Index）
@@ -196,8 +194,6 @@ ES查询服务，ES数据的同步，mapping、索引的更新，隔离对业务
 
 #### 创建索引
 
-索引别名作用：
-
 ```json
 ## 创建空索引
 PUT /hao
@@ -254,9 +250,10 @@ GET /bookdb_index/_settings
     }
   }
 }
+
+GET /bookdb_index/_mapping
+
 ```
-
-
 
 #### 更新索引
 
@@ -266,8 +263,6 @@ PUT /hao/_settings
   "number_of_replicas": 2
 }
 ```
-
-
 
 #### 复制索引
 
@@ -282,6 +277,8 @@ POST _reindex
 ```
 
 #### 索引别名
+
+​		生产提供服务的索引，切记使用别名提供服务，而不是直接暴露索引名称，避免后续因为业务变更或者索引数据需要reindex等情况造成业务中断。
 
 - `add`可以为索引创建别名，如果这个别名是唯一的，该别名可以代替索引名称。
 
@@ -301,7 +298,7 @@ POST /_aliases
 
 - `remove`移除索引别名
 
-```
+```json
 POST /_aliases
 {
   "actions": [
@@ -317,7 +314,7 @@ POST /_aliases
 
 - 查看索引别名
 
-```
+```json
 GET /hao/_alias
 
 {
@@ -330,16 +327,12 @@ GET /hao/_alias
 }
 ```
 
-
-
 #### 删除索引
 
 ```json
 ## 索引名称
 DELETE /hao
 ```
-
-
 
 #### 索引打开/关闭
 
@@ -730,7 +723,7 @@ POST /hao/_delete_by_query
 
 match查询是一个标准查询，不管需要全文本查询还是精确查询基本上都要用到它
 
-如果使用match 查询一个全文本字段，它会在真正查询之前用分析器先分析match一下查询字符：
+如果使用match查询一个全文本字段，它会在真正查询之前用分析器先分析match一下查询字符：
 
 示例：匹配查询全部数据与分页
 
@@ -882,11 +875,11 @@ exists 查询可以用于查找文档中是否包含指定字段或没有某个�
 
 bool 查询可以用来合并多个条件查询结果的布尔逻辑，它包含一下操作符：
 
-- must  多个查询条件的完全匹配，相当于 and 
+- must  多个查询条件的完全匹配，相当于 `and`
 
-- must_not  多个查询条件的相反匹配，相当于 not 
+- must_not  多个查询条件的相反匹配，相当于 `not`
 
-- should  至少有一个查询条件匹配，相当于 or 
+- should  至少有一个查询条件匹配，相当于 `or`
 
 示例：
 
@@ -1017,8 +1010,6 @@ GET student/_search
 }
 ```
 
-
-
 ### 聚合查询
 
 类似关系型数据库中的`group by`
@@ -1043,7 +1034,71 @@ ES的聚合查询
 
 
 
-### 数据同步方案
+## 集群
+
+### 分布式文档
+
+#### routing路由
+
+对于数据量较大的业务查询场景，ES侧一般会创建多个shard，并将shard分配到集群中的多个实例来分摊压力，正常情况下，一个查询会遍历查询所有的shard，然后将查询到的结果进行merge之后，再返回。
+
+写入的时候设置routing，可以避免每次查询都遍历全量shard，而且查询的时候也指定对应的routingkey，这种情况下，ES会只去查询对应的shard，可以大幅度降低merge数据和调度全量shard的开销。
+
+
+
+`routing`是任意字符串，默认使用文档的`_id`；在写入（更新）时，用于计算文档所属分片，在查询（GET请求或指定routing的查询）中用于限制查询范围，提高查询速度。
+
+```
+shard_num = hash(_routing) % num_primary_shards
+```
+
+该公式可以保证相同routing的文档被分配到同一个shard上，容易导致**数据倾斜**
+
+- `routing_partition_size`   将`routing`相同的文档映射到集群分片的一个子集上，可以减少查询的分片数，也可以在一定程度上防止数据倾斜
+
+```
+shard_num = (hash(_routing) + hash(_id) % routing_partition_size) % num_primary_shards
+```
+
+#### 数据倾斜
+
+
+
+#### routing的使用
+
+- 写入操作
+
+文档的PUT, POST, BULK操作均支持routing参数，在请求中带上routing=xxx即可。使用了routing值即可保证使用相同routing值的文档被分配到一个或一批分片上。
+
+- GET操作
+
+对于使用了routing写入的文档，在GET时必须指定routing，否则可能导致404，这与GET的实现机制有关，GET请求会先根据routing找到对应的分片再获取文档，如果对写入使用routing的文档GET时没有指定routing，那么会默认使用_id进行routing从而大概率无法获得文档。
+
+- 查询操作
+
+查询操作可以在body中指定 `_routing`参数（可以指定多个）来进行查询。当然不指定 `_routing`也是可以查询出结果的，不过是遍历所有的分片，指定了 `_routing`后，查询仅会对routing对应的一个或一批索引进行检索，从而提高查询效率。
+
+- UPDATE或DELETE操作
+
+UPDATE或DELETE操作与GET操作类似，也是先根据routing确定分片，再进行更新或删除操作，因此对于写入使用了routing的文档，必须指定routing，否则会报404响应。
+
+> TOB领域：一般routing会用于一个租户（即公司ID）的概念，用了routing起到了租户隔离的作用
+>
+> TOC领域：互联网中的用户数据，可以用userid作为routing，这样就能保证同一个用户的数据全部保存到同一个shard，后面检索的时候，同样使用userid作为routing，就可以精准的从某个shard获取数据了。对于超大数据量的搜索，routing再配合hot&warm的架构，是非常有用的一种解决方案。而且同一种属性的数据写到同一个shard还有很多好处，比如可以提高aggregation的准确性
+
+
+
+
+
+
+
+13、避免宽表
+
+在索引中定义太多字段是一种可能导致映射爆炸的情况，这可能导致内存不足错误和难以恢复的情况，这个问题可能比预期更常见，index.mapping.total_fields.limit ，默认值是1000。
+
+
+
+## 数据同步方案
 
 #### 业务层代码双写
 

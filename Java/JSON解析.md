@@ -52,21 +52,21 @@ public class PersonInfo {
 }
 ```
 
-+ 入参格式化，将String转换成Date，一般是前台到后台的时间格式的转换
++ 请求非json数据，建议用@DateTimeFormat即可，入参格式化，将前端String转换成Date，一般是前台到后台的时间格式的转换，使用在非json数据，在json数据请求时无效
 
 ```java
 @DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss")
 ```
 
-+ 出参格式化 ，将Date转换成String，一般是后台到前台的时间格式的转换
++ 格式化json序列化，入参将String转换成Date，出参将Date转换成String
 
 ```java
 @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss", timezone="GMT+8")
 ```
 
-> pattern:需要转换的时间日期的格式
+> pattern：需要转换的时间日期的格式
 >
-> timezone:时间设置为东八区，避免时间在转换中有误差
+> timezone：时间设置为东八区，避免时间在转换中有误差
 
 
 
@@ -227,6 +227,120 @@ public class Table implements Serializable {
 
 对于嵌套的内部类，一般建议使用static class
 
+### 格式化日期@DateTimeFormat
+
+post请求，发送形式`form-data`
+
+```java
+public class UserFormBean {
+    
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    private Date date;
+    
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date dateTime;
+}
+```
+
+返回结果：`"Failed to convert property value of type 'java.lang.String' to required type 'java.util.Date' for property 'dateTime'; nested exception is org.springframework.core.convert.ConversionFailedException: Failed to convert from type [java.lang.String] to type [java.util.Date] for value '2020-12-12 12:12:12'; nested exception is java.lang.IllegalArgumentException"`
+
+```json
+date       2020-12-12
+dateTime   2020-12-12 12:12:12
+
+{
+    "timestamp": 1631025255874,
+    "status": 400,
+    "error": "Bad Request",
+    "errors": [
+        {
+            "codes": [
+                "typeMismatch.userFormBean.date",
+                "typeMismatch.date",
+                "typeMismatch.java.util.Date",
+                "typeMismatch"
+            ],
+            "arguments": [
+                {
+                    "codes": [
+                        "userFormBean.date",
+                        "date"
+                    ],
+                    "arguments": null,
+                    "defaultMessage": "date",
+                    "code": "date"
+                }
+            ],
+            "defaultMessage": "Failed to convert property value of type 'java.lang.String' to required type 'java.util.Date' for property 'date'; nested exception is org.springframework.core.convert.ConversionFailedException: Failed to convert from type [java.lang.String] to type [@com.fasterxml.jackson.annotation.JsonFormat java.util.Date] for value '2020-12-12'; nested exception is java.lang.IllegalArgumentException",
+            "objectName": "userFormBean",
+            "field": "date",
+            "rejectedValue": "2020-12-12",
+            "bindingFailure": true,
+            "code": "typeMismatch"
+        },
+        {
+            "codes": [
+                "typeMismatch.userFormBean.dateTime",
+                "typeMismatch.dateTime",
+                "typeMismatch.java.util.Date",
+                "typeMismatch"
+            ],
+            "arguments": [
+                {
+                    "codes": [
+                        "userFormBean.dateTime",
+                        "dateTime"
+                    ],
+                    "arguments": null,
+                    "defaultMessage": "dateTime",
+                    "code": "dateTime"
+                }
+            ],
+            "defaultMessage": "Failed to convert property value of type 'java.lang.String' to required type 'java.util.Date' for property 'dateTime'; nested exception is org.springframework.core.convert.ConversionFailedException: Failed to convert from type [java.lang.String] to type [java.util.Date] for value '2020-12-12 12:12:12'; nested exception is java.lang.IllegalArgumentException",
+            "objectName": "userFormBean",
+            "field": "dateTime",
+            "rejectedValue": "2020-12-12 12:12:12",
+            "bindingFailure": true,
+            "code": "typeMismatch"
+        }
+    ],
+    "message": "Validation failed for object='userFormBean'. Error count: 2",
+    "path": "/jackson/post"
+}
+```
+
+### 序列化日期@JsonFormat
+
+```java
+public class UserBean {
+
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    private Date date;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date dateTime;
+
+}
+```
+
+请求参数：
+
+```json
+{"date":"2021-08-04","dateTime":"2021-08-07 10:11:12"}
+```
+
+返回结果：` "JSON parse error: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null)); nested exception is com.fasterxml.jackson.databind.exc.InvalidFormatException: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null))\n at [Source: (PushbackInputStream); line: 1, column: 33] (through reference chain: com.myz.springboot2.jackson.domain.UserBean[\"dateTime\"])"`
+
+```java
+{
+  "timestamp": 1631026154631,
+  "status": 400,
+  "error": "Bad Request",
+  "message": "JSON parse error: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null)); nested exception is com.fasterxml.jackson.databind.exc.InvalidFormatException: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null))\n at [Source: (PushbackInputStream); line: 1, column: 33] (through reference chain: com.myz.springboot2.jackson.domain.UserBean[\"dateTime\"])",
+  "path": "/jackson/postJson"
+}
+```
+
 
 
 ### 自定义序列化
@@ -322,4 +436,29 @@ public class MyStatusJsonSerializer extends JsonSerializer<Integer> {
         jsonGenerator.writeString(statusDesc);
     }
 }
+
+/**
+ * 前端"2021-08-02 11:11:12" 传到后端转Long
+ * StdConverter<IN,OUT> implements Converter<IN,OUT>
+ */
+public class DateToLongStdConverter extends StdConverter<String, Long> {
+
+    @Override
+    public Long convert(String val) {
+        if (StringUtils.isEmpty(val)) {
+            return null;
+        }
+        LocalDateTime parse = null;
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            parse = LocalDateTime.parse(val, formatter);
+        } catch (Exception e) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            parse = LocalDateTime.parse(val, formatter);
+        }
+        return parse.toInstant(ZoneOffset.of("+8")).toEpochMilli();
+    }
+}
+使用@JsonDeserialize(converter = DateToLongStdConverter.class)
 ```
+

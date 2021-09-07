@@ -599,7 +599,7 @@ select 语句的执行计划。表的读取顺序、哪些索引可以使用、�
 
 #### type
 
-NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > **range** > index > ALL，一般来说，至少达到range级别，最好ref。
+NULL > system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > **range** > index > ALL，一般来说，至少达到range级别，最好ref。
 
 1. system、const：常量，primary key 或 union key 与常量比较，返回最多一条
 2. eq_ref：primary key 和 union key 连接使用，返回最多一条
@@ -616,7 +616,7 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 
 #### key
 
-查询时**实际**使用的索引。
+查询时**实际**使用的索引
 
 ####  key_len
 
@@ -631,6 +631,8 @@ NULL>system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > uniq
 查询时读取的行数，不是结果集的行数。
 
 #### Extra
+
+额外信息
 
 1. distinct：一旦找到与行相匹配的行，不再搜索
 2. Using index：使用了覆盖索引
@@ -720,10 +722,6 @@ mysql> SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED；
 •   设置全局级隔离级别为READ COMMITTED ： 
 mysql> SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED；
 ```
-
-## 乐观锁和悲观锁
-
-
 
 ## 分解关联查询
 
