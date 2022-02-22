@@ -18,7 +18,7 @@ binlog是记录所有数据库表结构变更（例如CREATE、ALTER TABLE…）
 
 查看binlog的具体事件类型
 
-```
+```mysql
 show binlog events in 'binlogfile'
 ```
 
@@ -58,13 +58,9 @@ binlog一共有三种工作模式：
 
 ###  binlog文件结构
 
-|                                                              |
-| ------------------------------------------------------------ |
-| <img src="image\MySQL\binlog结构图.png" style="zoom: 45%;" /> |
-
 #### Event_type
 
-事件结构：一个事件对象分为事件头和事件体
+事件结构：一个事件对象分为event - header和event - data
 
 ```
 +=====================================+
@@ -90,22 +86,49 @@ binlog一共有三种工作模式：
 
 如果事件头的长度是 `x` 字节，那么事件体的长度为 `(event_length - x)` 字节；设事件体中 `fixed part` 的长度为 `y` 字节，那么 `variable part` 的长度为 `(event_length - (x + y))` 字节
 
+**format description event** (size ≥ 91 bytes; the size is 76 + the number of event types)
+
+```
++=====================================+
+| event  | timestamp         0 : 4    |
+| header +----------------------------+
+|        | type_code         4 : 1    | = FORMAT_DESCRIPTION_EVENT = 15
+|        +----------------------------+
+|        | server_id         5 : 4    |
+|        +----------------------------+
+|        | event_length      9 : 4    | >= 91
+|        +----------------------------+
+|        | next_position    13 : 4    |
+|        +----------------------------+
+|        | flags            17 : 2    |
++=====================================+
+| event  | binlog_version   19 : 2    | = 4
+| data   +----------------------------+
+|        | server_version   21 : 50   |
+|        +----------------------------+
+|        | create_timestamp 71 : 4    |
+|        +----------------------------+
+|        | header_length    75 : 1    |
+|        +----------------------------+
+|        | post-header      76 : n    | = array of n bytes, one byte per event
+|        | lengths for all            |   type that the server knows about
+|        | event types                |
++=====================================+
+```
+
+https://dev.mysql.com/doc/internals/en/binary-log-versions.html
+
 
 
 binlog Event_type的结构主要有3个版本：
 
-- v1: 在 MySQL 3.23 中使用
-- v3: 在 MySQL 4.0.2 到 4.1 中使用
 - v4: 在 MySQL 5.0 及以上版本中使用
 
 | 事件类型                 | 说明                                                         |
 | ------------------------ | ------------------------------------------------------------ |
-| UNKNOWN_EVENT            | 此事件从不会被触发，也不会被写入binlog中；发生在当读取binlog时，不能被识别其他任何事件，那被视为UNKNOWN_EVENT |
 | QUERY_EVENT              | 执行更新语句时会生成此事件，包括：create，insert，update，delete； |
-| STOP_EVENT               | 当mysqld停止时生成此事件                                     |
 | ROTATE_EVENT             | 当mysqld切换到新的binlog文件生成此事件，切换到新的binlog文件可以通过执行flush logs命令或者binlog文件大于 `max_binlog_size` 参数配置的大小； |
 | INTVAR_EVENT             | 当sql语句中使用了AUTO_INCREMENT的字段或者LAST_INSERT_ID()函数；此事件没有被用在binlog_format为ROW模式的情况下 |
-| SLAVE_EVENT              | 未使用                                                       |
 | RAND_EVENT               | 执行包含RAND()函数的语句产生此事件，此事件没有被用在binlog_format为ROW模式的情况下 |
 | USER_VAR_EVENT           | 执行包含了用户变量的语句产生此事件，此事件没有被用在binlog_format为ROW模式的情况下 |
 | FORMAT_DESCRIPTION_EVENT | 描述事件，被写在每个binlog文件的开始位置，用在MySQL5.0以后的版本中，代替了START_EVENT_V3 |
@@ -116,18 +139,6 @@ binlog Event_type的结构主要有3个版本：
 | WRITE_ROWS_EVENT         | 用在binlog_format为ROW模式下，对应 insert 操作               |
 | UPDATE_ROWS_EVENT        | 用在binlog_format为ROW模式下，对应 update 操作               |
 | DELETE_ROWS_EVENT        | 用在binlog_format为ROW模式下，对应 delete 操作               |
-| INCIDENT_EVENT           | 主服务器发生了不正常的事件，通知从服务器并告知可能会导致数据处于不一致的状态 |
-| HEARTBEAT_LOG_EVENT      | 主服务器告诉从服务器，主服务器还活着，不写入到日志文件中     |
-
-##### QUERY_ EVENT
-
-以文本的形式记录事务的操作，使用场景：
-
-1. 事务开始时，执行的BEGIN操作
-2. STATEMENT格式中的DML操作
-3. ROW格式中的DDL操作
-
-
 
 binlog写入机制
 
@@ -173,6 +184,12 @@ show VARIABLES LIKE '%log_bin%';
 
 
 
+```
+
+```
+
+
+
 开启binlog功能
 
 windon系统`mysql.ini`文件
@@ -181,8 +198,6 @@ windon系统`mysql.ini`文件
 log_bin=mysqlbinlog
 binlog-format=ROW
 ```
-
-
 
 
 
@@ -199,13 +214,47 @@ mysql> show binary logs;
 
 show binlog events;
 
-mysql> show binlog events in 'binlog.000048';
-+---------------+-----+----------------+-----------+-------------+-----------------------------------+
-| Log_name      | Pos | Event_type     | Server_id | End_log_pos | Info                              |
-+---------------+-----+----------------+-----------+-------------+-----------------------------------+
-| binlog.000048 |   4 | Format_desc    |         1 |         124 | Server ver: 8.0.13, Binlog ver: 4 |
-| binlog.000048 | 124 | Previous_gtids |         1 |         155 |                                   |
-+---------------+-----+----------------+-----------+-------------+-----------------------------------+
+mysql> show master logs;
++---------------------+-----------+
+| Log_name            | File_size |
++---------------------+-----------+
+| mysql-binlog.000001 |       511 |
+| mysql-binlog.000002 |       768 |
++---------------------+-----------+
+
+mysql> show binlog events in 'mysql-binlog.000001';
++---------------------+-----+----------------+-----------+-------------+--------------------------------------+
+| Log_name            | Pos | Event_type     | Server_id | End_log_pos | Info                                 |
++---------------------+-----+----------------+-----------+-------------+--------------------------------------+
+| mysql-binlog.000001 |   4 | Format_desc    |         1 |         124 | Server ver: 8.0.13, Binlog ver: 4    |
+| mysql-binlog.000001 | 124 | Previous_gtids |         1 |         155 |                                      |
+| mysql-binlog.000001 | 155 | Anonymous_Gtid |         1 |         230 | SET @@SESSION.GTID_NEXT= 'ANONYMOUS' |
+| mysql-binlog.000001 | 230 | Query          |         1 |         319 | BEGIN                                |
+| mysql-binlog.000001 | 319 | Table_map      |         1 |         388 | table_id: 65 (mybatis.t_user_1)      |
+| mysql-binlog.000001 | 388 | Update_rows    |         1 |         457 | table_id: 65 flags: STMT_END_F       |
+| mysql-binlog.000001 | 457 | Xid            |         1 |         488 | COMMIT /* xid=312 */                 |
+| mysql-binlog.000001 | 488 | Stop           |         1 |         511 |                                      |
++---------------------+-----+----------------+-----------+-------------+--------------------------------------+
+8 rows in set (0.02 sec)
+
+mysql> show binlog events in 'mysql-binlog.000002';
++---------------------+-----+----------------+-----------+-------------+--------------------------------------+
+| Log_name            | Pos | Event_type     | Server_id | End_log_pos | Info                                 |
++---------------------+-----+----------------+-----------+-------------+--------------------------------------+
+| mysql-binlog.000002 |   4 | Format_desc    |         1 |         124 | Server ver: 8.0.13, Binlog ver: 4    |
+| mysql-binlog.000002 | 124 | Previous_gtids |         1 |         155 |                                      |
+| mysql-binlog.000002 | 155 | Anonymous_Gtid |         1 |         230 | SET @@SESSION.GTID_NEXT= 'ANONYMOUS' |
+| mysql-binlog.000002 | 230 | Query          |         1 |         310 | BEGIN                                |
+| mysql-binlog.000002 | 310 | Table_map      |         1 |         365 | table_id: 76 (mybatis.user1)         |
+| mysql-binlog.000002 | 365 | Write_rows     |         1 |         417 | table_id: 76 flags: STMT_END_F       |
+| mysql-binlog.000002 | 417 | Xid            |         1 |         448 | COMMIT /* xid=60 */                  |
+| mysql-binlog.000002 | 448 | Anonymous_Gtid |         1 |         523 | SET @@SESSION.GTID_NEXT= 'ANONYMOUS' |
+| mysql-binlog.000002 | 523 | Query          |         1 |         612 | BEGIN                                |
+| mysql-binlog.000002 | 612 | Table_map      |         1 |         667 | table_id: 76 (mybatis.user1)         |
+| mysql-binlog.000002 | 667 | Update_rows    |         1 |         737 | table_id: 76 flags: STMT_END_F       |
+| mysql-binlog.000002 | 737 | Xid            |         1 |         768 | COMMIT /* xid=79 */                  |
++---------------------+-----+----------------+-----------+-------------+--------------------------------------+
+12 rows in set (0.03 sec)
 ```
 
 
@@ -237,29 +286,66 @@ mysqlbinlog -vv "binlog.000048" > "test.sql"
 ```shell
 [E:\WorkWare\mysql-8.0.13-winx64\data]$ mysqlbinlog "binlog.000047"
 
-#210815 13:52:15 server id 1  end_log_pos 4746 CRC32 0xb9ea8a8a 	Anonymous_GTID	last_committed=11	sequence_number=12	rbr_only=no	original_committed_timestamp=1629006735061122	immediate_commit_timestamp=1629006735061122	transaction_length=229
-# original_commit_timestamp=1629006735061122 (2021-08-15 13:52:15.061122 中国标准时间)
-# immediate_commit_timestamp=1629006735061122 (2021-08-15 13:52:15.061122 中国标准时间)
-/*!80001 SET @@session.original_commit_timestamp=1629006735061122*//*!*/;
-SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at 4
+#210913 23:12:39 server id 1  end_log_pos 124 CRC32 0x8958bfbe  Start: binlog v 4, server v 8.0.13 created 210913 23:12:39 at startup
+# Warning: this binlog is either in use or was not closed properly.
+ROLLBACK/*!*/;
+BINLOG '
+Z2o/YQ8BAAAAeAAAAHwAAAABAAQAOC4wLjEzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABnaj9hEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgG+v1iJ
+'/*!*/;
 
-# at 4746
-#210815 13:52:15 server id 1  end_log_pos 4902 CRC32 0xb0032563 	Query	thread_id=8	exec_time=0	error_code=0
-SET TIMESTAMP=1629006735/*!*/;
+# at 124
+#210913 23:12:39 server id 1  end_log_pos 155 CRC32 0x79cc77f9  Previous-GTIDs
+# [empty]
+# at 155
+#210913 23:17:41 server id 1  end_log_pos 230 CRC32 0xc4ee33fb  Anonymous_GTID  last_committed=0        sequence_number=1       rbr_only=yes    original_committed_timestamp=1631546261491575   immediate_commit_ti
+mestamp=1631546261491575        transaction_length=333
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp=1631546261491575 (2021-09-13 23:17:41.491575 中国标准时间)
+# immediate_commit_timestamp=1631546261491575 (2021-09-13 23:17:41.491575 中国标准时间)
+/*!80001 SET @@session.original_commit_timestamp=1631546261491575*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at 230
+#210913 23:17:41 server id 1  end_log_pos 319 CRC32 0xdb6b3484  Query   thread_id=81    exec_time=0     error_code=0
+SET TIMESTAMP=1631546261/*!*/;
+SET @@session.pseudo_thread_id=81/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1168113696/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=33/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+/*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
-DROP TABLE IF EXISTS `canal_user` /* generated by server */
-/*!*/;
 
-# at 4902
-#210815 13:52:15 server id 1  end_log_pos 4977 CRC32 0x1ee853b2 	Anonymous_GTID	last_committed=12	sequence_number=13	rbr_only=no	original_committed_timestamp=1629006735075339	immediate_commit_timestamp=1629006735075339	transaction_length=629
-# original_commit_timestamp=1629006735075339 (2021-08-15 13:52:15.075339 中国标准时间)
-# immediate_commit_timestamp=1629006735075339 (2021-08-15 13:52:15.075339 中国标准时间)
-/*!80001 SET @@session.original_commit_timestamp=1629006735075339*//*!*/;
-SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+BEGIN
+/*!*/;
+# at 319
+#210913 23:17:41 server id 1  end_log_pos 388 CRC32 0x70832ac8  Table_map: `mybatis`.`t_user_1` mapped to number 65
+# at 388
+#210913 23:17:41 server id 1  end_log_pos 457 CRC32 0xb28420dc  Update_rows: table id 65 flags: STMT_END_F
+
+BINLOG '
+lWs/YRMBAAAARQAAAIQBAAAAAEEAAAAAAAEAB215YmF0aXMACHRfdXNlcl8xAAQDDw8PBv0C/QL9
+Ag4BAYACASHIKoNw
+lWs/YR8BAAAARQAAAMkBAAAAAEEAAAAAAAEAAgAE//8MCwAAAAcAc2Fkc2FhcwgLAAAABwBzYWRz
+YWFzAwAxMjPcIISy
+'/*!*/;
+# at 457
+#210913 23:17:41 server id 1  end_log_pos 488 CRC32 0xb57157e2  Xid = 312
+COMMIT/*!*/;
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC' /* added by mysqlbinlog */ /*!*/;
+DELIMITER ;
+# End of log file
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 ```
 
-- position：位于文件中的位置，即第一行的（# at 4746）,说明该事件记录从文件第4902个字节开始
-- timestamp：事件发生的时间戳，即第二行的（#210815 13:52:15）
+- position：位于文件中的位置，即第一行的（# at 4）,说明该事件记录从文件第4902个字节开始
+- timestamp：事件发生的时间戳，即第二行的（#210913 23:12:39）
 - server id：服务器标识（1）
 - end_log_pos：表示下一个事件开始的位置（即当前事件的结束位置+1）
 - thread_id：执行该事件的线程id （thread_id=8）
@@ -330,6 +416,14 @@ mysql> show variables like '%expire_logs_days%';
 | binlog_cache_size                             | 指定事务日志缓存区大小                         |
 | max_binlog_cache_size                         | 指定二进制日志缓存最大大小                     |
 | sync_binlog = { 0 \| n }                      | 指定写缓冲多少次，刷一次盘                     |
+
+主要分为3个步骤：
+
+第一步：master在每次准备提交事务完成数据更新前，将改变记录到二进制日志(binary log)中（这些记录叫做二进制日志事件，binary log event，简称event)
+
+第二步：slave启动一个I/O线程来读取主库上binary log中的事件，并记录到slave自己的中继日志(relay log)中。
+
+第三步：slave还会起动一个SQL线程，该线程从relay log中读取事件并在备库执行，从而实现备库数据的更新。
 
 
 

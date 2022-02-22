@@ -242,12 +242,18 @@ public class UserFormBean {
 }
 ```
 
-返回结果：`"Failed to convert property value of type 'java.lang.String' to required type 'java.util.Date' for property 'dateTime'; nested exception is org.springframework.core.convert.ConversionFailedException: Failed to convert from type [java.lang.String] to type [java.util.Date] for value '2020-12-12 12:12:12'; nested exception is java.lang.IllegalArgumentException"`
+请求参数：
 
-```json
+```
 date       2020-12-12
 dateTime   2020-12-12 12:12:12
+```
 
+返回结果：
+
+`"Failed to convert property value of type 'java.lang.String' to required type 'java.util.Date' for property 'dateTime'; nested exception is org.springframework.core.convert.ConversionFailedException: Failed to convert from type [java.lang.String] to type [java.util.Date] for value '2020-12-12 12:12:12'; nested exception is java.lang.IllegalArgumentException"`
+
+```json
 {
     "timestamp": 1631025255874,
     "status": 400,
@@ -309,7 +315,7 @@ dateTime   2020-12-12 12:12:12
 }
 ```
 
-### 序列化日期@JsonFormat
+### 序列化Date日期@JsonFormat
 
 ```java
 public class UserBean {
@@ -329,7 +335,9 @@ public class UserBean {
 {"date":"2021-08-04","dateTime":"2021-08-07 10:11:12"}
 ```
 
-返回结果：` "JSON parse error: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null)); nested exception is com.fasterxml.jackson.databind.exc.InvalidFormatException: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null))\n at [Source: (PushbackInputStream); line: 1, column: 33] (through reference chain: com.myz.springboot2.jackson.domain.UserBean[\"dateTime\"])"`
+返回结果：
+
+` "JSON parse error: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null)); nested exception is com.fasterxml.jackson.databind.exc.InvalidFormatException: Cannot deserialize value of type `java.util.Date` from String \"2021-08-07 10:11:12\": not a valid representation (error: Failed to parse Date value '2021-08-07 10:11:12': Cannot parse date \"2021-08-07 10:11:12\": while it seems to fit format 'yyyy-MM-dd'T'HH:mm:ss.SSSZ', parsing fails (leniency? null))\n at [Source: (PushbackInputStream); line: 1, column: 33] (through reference chain: com.myz.springboot2.jackson.domain.UserBean[\"dateTime\"])"`
 
 ```java
 {

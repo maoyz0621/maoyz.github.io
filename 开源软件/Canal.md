@@ -29,10 +29,11 @@ mysql 5.x
 
 目标数据库-授权：
 
-```
-create user canal identified by 'canal';
+```mysql
+CREATE USER 'canal'@'127.0.0.1' IDENTIFIED BY 'canal123456'; 
+CREATE USER 'canal'@'%' IDENTIFIED BY 'canal123456'; 
 
-grant all privileges on *.* to 'canal'@'%';
+grant all privileges  on *.*  to "canal"@'127.0.0.1';
 
 flush privileges;
 ```
