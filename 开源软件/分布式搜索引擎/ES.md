@@ -46,25 +46,34 @@ ES查询服务，ES数据的同步，mapping、索引的更新，隔离对业务
 
 ##### 字符串数据类型
 
-- text  ⽤于全⽂索引，搜索时会自动使用分词器进⾏分词再匹配
-- keyword  不分词，搜索时需要匹配完整的值
+- text  ⽤于全⽂索引（analyzed），搜索时会自动使用分词器进⾏分词再匹配
+- keyword  不分词（not-analyzed），搜索时需要**匹配完整的值**，可以用作过滤、排序、聚合
 
 ##### 数值数据类型
 
 - 整型： byte，short，integer，long
-- 浮点型： float, half_float, scaled_float，double
+- 浮点型： float，half_float，scaled_float，double
 
 ##### 日期类型
 
+保存的日期类型多样，内部将时间转为UTC，然后按照`millseconds-since-the-epoch`的长整型来存储，例如：
+
+- 2022-03-03
+- 2022-03-03 11:12:13
+- 2022-03-03T11:12:13Z
+- 1604672099958
+
 ##### Boolean
 
-- boolean   # true、false
+- boolean   
+
+  "true"、"false"、true、false
 
 
 
-#### 复杂数据
+#### 复合数据
 
-##### Object
+##### 对象类型（Object）
 
 - object
 
@@ -88,9 +97,31 @@ ES查询服务，ES数据的同步，mapping、索引的更新，隔离对业务
  }
 ```
 
+##### 嵌套类型（nested）
+
+- nested
+
+是object的一种特例
+
+```json
+{
+	{
+		"user.first": "Zhang",
+		"user.last": "san"
+	}, {
+		"user.first": "Li",
+		"user.last": "si"
+	}
+}
+```
+
+
+
 ##### Array
 
 没有专门的数组类型，定义mapping，写成元素的类型
+
+> 数值中的元素必须是同一种类型
 
 ```json
 #ES没有专门的数组类型，定义mapping，写成元素的类型
@@ -107,7 +138,101 @@ ES查询服务，ES数据的同步，mapping、索引的更新，隔离对业务
 
 #### 专用数据
 
-- GEO 地理位置相关类型
+##### GEO 地理位置相关类型
+
+使用场景：
+
+- 查找某一范围内的地理位置
+- 通过地理位置或相对中心点的距离聚合文档
+- 把距离整合到文档的评分中
+- 通过距离对文档进行排序
+
+###### geo_point
+
+一个坐标点
+
+```json
+PUT people
+{
+  "mappings": {
+    "properties": {
+      "location":{
+        "type": "geo_point"
+      }
+    }
+  }
+}
+```
+
+存储的时候：
+
+```json
+PUT people/_doc/1
+{
+  "location":{
+    "lat": 34.27,
+    "lon": 108.94
+  }
+}
+
+PUT people/_doc/2
+{
+  "location":"34.27,108.94"
+}
+
+PUT people/_doc/3
+{
+  "location":"uzbrgzfxuzup"
+}
+
+PUT people/_doc/4
+{
+  "location":[108.94,34.27]
+}
+```
+
+> 使用数组描述，先经度后纬度
+
+###### geo_shape
+
+```json
+PUT people
+{
+  "mappings": {
+    "properties": {
+      "location":{
+        "type": "geo_shape"
+      }
+    }
+  }
+}
+```
+
+添加文档的时候需要指定具体的类型：`point`
+
+```
+PUT people/_doc/1
+{
+  "location":{
+    "type":"point",
+    "coordinates": [108.94,34.27]
+  }
+}
+```
+
+`linestring`：
+
+```json
+PUT people/_doc/2
+{
+  "location":{
+    "type":"linestring",
+    "coordinates": [[108.94,34.27],[100,33]]
+  }
+}
+```
+
+
 
 ### 倒排索引
 
@@ -185,10 +310,25 @@ ES查询服务，ES数据的同步，mapping、索引的更新，隔离对业务
 **hits.hits**
 
 - _index 索引，文档存储的地方
-- _type 属性
+- _type 属性，高版本默认`_doc`
 - _id 唯一标识
 - _score
 - _source 结果值JSON
+- _routing，路由，默认使用文档的ID字段：`_id`。如果自定义了routing字段，增删改查接口都要加上routing参数以保证一致性。作用：减少查询时扫描shard的个数，从而提供查询效率。**但容易造成负载不均衡**。
+
+> ES提供了一种机制可以将数据路由到一组shard上，而不是某一个。创建索引时，设置`index.routing_partition_size = 1`，即只路由到1个shard上。可以将其设置为大于1且小于索引shard总数的某个值，就可以路由到一组shard。值越大，数据越均匀。
+
+```
+shard_num = (hash(_routing) + hash(_id) % routing_partition_size) % num_primary_shards
+```
+
+注意：
+
+1. 索引的`mapping`中不能再定义join关系的字段，原因是join强制要求关联的doc必须路由到同一个shard，如果采用shard集合，这个是保证不了的。
+
+2. 索引`mapping`中`_routing`的required必须设置为true。
+
+   
 
 ### 索引
 
@@ -665,20 +805,49 @@ POST /hao/_delete_by_query
 
 主要分为两种类型：精确匹配和全文检索匹配
 
-- 精确匹配：term、exists、term set、range、prefix、ids、wildcard、regexp、fuzzy、
+- 精确匹配：term、exists、term set、range、prefix、ids、wildcard、regexp、fuzzy
 - 全文检索：match、match_phrase、multi_match、match_phrase_prefix、query_string
 
 `GET /索引库名/_search`
 
 #### 精确查询(term)
 
-主要用于精确匹配哪些值，比如数字，日期，布尔值或 not_analyzed 的字符串(未经分析的文本数据类型)：
+查询的字段只有一个的时候。`[term] query doesn't support multiple fields`
+
+主要用于精确匹配哪些值，比如数字，日期，布尔值或not_analyzed 的字符串（未经分析的文本数据类型）：
 
 ```json
-{ "term": { "age": 26 }}
-{ "term": { "date": "2014-09-01" }}
-{ "term": { "public": true }}
-{ "term": { "tag": "full_text" }}
+{
+	"query": {
+		"term": {
+			"age": 26
+		}
+	}
+}
+
+{
+	"query": {
+		"term": {
+			"date": "2014-09-01"
+		}
+	}
+}
+
+{
+	"query": {
+		"term": {
+			"public": true
+		}
+	}
+}
+
+{
+	"query": {
+		"term": {
+			"tag": "full_text"
+		}
+	}
+}
 ```
 
 示例：
@@ -695,11 +864,11 @@ POST /hao/_delete_by_query
 }
 ```
 
-**QueryBuilders.termQuery()**   精确查询（查询条件不会进行分词，但是查询内容可能会分词，导致查询不到）
+> **QueryBuilders.termQuery()**   精确查询（查询条件不会进行分词，但是查询内容可能会分词，导致查询不到）
 
 #### 精确查询(terms)
 
-允许指定多个匹配条件。 如果某个字段指定了多个值，那么文档需要一起去做匹配
+查询的字段包含多个的时候，允许指定多个匹配条件。`[terms] query does not support multiple fields`。json中必须包含数组。如果某个字段指定了多个值，那么文档需要一起去做匹配
 
 示例：
 
@@ -717,13 +886,13 @@ POST /hao/_delete_by_query
 }
 ```
 
-**QueryBuilders.termsQuery()**  多个筛选值在一个字段中进行查询
+> **QueryBuilders.termsQuery()**  多个筛选值在一个字段中进行查询
 
 #### 匹配查询(match)
 
 match查询是一个标准查询，不管需要全文本查询还是精确查询基本上都要用到它
 
-如果使用match查询一个全文本字段，它会在真正查询之前用分析器先分析match一下查询字符：
+如果使用match查询一个全文本字段，**会对关键词进行分词，然后按照分词匹配查找**。它会在真正查询之前**用分析器先分析**match一下查询字符：
 
 示例：匹配查询全部数据与分页
 
@@ -756,7 +925,7 @@ searchSourceBuilder.size(3);
 searchSourceBuilder.sort("salary", SortOrder.ASC);
 ```
 
-如果用match指定了一个确切值，在遇到数字，日期，布尔值或者not_analyzed的字符串时，它将为你搜索你给定的值：
+如果用match指定了一个确切值，在遇到数字，日期，布尔值或者not_analyzed的字符串时，将会搜索给定的值：
 
 ```json
 { "match": { "age": 26 }}
@@ -779,21 +948,47 @@ searchSourceBuilder.sort("salary", SortOrder.ASC);
 
 `QueryBuilders.matchQuery()`
 
-####  模糊查询(fuzzy)
-
- 模糊查询所有以 三 结尾的姓名
+#### 多值匹配查询(multi_match)
 
 ```json
 {
-    "query": {
-        "fuzzy": {
-            "name": "三"
-        }
+  "query": {
+    "multi_match": {
+      "query": "待查询句子",
+      "fields": [字段1, 字段2, 字段3^2],
+      "type": "best_fields",
+      "operator": "and"
     }
+  }
 }
 ```
 
-`QueryBuilders.fuzzyQuery("name", "三").fuzziness(Fuzziness.AUTO)`
+> `MultiMatchQueryBuilder.multiMatchQuery()`
+
+####  模糊查询(fuzzy)
+
+ 模糊查询，fuzzy中有个编辑距离的概念，编辑距离是对两个字符串差异长度的量化，及一个字符至少需要处理多少次才能变成另一个字符
+
+```json
+{
+  "query": {
+    "fuzzy": {
+      "address": {
+        "value": "安徽",
+        "fuzziness": "AUTO",
+        "prefix_length": 0,
+        "max_expansions": 50,
+        "transpositions": true,
+        "boost": 1
+      }
+    }
+  }
+}
+```
+
+- fuzziness：0，1，2和AUTO，默认其实是AUTO
+- prefix_length：表示不被“模糊化” 的初始字符数，通过限制前缀的字符数量可以显著降低匹配的词项数量
+> `QueryBuilders.fuzzyQuery("name", "三").fuzziness(Fuzziness.AUTO)`
 
 #### 包含查询(exists )
 
@@ -815,9 +1010,9 @@ exists 查询可以用于查找文档中是否包含指定字段或没有某个�
 
 按照指定范围查找一批数据，操作符：
 
-- gt : 大于
-- gte:: 大于等于
-- lt : 小于
+- gt: 大于
+- gte: 大于等于
+- lt: 小于
 - lte: 小于等于
 
 示例：
@@ -857,6 +1052,8 @@ exists 查询可以用于查找文档中是否包含指定字段或没有某个�
 
 #### 通配符查询(wildcard)
 
+`*`或者 `?` 可以放在前面，但不建议这么做。查询的字段可以是text，也可以是keyword类型，其中keyword对大小写敏感，但text类型对于大小写不敏感。
+
 ```json
 {
     "query": {
@@ -873,46 +1070,52 @@ exists 查询可以用于查找文档中是否包含指定字段或没有某个�
 
 #### 布尔查询(bool)
 
-bool 查询可以用来合并多个条件查询结果的布尔逻辑，它包含一下操作符：
+bool查询可以用来合并多个条件查询结果的布尔逻辑，它包含以下操作符：
 
 - must  多个查询条件的完全匹配，相当于 `and`
-
 - must_not  多个查询条件的相反匹配，相当于 `not`
-
 - should  至少有一个查询条件匹配，相当于 `or`
+- filter 过滤
 
 示例：
 
 ```json
 {
-    "bool":{
-        "must":{
-            "term":{
-                "folder":"inbox"
-            }
+  "query": {
+    "bool": {
+      "must": {
+        "term": {
+          "folder": "inbox"
+        }
+      },
+      "filter": {
+        "term": {
+          "folder": "inbox1"
+        }
+      },
+      "must_not": {
+        "term": {
+          "tag": "spam"
+        }
+      },
+      "should": [
+        {
+          "term": {
+            "starred": true
+          }
         },
-        "must_not":{
-            "term":{
-                "tag":"spam"
-            }
-        },
-        "should":[
-            {
-                "term":{
-                    "starred":true
-                }
-            },
-            {
-                "term":{
-                    "unread":true
-                }
-            }
-        ]
+        {
+          "term": {
+            "unread": true
+          }
+        }
+      ]
     }
+  }
 }
 ```
 
-### 过滤查询(filter)
+#### 过滤查询(filter)
 
 支持过滤查询，如term、range、match等
 
@@ -920,15 +1123,15 @@ bool 查询可以用来合并多个条件查询结果的布尔逻辑，它包含
 
 ```json
 {
-    "query":{
-        "bool":{
-            "filter":{
-                "term":{
-                    "age":20
-                }
-            }
+  "query": {
+    "bool": {
+      "filter": {
+        "term": {
+          "age": 20
         }
+      }
     }
+  }
 }
 ```
 
@@ -938,30 +1141,30 @@ bool查询 - filter查询
 
 ```json
 {
-    "query": {
-        "bool": {
-            "filter": {
-                "range": {
-                    "birthDate": {
-                        "format": "yyyy",
-                        "gte": 1990,
-                        "lte": 1995
-                    }
-                }
-            },
-            "must": [
-                {
-                    "terms": {
-                        "address.keyword": [
-                            "北京市昌平区",
-                            "北京市大兴区",
-                            "北京市房山区"
-                        ]
-                    }
-                }
-            ]
+  "query": {
+    "bool": {
+      "filter": {
+        "range": {
+          "birthDate": {
+            "format": "yyyy",
+            "gte": 1990,
+            "lte": 1995
+          }
         }
+      },
+      "must": [
+        {
+          "terms": {
+            "address.keyword": [
+              "北京市昌平区",
+              "北京市大兴区",
+              "北京市房山区"
+            ]
+          }
+        }
+      ]
     }
+  }
 }
 ```
 
@@ -980,10 +1183,11 @@ boolQueryBuilder
 
 #### 查询和过滤的对比
 
+query查询的时候，会先比较查询条件，然后计算分值，最后返回文档。filter会先判断是否满足查询条件，如果不满足会缓存查询结果，满足的话，直接返回缓存结果。
+
 - 一条过滤语句会询问每个文档的字段值是否包含着特定值。
 - 查询语句会询问每个文档的字段值与特定值的匹配程度如何。
-- 一条查询语句会计算每个文档与查询语句的相关性，会给出一个相关性评分 _score，并且 按照相关性对匹
-  配到的文档进行排序。 这种评分方式非常适用于一个没有完全配置结果的全文本搜索。
+- 一条查询语句会计算每个文档与查询语句的相关性，会给出一个相关性评分 _score，并且按照相关性对匹配到的文档进行排序。 这种评分方式非常适用于一个没有完全配置结果的全文本搜索。
 - 一个简单的文档列表，快速匹配运算并存入内存是十分方便的， 每个文档仅需要1个字节。这些缓存的过滤结果集与后续请求的结合使用是非常高效的。
 - 查询语句不仅要查找相匹配的文档，还需要计算每个文档的相关性，所以一般来说查询语句要比过滤语句更耗时，并且查询结果也不可缓存。
 
@@ -1020,9 +1224,9 @@ ES的聚合查询
 
 #### Bucket（分桶） 
 
-根据字段值，范围或其他条件将文档分组为桶（也称为箱）。
+根据字段值，范围或其他条件将文档分组为桶。
 
-#### Metric（计算）
+#### Metrics（计算）
 
 从字段值计算指标（例如总和或平均值）的指标聚合。
 
@@ -1031,6 +1235,64 @@ ES的聚合查询
 子聚合，从其他聚合（而不是文档或字段）获取输入。
 
 #### Metrix（矩阵）
+
+max/min/avg/sum/stats
+
+terms聚合
+
+cardinality去重
+
+percentiles百分比
+
+percentiles rank
+
+filter聚合
+
+filtters聚合
+
+range聚合
+
+date_range聚合
+
+date_histogram
+
+missing聚合
+
+
+
+### 分页查询
+
+#### from + size分页
+
+默认的分页形式，在深度分页的情况下，效率非常低，但是可以随机跳转页面；
+
+es目前支持最大的`max_result_window = 10000`，也就是from+size的大小不能超过10000。
+
+```
+Result window is too large, from + size must be less than or equal to: [10000] but was [10001]. See the scroll api for a more efficient way to request large data sets. This limit can be set by changing the [index.max_result_window] index level setting.
+```
+
+#### scroll分页
+
+滚动搜索，不用于实时的请求，因为每一个scroll_id占用资源，特别是排序，而且会生成历史快照，对于数据的变更不会体现在快照上。这种方式往往用于非实时处理大量数据的情况，比如要进行数据迁移或者索引变更之类的。
+
+#### search_after分页
+
+滚动搜索，可以在实时的情况下进行深度分页。在Es5.x版本后提供的功能
+
+| 分页方式     | 性能 | 优点                                                 | 缺点                                                         | 使用场景                   |
+| ------------ | ---- | ---------------------------------------------------- | ------------------------------------------------------------ | -------------------------- |
+| from + size  | 低   | 实现简单                                             | 深度分页问题                                                 | 数据量小，容忍深度分页问题 |
+| scroll       | 中   | 解决深度分页问题                                     | 无法反映数据的实时性（快照版本），维护成本高，需要维护一个scroll_id | 海量数据的导出             |
+| search_after | 高   | 性能最好，不存在深度分页问题，能够反映数据的实时变更 | 实现复杂，需要有全局唯一的字段，每一次查询都需要上一次查询的结果，并且需要至少指定一个唯一不重复的字段排序 | 海量数据的分页             |
+
+
+
+## 关联查询
+
+- 嵌套文档：类似json中的嵌套数组，需要申明字段类型`nested`
+
+- 父子文档：所有文档都是平级的，通过特殊的字段类型`join`表示层级关系
 
 
 
@@ -1068,11 +1330,11 @@ shard_num = (hash(_routing) + hash(_id) % routing_partition_size) % num_primary_
 
 - 写入操作
 
-文档的PUT, POST, BULK操作均支持routing参数，在请求中带上routing=xxx即可。使用了routing值即可保证使用相同routing值的文档被分配到一个或一批分片上。
+文档的PUT, POST, BULK操作均支持routing参数，在请求中带上`routing=xxx`即可。使用了`routing`值即可保证使用相同routing值的文档被分配到一个或一批分片上。
 
 - GET操作
 
-对于使用了routing写入的文档，在GET时必须指定routing，否则可能导致404，这与GET的实现机制有关，GET请求会先根据routing找到对应的分片再获取文档，如果对写入使用routing的文档GET时没有指定routing，那么会默认使用_id进行routing从而大概率无法获得文档。
+**对于使用了routing写入的文档，在GET时必须指定routing，否则可能导致404**，这与GET的实现机制有关，GET请求会先根据routing找到对应的分片再获取文档，如果对写入使用routing的文档GET时没有指定routing，那么会默认使用_id进行routing从而大概率无法获得文档。
 
 - 查询操作
 
@@ -1082,21 +1344,89 @@ shard_num = (hash(_routing) + hash(_id) % routing_partition_size) % num_primary_
 
 UPDATE或DELETE操作与GET操作类似，也是先根据routing确定分片，再进行更新或删除操作，因此对于写入使用了routing的文档，必须指定routing，否则会报404响应。
 
-> TOB领域：一般routing会用于一个租户（即公司ID）的概念，用了routing起到了租户隔离的作用
+> toB领域：一般routing会用于一个租户（即公司ID）的概念，用了routing起到了租户隔离的作用
 >
-> TOC领域：互联网中的用户数据，可以用userid作为routing，这样就能保证同一个用户的数据全部保存到同一个shard，后面检索的时候，同样使用userid作为routing，就可以精准的从某个shard获取数据了。对于超大数据量的搜索，routing再配合hot&warm的架构，是非常有用的一种解决方案。而且同一种属性的数据写到同一个shard还有很多好处，比如可以提高aggregation的准确性
+> toC领域：互联网中的用户数据，可以用userid作为routing，这样就能保证同一个用户的数据全部保存到同一个shard，后面检索的时候，同样使用userid作为routing，就可以精准的从某个shard获取数据了。对于超大数据量的搜索，routing再配合hot&warm的架构，是非常有用的一种解决方案。而且同一种属性的数据写到同一个shard还有很多好处，比如可以提高aggregation的准确性
 
 
 
+## 并发的处理方式：锁和版本控制
 
+在 es 中，实际上使用的就是**乐观锁**
+
+### es6.7之前
+
+在 es6.7之前，使用 version+version_type 来进行乐观并发控制。文档每被修改一个，version 就会自增一次，es 通过 version 字段来确保所有的操作都有序进行。
+
+version分为内部版本控制和外部版本控制。
+
+#### 内部版本控制
+
+es自己维护的就是内部版本，当创建一个文档时，es 会给文档的版本赋值为 1。
+
+每当用户修改一次文档，版本号就回自增 1。
+
+如果使用内部版本，es 要求 version 参数的值必须和 es 文档中 version 的值相当，才能操作成功。
+
+#### 外部版本控制
+
+也可以维护外部版本。
+
+在添加文档时，就指定版本号：
+
+```json
+PUT blog/_doc/1?version=200&version_type=external
+{
+  "title":"2222"
+}
+```
+
+以后更新的时候，版本要大于已有的版本号
+
+- vertion_type=external 或者 vertion_type=external_gt ：表示以后更新的时候，版本要大于已有的版本号。
+- vertion_type=external_gte：表示以后更新的时候，版本要大于等于已有的版本号。
+
+### es6.7之后
+
+现在使用 `if_seq_no` 和 `if_primary_term` 两个参数来做并发控制。
+
+`seq_no` 不属于某一个文档，它是属于整个索引的（version 则是属于某一个文档的，每个文档的 version 互不影响）。现在更新文档时，使用 `seq_no` 来做并发。由于 `seq_no` 是属于整个 index 的，所以任何文档的修改或者新增，`seq_no` 都会自增。
+
+通过 `seq_no` 和 `primary_term` 来做乐观并发控制：
+
+```json
+PUT blog/_doc/2?if_seq_no=5&if_primary_term=1
+{
+  "title":"6666"
+}
+```
 
 
 
 13、避免宽表
 
-在索引中定义太多字段是一种可能导致映射爆炸的情况，这可能导致内存不足错误和难以恢复的情况，这个问题可能比预期更常见，index.mapping.total_fields.limit ，默认值是1000。
+在索引中定义太多字段是一种可能导致映射爆炸的情况，这可能导致内存不足错误和难以恢复的情况，这个问题可能比预期更常见，`index.mapping.total_fields.limit` ，默认值是1000。
+
+## 准实时索引实现
+
+### 溢写到文件系统缓存
 
 
+
+### 写translog保障容错
+
+
+
+### flush到磁盘
+
+
+
+### segment合并
+
+- refresh
+- translog
+- flush
+- compation
 
 ## 数据同步方案
 

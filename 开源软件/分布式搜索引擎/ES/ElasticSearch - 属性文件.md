@@ -1,4 +1,4 @@
-
+# ElasticSearch属性文件
 
 config/elasticsearch.yml配置文件
 

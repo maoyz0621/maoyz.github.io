@@ -1,4 +1,4 @@
-
+# ElasticSearch启动
 
 `vi /etc/security/limits.conf`修改创建文件数65535个，线程数4096个
 
@@ -56,10 +56,10 @@ Caused by: java.lang.RuntimeException: can not run elasticsearch as root
 
 
 
-
-
+```
 java.lang.IllegalStateException: failed to obtain node locks, tried [[/usr/local/elasticsearch-7.9.3/data]] with lock id [0]; maybe these locations are not writable or multiple nodes were started without increasing [node.max_local_storage_nodes] (was [1])?
 	at org.elasticsearch.env.NodeEnvironment.<init>(NodeEnvironment.java:301)
+```
 
 
 
@@ -73,7 +73,7 @@ cluster.initial_master_nodes: ["node-1"]
 
 `curl http://localhost:9200`查看ES信息
 
-```
+```json
 {
   "name" : "skywarking",
   "cluster_name" : "elasticsearch",
