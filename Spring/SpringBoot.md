@@ -10,7 +10,56 @@
 
 ### @EnableXxx
 
-开启Xxx服务，配合@Import注解以及定义好的JavaConfig配置类，加在工程启动类上
+开启Xxx服务，配合`@Import`注解以及定义好的JavaConfig配置类，加在工程启动类上
+
+#### @Import
+
+- 实现**ImportSelector**接口注入
+- 实现**ImportBeanDefinitionRegistrar**接口注入，最灵活
+- 直接引入配置类，可以直接将类作为配置类，具有和注解`@Configuration` 相似的作用，可以在配置类中，定义 `@Bean` 注解，定义新的Bean
+
+实现原理：org.springframework.context.annotation.ConfigurationClassParser#processImports
+
+```java
+if (candidate.isAssignable(ImportSelector.class)) {
+	// Candidate class is an ImportSelector -> delegate to it to determine imports
+	Class<?> candidateClass = candidate.loadClass();
+	ImportSelector selector = ParserStrategyUtils.instantiateClass(candidateClass, ImportSelector.class,
+			this.environment, this.resourceLoader, this.registry);
+	Predicate<String> selectorFilter = selector.getExclusionFilter();
+	if (selectorFilter != null) {
+		exclusionFilter = exclusionFilter.or(selectorFilter);
+	}
+	if (selector instanceof DeferredImportSelector) {
+		this.deferredImportSelectorHandler.handle(configClass, (DeferredImportSelector) selector);
+	}
+	else {
+		String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
+		Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames, exclusionFilter);
+		processImports(configClass, currentSourceClass, importSourceClasses, exclusionFilter, false);
+	}
+}
+else if (candidate.isAssignable(ImportBeanDefinitionRegistrar.class)) {
+	// Candidate class is an ImportBeanDefinitionRegistrar ->
+	// delegate to it to register additional bean definitions
+	Class<?> candidateClass = candidate.loadClass();
+	ImportBeanDefinitionRegistrar registrar =
+			ParserStrategyUtils.instantiateClass(candidateClass, ImportBeanDefinitionRegistrar.class,
+					this.environment, this.resourceLoader, this.registry);
+	configClass.addImportBeanDefinitionRegistrar(registrar, currentSourceClass.getMetadata());
+}
+else {
+	// Candidate class not an ImportSelector or ImportBeanDefinitionRegistrar ->
+	// process it as an @Configuration class
+	this.importStack.registerImport(
+			currentSourceClass.getMetadata(), candidate.getMetadata().getClassName());
+	processConfigurationClass(candidate.asConfigClass(configClass), exclusionFilter);
+}
+```
+
+1. ImportSelector.class
+2. ImportBeanDefinitionRegistrar.class
+3. configClass
 
 ### @ConditionalOnXxx注解
 

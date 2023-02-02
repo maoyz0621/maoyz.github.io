@@ -278,11 +278,35 @@ POST /my-index/_flush
 
 ### 读取原理
 
+搜索类型为**QUERY_THEN_FETCH**、**QUERY_AND_FETCH**、**DFS_QUERY_THEN_FETCH**和**DFS_QUERY_AND_FETCH**
+
+主要query then fetch两个阶段
+
 ```
 shard_num = hash(_routing) % num_primary_shards
 ```
 
+#### query and fetch
 
+向索引的所有分片（shards）都发出查询请求，各分片返回的时候把元素文档（document）和计算后的排名信息一起返回。
+
+这种搜索方式是最快的，只需要去shards查询一次。但是各个shards返回的结果的数量之和可能是用户要求的size的n倍。
+
+#### query then fetch
+
+默认的搜索方式，这种方式返回的document与用户要求的size是相等的。
+
+1. 先向所有的shards发出请求，各分片只返回排序和排名相关的信息（注意，不包括文档document)，然后按照各分片返回的分数进行重新排序和排名，取前size个文档。
+
+2. 路由节点再去相关的shards取document，返回给客户端
+
+#### DFS query and fetch
+
+比第一种方式多了一个初始化散发(initial scatter)步骤，有这一步，据说可以更精确控制搜索打分和排名
+
+#### **DFS** query then fetch
+
+比第2种方式多了一个初始化散发(initial scatter)步骤。
 
 ### 优化
 
@@ -307,5 +331,9 @@ shard_num = hash(_routing) % num_primary_shards
 
 
 > https://blog.csdn.net/chuixue24/article/details/104022065
+>
+> https://www.cnblogs.com/ningskyer/articles/5984346.html
+>
+> https://blog.csdn.net/qq_35688140/article/details/85411049?utm_medium=distribute.pc_relevant.none-task-blog-baidujs-1
 >
 > https://juejin.cn/post/6866294863106441224
