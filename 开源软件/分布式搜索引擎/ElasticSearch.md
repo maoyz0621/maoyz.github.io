@@ -3,7 +3,7 @@
 ## 开发规范
 
 ### 系统规范
-(1) 【建议】新集群申请时，建议使用>=7的版本,xpack部分功能免费，性能也更加优秀
+(1) 【建议】新集群申请时，建议使用>=7的版本，xpack部分功能免费，性能也更加优秀
 
 (2) 【强制】6.8以下版本，线上禁止开启xpack的试用功能，如有需要，升级到6.8以上版本。
 ```
@@ -17,9 +17,9 @@
 
 (5) 【建议】合理控制分片数
 
-- 对于数据量较小（100GB以下）的index，往往写入压力查询压力相对较低，一般设置3~5个shard，numberofreplicas设置为1即可（也就是一主一从，共两副本） 。
+- 对于数据量较小（100GB以下）的index，往往写入压力查询压力相对较低，一般设置3~5个shard，**number of replicas**设置为1即可（也就是一主一从，共两副本） 。
 
-- 对于数据量较大（100GB以上）的index，一般把单个shard的数据量控制在（20GB~50GB），让index压力分摊至多个节点：可通过index.routing.allocation.totalshardsper_node参数，强制限定一个节点上该index的shard数量，让shard尽量分配到不同节点上
+- 对于数据量较大（100GB以上）的index，一般把单个shard的数据量控制在（20GB~50GB），让index压力分摊至多个节点：可通过**index.routing.allocation.totalshardsper_node**参数，强制限定一个节点上该index的shard数量，让shard尽量分配到不同节点上
 
 - 综合考虑整个index的shard数量，如果shard数量（不包括副本）超过50个，就很可能引发拒绝率上升的问题，此时可考虑把该index拆分为多个独立的index，分摊数据量，同时配合routing使用，降低每个查询需要访问的shard数量。
 - 注意： 以上设置需要考虑到当前索引的读、写QPS.过大的读QPS需要增加副本数提高读取效率
@@ -36,18 +36,18 @@
 
 (1) 【建议】枚举类型的字段，转换为keyword类型进行存储
 
-(2) 【建议】谨慎评估字符串在ES中的存储类型，如果不需要分词,使用keyword类型，需要分词的使用text类型。避免在查询时，出现结果与自己预期不符的情况
+(2) 【建议】谨慎评估字符串在ES中的存储类型，如果不需要分词，使用keyword类型；需要分词的使用text类型。避免在查询时，出现结果与自己预期不符的情况
 
 (3) 【建议】timestamp 时间字段进行range 查询时，建议将时间维度转化为分钟级，提高搜索性能
 
 ### 数据查询
 
-(1) 【建议】分页查询start page 较大时，避免使用from size方式 ，使用scroll 或 search After进行替换。from 过大时，会造成协调节点内存膨胀。
+(1) 【建议】分页查询start page 较大时，避免使用from size方式 ，使用**scroll** 或 **search After**进行替换。from 过大时，会造成协调节点内存膨胀。
 
 (2) 【建议】合理控制查询结果返回的size大小。建议不要超过100
 
 (3) 【建议】查询时，如果可以预先知道routing值，查询参数中可以指定routing值，提高搜索效率
-```
+```json
 // 写入数据时指定routing
 PUT route_test1/_doc/b?routing=key1
 {
@@ -65,20 +65,20 @@ GET route_test/_search?routing=key1
 }
 ```
 
-(4) 【建议】查询时，如果不关注相关度排序,可以使用query-bool-filter组合取代普通query
+(4) 【建议】查询时，如果不关注相关度排序，可以使用**query-bool-filter**组合取代普通query
 
 
 ### 数据写入
 
-(1) 【建议】写入数据时，结合业务场景合理控制 bulk 的size大小，一般情况可>10且<1000。 数据size可以控制在5mb~15mb 
+(1) 【建议】写入数据时，结合业务场景合理控制 bulk 的size大小，一般情况可 >10且 <1000。 数据size可以控制在5mb~15mb 
 
-(2) 【建议】根据业务场景，可预先创建好索引，减少首次写入数据时，触发create mapping ，导致耗时突增
+(2) 【建议】根据业务场景，可**预先创建好索引**，减少首次写入数据时，触发create mapping ，导致耗时突增
 
 
 ## 集群配置
 (1) 【建议】根据业务使用场景，合理控制refresh_interval，translog.flush_threshold_size 等参数的配置
 
-- refresh_interval:
+- refresh_interval：
 
   数据添加到索引后并不能马上被查询到，等到索引刷新后才会被查询到。 
   refresh_interval 配置的刷新间隔。
@@ -93,11 +93,11 @@ GET route_test/_search?routing=key1
 
 
 ## 客户端使用
-【推荐】 推荐使用RestHighLevelClient
+【推荐】 推荐使用**RestHighLevelClient**
 
 【推荐】 开启sniff节点嗅探功能
 
-```
+```java
 //构造RestClient
 RestClientBuilder restClientBuilder = RestClient.builder(
         new HttpHost("ip1", 9200),
@@ -525,7 +525,7 @@ PUT {index}/{type}/{id}需要修改成PUT {index}/_doc/{id}
 PUT {index}/{type}/_mapping 则变成 PUT {index}/_mapping
 - 所有增删改查搜索操作返回结果里面的关键字 _type 都将被移除
 
-```
+```json
 #创建索引
 PUT twitter
 {
@@ -685,10 +685,10 @@ ES的单机规格在一定程度上是限制了集群能力的，这里我们根
 
 shard大小和个数是影响ES集群稳定性和性能的重要因素之一。ES集群中任何一个索引都需要有一个合理的shard规划，很多情况下都会有一个更好的策略来替换ES默认的5个shard。
 ```
-    建议在小规格节点下单shard大小不要超过30GB。更高规格的节点单shard大小不要超过50GB。
-    对于日志分析场景或者超大索引，建议单shard大小不要超过100GB。
-    shard的个数（包括副本）要尽可能匹配节点数，等于节点数，或者是节点数的整数倍。
-    通常我们建议单节点上同一索引的shard个数不要超5个。
+建议在小规格节点下单shard大小不要超过30GB。更高规格的节点单shard大小不要超过50GB。
+对于日志分析场景或者超大索引，建议单shard大小不要超过100GB。
+shard的个数（包括副本）要尽可能匹配节点数，等于节点数，或者是节点数的整数倍。
+通常我们建议单节点上同一索引的shard个数不要超5个。
 ```
 说明
 
@@ -1049,7 +1049,7 @@ GET my_index/_search?routing=user1,user2
 - norms：用于在搜索时计算该doc的_score（代表这条数据与搜索条件的相关度），如果不需要评分，可以将其关闭。
 - indexoptions：控制倒排索引中包括哪些信息（docs、freqs、positions、offsets）。对于不太注重score/highlighting的使用场景，可以设为 docs来降低内存/磁盘资源消耗。
 - fields: 用于添加子字段。对于有sort和聚合查询需求的场景，可以添加一个keyword子字段以支持这两种功能。
-``` 
+``` json
 PUT my_index
 {
 	"mappings": {

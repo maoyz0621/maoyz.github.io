@@ -1,4 +1,4 @@
-# 1 Docker
+# Docker
 
 Docker和虚拟机的比较
 
@@ -10,9 +10,9 @@ Docker和虚拟机的比较
 
 ## 基本概念
 
-`image`(镜像)
-`container`(容器)：镜像运行的实例
-`registry`(仓库) ：存放镜像的地方
+`Image`（镜像）：包含运行应用程序所需要的所有文件、配置和依赖项。**container**容器的原型。利用Dockerfile文件构建
+`Container`（容器）：镜像运行的实例
+`Registry`（仓库） ：中心化的存储库，用于存储和分发镜像
 
 + 添加国内淘宝镜像源
 
@@ -134,6 +134,14 @@ Commands:
 
 
 ### Docker工作原理
+
+Server-Client结构的系统，Docker-Server接收Docker-Client的指令。
+
+- **Namespace**命名空间 实现**进程隔离**
+- **UnionFilesystem**联合文件系统实现**文件系统隔离**
+- **ControlGroups**控制组实现**资源隔离**
+
+
 
 1. Docker Client执行`docker run`命令
 2. Docker daemon发现本地没有httpd镜像
@@ -373,7 +381,7 @@ docker镜像都是只读的，当容器启动run时，一个新的可写镜像�
 
 ### 联合文件系统
 
-联合文件系统（UnionFS），把各层文件系统叠加起来，是Docker镜像的基础
+联合文件系统（Union FS），把各层文件系统叠加起来，是Docker镜像的基础
 
 <img src="image/Docker1.jpg" style="zoom:125%;" />
 

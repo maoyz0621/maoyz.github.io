@@ -30,7 +30,7 @@ show variables like '%storage_engine%';
     - .frm   表定义
     - .ibd    数据和索引存储文件
 
-## Group by
+## group by
 
 建表：
 
@@ -299,7 +299,7 @@ JOIN table2 t2 ON t2.order_id = t1.order_id
 SET t1.finish_order = 0,
 t2.profit_status = 0
 WHERE
-t1.order_id = 5475175;
+t1.order_id = ?;
 ```
 
 
@@ -463,7 +463,11 @@ explain select * from orders where id = 5476337 OR status = '2' OR created_at = 
 
 
 
-普通索引：idx_  唯一索引：uniq_  主键：pk_
+普通索引：idx_  
+
+唯一索引：uniq_  
+
+主键：pk_
 
 索引的最左原则（左前缀原则），如（c1,c2,c3,c4....cN）的联合索引，where 条件按照索引建立的字段顺序来使用（不代表and条件必须按照顺序来写），如果中间某列没有条件，或使用like会导致后面的列不能使用索引。例如索引是key index (a,b,c). 可以支持**a** | **a,b**| **a,b,c** 3种组合进行查找，但不支持 b,c进行查找 .当最左侧字段是常量引用时，索引就十分有效。
 
@@ -494,9 +498,7 @@ order by 和group by 类似，字段顺序与索引一致时，会使用索引�
 
 ### UNION 和 UNION ALL
 
-union联表查询去重，union all不会去重
-
-
+union联表查询去重，union all不会去重，推荐使用`union all`
 
 ## JOIN
 
@@ -575,6 +577,39 @@ SELECT * FROM TABLE_A A RIGHT JOIN TABLE_B B ON A.KEY = B.KEY WHERE A.KEY IS NUL
 
 
 
+筛选双表数据的差异：
+
+| old  |      | new  |      |
+| ---- | ---- | ---- | ---- |
+| a    | 1    | a    | 1    |
+| b    | 1    | c    | 1    |
+| c    | 1    | d    | 1    |
+
+
+
+```mysql
+select w.id, w.flag from 
+((SELECT
+	now.id,
+	1 as flag,
+    IF(old.age IS NULL, 1, 0) AS diff 
+FROM
+	user_copy_2 now
+	LEFT JOIN user_copy_1 old ON now.id = old.id)
+	UNION
+	(SELECT
+		old.id,
+		0 flag,
+		1 AS diff 
+	FROM
+		user_copy_1 old
+		LEFT JOIN user_copy_2 now ON now.id = old.id 
+	WHERE
+	now.id IS NULL)) w where w.diff = 1;
+```
+
+b - 0，d- 0
+
 ## explain
 
 select 语句的执行计划。表的读取顺序、哪些索引可以使用、哪些索引时机使用，表之间的引用、每张表有多少行被优化器查询。
@@ -642,87 +677,6 @@ NULL > system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > un
 
 
 
-## 事务特性
-
-
-###  隔离性 - isolation
-
-#### 隔离性级别
-
-##### Read Uncommitted 读未提交
-
-```
-- 事务A和事务B，事务A未提交的数据，事务B可以读取到
-- 这里读取到的数据叫做“脏数据”
-- 这种隔离级别最低，这种级别一般是在理论上存在，数据库隔离级别一般都高于该级别
-```
-
-> 会导致脏读
-
-##### Read Committed 读已提交
-
-```
-- 事务A和事务B，事务A提交了数据，事务B才能读取到
-- 这种隔离级别高于读未提交
-- 换句话说，对方事务提交之后的数据，当前事务才能读取到
-- 这种级别可以避免“脏数据”，这种隔离级别会导致“不可重复读取”
-- Oracle默认隔离级别
-```
-
-> 会导致“不可重复读”
-
-##### Repeatable Read 可重复读
-
-```
-- 事务A和事务B，事务A提交之后的数据，事务B读取不到
-- 事务B是可重复读取数据
-- 这种隔离级别高于读已提交
-- 换句话说，对方提交之后的数据，我还是读取不到
-- 这种隔离级别可以避免“不可重复读取”，达到可重复读取
-- 读不加锁，只有写才加锁，读写互不阻塞，
-- MySQL默认级别
-- 虽然可以达到可重复读取，但是会导致“幻读”
-```
-
-> 会导致“幻读”
-
-##### Serializable 串行化 
-
-```
-- 事务A和事务B，事务A在操作数据库时，事务B只能排队等待
-- 这种隔离级别很少使用，吞吐量太低，用户体验差
-- 这种级别可以避免“幻读”，每一次读取的都是数据库中真实存在数据，事务A与事务B串行，而不并发
-```
-
-#### 设置隔离级别
-
-##### 配置文件my.ini
-
-```ini
-– READ-UNCOMMITTED
-– READ-COMMITTED
-– REPEATABLE-READ
-– SERIALIZABLE
-
-[mysqld]
-transaction-isolation = READ-COMMITTED
-```
-
-
-##### 动态设置
-
-```
-•   事务隔离级别的作用范围分为两种： 
-–   全局级：对所有的会话有效 
-–   会话级：只对当前的会话有效 
-•   例如，设置会话级隔离级别为READ COMMITTED ：
-mysql> SET TRANSACTION ISOLATION LEVEL READ COMMITTED；
-或：
-mysql> SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED；
-•   设置全局级隔离级别为READ COMMITTED ： 
-mysql> SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED；
-```
-
 ## 分解关联查询
 
 > 关联查询对于少量数据查询是没有问题的，但对于数据量多的情况，以及后续的表结构发生变化，或分库分表的时候就不利于优化
@@ -743,3 +697,6 @@ https://www.jianshu.com/p/c189439fb32e
 
 
 https://www.jianshu.com/p/c82148473235
+
+
+

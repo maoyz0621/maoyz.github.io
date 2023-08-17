@@ -1,4 +1,4 @@
-# MySQL - binlog
+# MySQL - 二进制日志
 
 Mysql存在的二进制日志，**主从复制**和**数据恢复**
 
@@ -28,7 +28,7 @@ binlog一共有三种工作模式：
 
 #### Row
 
-日志中会记录每一行数据被修改的情况，然后在slave端对相同的数据进行修改
+日志中会记录每一行数据被修改的情况，然后在Slave端对相同的数据进行修改
 
 - 优点：能清楚的记录每一行数据修改的细节
 - 缺点：数据量太大
@@ -435,11 +435,13 @@ mysql> show variables like '%expire_logs_days%';
 
 每执行一条DML语句，先将记录写入`redo log buffer`，后续某个时间点再一次性将多个操作记录写入`redo log file`，称为WAL（Write-Ahead- Logging）
 
-InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要binlog和redo log二者同时记录，才能保证当数据库发生宕机重启时，数据不会丢失。
+InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要`binlog`和`redo log`二者同时记录，才能保证当数据库发生宕机重启时，数据不会丢失。
 
 ## undo log
 
-存储老版本数据。假设修改表中 id=2 的行数据，把 name='B' 修改为 name = 'B2' ，那么 undo 日志就会用来存放 name='B' 的记录，如果这个修改出现异常，可以使用 undo log来实现回滚操作，保证事务的一致性。
+记录需要回滚的日志信息。
+
+存储老版本数据。假设修改表中 id=2 的行数据，把 name='B' 修改为 name = 'B2' ，那么 undo 日志就会用来存放 name='B' 的记录，如果这个修改出现异常，可以使用 `undo log`来实现回**滚操**作，保证事务的一致性。
 
 > 事务的原子性，undo log也是MVCC(多版本并发控制)实现的关键
 
@@ -454,6 +456,8 @@ InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要bi
 
 ## MVCC
 
+> 隔离性
+
 **Multi-Version Concurrency Control** ，多版本并发控制，提高数据库并发性能，读写时，不加锁，非阻塞并发读；
 
 - 当前读：读取的数据是最新版本，读取时还要保证其它并发事务不能修改当前记录，会对读取的记录进行加锁，像`select lock in share mode(共享锁)`, `select for update` ; `update`, `insert` ,`delete(排他锁)`
@@ -465,7 +469,7 @@ InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要bi
 
 - `db_trx_id`：事务id，6byte，每次对某条聚簇索引记录进行改动时，都会把对应的事务id赋值给`trx_id`隐藏列。 
 
-- `db_roll_pointer`：回滚指针，7byte，指向这条记录的上一个版本，每次对某条聚簇索引记录进行改动时，都会把旧的版本写入到`undo log`中，然后这个隐藏列就相当于一个指针，可以通过它来找到该记录修改前的信息。
+- `db_roll_pointer`：回滚指针，7byte，指向这条记录的上一个版本，每次对某条聚簇索引记录进行改动时，都会把老版本写入到`undo log`中，然后这个隐藏列就相当于一个指针，可以通过它来找到该记录修改前的信息。
 
 > Tips： 能不能在两个事务中交叉更新同一条记录呢？不可以，第一个事务更新了某条记录后，就会给这条记录加锁，另一个事务再次更新时就需要等待第一个事务提交了，把锁释放之后才可以继续更新。
 
@@ -477,7 +481,7 @@ InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要bi
 
 `Serializable `隔离级别的事务，使用加锁的方式访问记录。
 
-发生在`Read Committed`、 `Repeatable Read`隔离级别的事务，在执行普通的`SELECT`操作时访问记录的版本链的过程，使不同事务的读-写、写-读操作并发执行。
+只在`Read Committed`、 `Repeatable Read`隔离级别的事务，在执行普通的`SELECT`操作时访问记录的版本链的过程，使不同事务的读-写、写-读操作并发执行。
 
 > Tips： 事务执行过程中，只有在第一次真正修改记录时（比如使用INSERT、DELETE、UPDATE语句），才会被分配一个单独的`trx_id`，这个事务id是递增的。
 
@@ -496,10 +500,117 @@ InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要bi
 - trx_id  >=  low_limit_id：不可以访问这个版本
 - up_limit_id  <=  trx_id  <  low_limit_id：如果trx_id在m_ids中，说明创建ReadView时生成该版本的事务还是活跃的，该版本不可以被访问；如果不在，说明创建ReadView时生成该版本的事务已经被提交，该版本可以被访问。
 
+### 事务特性
 
-## 锁
+#### 隔离性级别
+
+##### Read Uncommitted 读未提交
+
+```
+- 事务A和事务B，事务A未提交的数据，事务B可以读取到
+- 这里读取到的数据叫做“脏数据”
+- 这种隔离级别最低，这种级别一般是在理论上存在，数据库隔离级别一般都高于该级别
+```
+
+> 会导致脏读
+
+##### Read Committed 读已提交
+
+```
+- 事务A和事务B，事务A提交了数据，事务B才能读取到
+- 这种隔离级别高于读未提交
+- 换句话说，对方事务提交之后的数据，当前事务才能读取到
+- 这种级别可以避免“脏数据”，这种隔离级别会导致“不可重复读取”
+- Oracle默认隔离级别
+```
+
+> 会导致“不可重复读”
+
+##### Repeatable Read 可重复读
+
+```
+- 事务A和事务B，事务A提交之后的数据，事务B读取不到
+- 事务B是可重复读取数据
+- 这种隔离级别高于读已提交
+- 换句话说，对方提交之后的数据，我还是读取不到
+- 这种隔离级别可以避免“不可重复读取”，达到可重复读取
+- 读不加锁，只有写才加锁，读写互不阻塞，
+- MySQL默认级别
+- 虽然可以达到可重复读取，但是会导致“幻读”
+```
+
+> 会导致“幻读”
+
+##### Serializable 串行化 
+
+```
+- 事务A和事务B，事务A在操作数据库时，事务B只能排队等待
+- 这种隔离级别很少使用，吞吐量太低，用户体验差
+- 这种级别可以避免“幻读”，每一次读取的都是数据库中真实存在数据，事务A与事务B串行，而不并发
+```
+
+#### 设置隔离级别
+
+##### 配置文件my.ini
+
+```ini
+– READ-UNCOMMITTED
+– READ-COMMITTED
+– REPEATABLE-READ
+– SERIALIZABLE
+
+[mysqld]
+transaction-isolation = READ-COMMITTED
+```
+
+
+##### 动态设置
+
+```
+•   事务隔离级别的作用范围分为两种： 
+–   全局级：对所有的会话有效 
+–   会话级：只对当前的会话有效 
+•   例如，设置会话级隔离级别为READ COMMITTED ：
+mysql> SET TRANSACTION ISOLATION LEVEL READ COMMITTED；
+或：
+mysql> SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED；
+•   设置全局级隔离级别为READ COMMITTED ： 
+mysql> SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED；
+```
+
+## 主从同步
+
+- Master：log dump thread
+
+- Slave：I/O thread、SQL thread
+
+1. **主库写 binlog**：主库的更新 SQL(update、insert、delete) 被写到 binlog；
+2. **主库发送binlog**： log dump thread读取binlog变动内容，发送给从库
+3. **从库写relay log**：I/O thread接收binlog内容，写入**relay log**中
+4. **从库回放**：SQL thread读取**relay log**内容并对数据进行重放
+
+| 主从同步                                                 |
+| -------------------------------------------------------- |
+| ![MySQL主从复制](..\Mysql\image\MySQL\MySQL主从复制.png) |
+
+
+
+默认复制方式：异步
+
+- 全同步复制
+
+- ***半同步复制***
+
+##  锁操作类型
+
+- 读锁/共享锁
+- 写锁/排它锁
+
+## 锁粒度
 
 行锁和表锁
+
+锁监控信息：
 
 ```mysql
 mysql> show status like 'innodb_row_lock%';
@@ -514,28 +625,58 @@ mysql> show status like 'innodb_row_lock%';
 +-------------------------------+-------+
 ```
 
+- Innodb_row_lock_current_waits：当前正在等待锁定的数量；
+
+- Innodb_row_lock_time ：从系统启动到现在锁定总时间长度；（等待总时长）
+
+- Innodb_row_lock_time_avg ：每次等待所花平均时间；（等待平均时长）
+
+- Innodb_row_lock_time_max：从系统启动到现在等待最常的一次所花的时间；
+
+- Innodb_row_lock_waits ：系统启动后到现在总共等待的次数；（等待总次数）
+
+### 表锁Table Lock
+
+#### 意向锁 intention lock
+
+- 意向共享锁
+
+- 意向排它锁
+
+  `SELECT column From Table ... FOR UPDATE`
+
+#### 自增锁 AUTO-INC
+
+插入数据的三种方式
+
+- Simple inserts 简单插入：预先确定要插入的行数，`INSERT ... VALUES()`、`REPLACE`
+- Bulk inserts 批量插入：事先不知道要插入的行数，`INSERT ... SELETC`、`REPLACE ... SELECT`
+- Mixed-mode inserts 混合插入：指定部分id的值；`INSERT ... ON DUPLICATE KEY UPDATE`
+
+`innode_autoinc_lock_mode`
+
+#### 元数据锁MDL
+
 
 
 ### 行锁
 
-间隙锁
+#### 记录锁 Record Locks
 
-临建锁
-
-记录锁
-
-
-
-### 表锁
-
-意向锁
-
-自增锁
-
-
-
-### 间隙锁
+#### 间隙锁 Gap Locks
 
 快照读
 
 当前读
+
+#### 临建锁 Next-Key Locks
+
+#### 插入意向锁 Insert Intention Lock
+
+
+
+### 页锁
+
+
+
+## 锁的态度：乐观锁、悲观锁

@@ -160,38 +160,290 @@ admin服务通过ExecutorBizClient类的方法通过http将请求转发给执行
 
 ### 调度中心启动流程
 
+启动时执行`com.xxl.job.admin.core.conf.XxlJobAdminConfig`
+
+```java
+@Override
+public void afterPropertiesSet() throws Exception {
+    adminConfig = this;
+
+    xxlJobScheduler = new XxlJobScheduler();
+    xxlJobScheduler.init();
+}
+
+@Override
+public void destroy() throws Exception {
+    xxlJobScheduler.destroy();
+}
 ```
-com.xxl.job.admin.core.conf.XxlJobAdminConfig
+
+
+
+初始化执行器`com.xxl.job.admin.core.scheduler.XxlJobScheduler`
+
+```java
+public void init() throws Exception {
+    // init i18n
+    initI18n();
+
+    // admin trigger pool start
+    JobTriggerPoolHelper.toStart();
+
+    // admin registry monitor run
+    JobRegistryHelper.getInstance().start();
+
+    // admin fail-monitor run
+    JobFailMonitorHelper.getInstance().start();
+
+    // admin lose-monitor run ( depend on JobTriggerPoolHelper )
+    JobCompleteHelper.getInstance().start();
+
+    // admin log report start
+    JobLogReportHelper.getInstance().start();
+
+    // start-schedule  ( depend on JobTriggerPoolHelper )
+    JobScheduleHelper.getInstance().start();
+}    
 ```
 
+#### 启动调度任务
+
+`com.xxl.job.admin.core.thread.JobScheduleHelper#start`，创建并启动两个线程，`scheduleThread` 和 `ringThread`
+
+```java
+public void start(){
+
+    scheduleThread = new Thread(new Runnable() {
+        // 省略
+    });
+    scheduleThread.setDaemon(true);
+    scheduleThread.setName("xxl-job, admin JobScheduleHelper#scheduleThread");
+    scheduleThread.start();
 
 
-
-
+    // ring thread
+    ringThread = new Thread(new Runnable() {
+        // 省略
+    });
+    ringThread.setDaemon(true);
+    ringThread.setName("xxl-job, admin JobScheduleHelper#ringThread");
+    ringThread.start();
+}
 ```
-    public void init() throws Exception {
-        // init i18n
-        initI18n();
 
-        // admin trigger pool start
-        JobTriggerPoolHelper.toStart();
+- scheduleThread，功能：
+- ringThread，功能：
 
-        // admin registry monitor run
-        JobRegistryHelper.getInstance().start();
+#### 集群部署多服务器调度任务
 
-        // admin fail-monitor run
-        JobFailMonitorHelper.getInstance().start();
+xxl-job通过mysql悲观锁实现分布式锁，从而避免多个服务器同时调度任务
 
-        // admin lose-monitor run ( depend on JobTriggerPoolHelper )
-        JobCompleteHelper.getInstance().start();
+```java
+public void start() {
 
-        // admin log report start
-        JobLogReportHelper.getInstance().start();
+    scheduleThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+            // pre-read count: treadpool-size * trigger-qps (each trigger cost 50ms, qps = 1000/50 = 20)
+            int preReadCount = (XxlJobAdminConfig.getAdminConfig().getTriggerPoolFastMax() + XxlJobAdminConfig.getAdminConfig().getTriggerPoolSlowMax()) * 20;
 
-        // start-schedule  ( depend on JobTriggerPoolHelper )
-        JobScheduleHelper.getInstance().start();
+            while (!scheduleThreadToStop) {
+                // Scan Job
+                long start = System.currentTimeMillis();
 
-        logger.info(">>>>>>>>> init xxl-job admin success.");
+                Connection conn = null;
+                Boolean connAutoCommit = null;
+                PreparedStatement preparedStatement = null;
+
+                boolean preReadSuc = true;
+                try {
+
+                    conn = XxlJobAdminConfig.getAdminConfig().getDataSource().getConnection();
+                    connAutoCommit = conn.getAutoCommit();
+                    conn.setAutoCommit(false);
+
+                    preparedStatement = conn.prepareStatement("select * from xxl_job_lock where lock_name = 'schedule_lock' for update");
+                    preparedStatement.execute();
+                    // tx start
+                    // tx stop
+                } catch (Exception e) {
+                    //
+                } finally {
+                    // commit
+                    conn.commit();
+                    conn.setAutoCommit(connAutoCommit);
+                }
+            }
+        });
     }
+}
 ```
 
+- 通过setAutoCommit(false)，关闭自动提交
+- 通过select lock for update语句，其他事务无法获取到锁，显示排它锁。
+- 执行定时调度任务的逻辑
+- 最后在finally块中commit()提交事务，并且setAutoCommit，释放for update的排它锁。
+
+#### 定时任务实现
+
+```java
+public void start() {
+
+    scheduleThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+
+            // pre-read count: treadpool-size * trigger-qps (each trigger cost 50ms, qps = 1000/50 = 20)
+            // 预读取定时任务数量（200 + 100）* 20
+            int preReadCount = (XxlJobAdminConfig.getAdminConfig().getTriggerPoolFastMax() + XxlJobAdminConfig.getAdminConfig().getTriggerPoolSlowMax()) * 20;
+
+            while (!scheduleThreadToStop) {
+                try {
+                    // tx start
+
+                    // 1、pre read
+                    long nowTime = System.currentTimeMillis();
+                    // 从数据库把5秒内要执行的任务读出
+                    List<XxlJobInfo> scheduleList = XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().scheduleJobQuery(nowTime + PRE_READ_MS, preReadCount);
+                    if (scheduleList != null && scheduleList.size() > 0) {
+                        // 2、push time-ring
+                        for (XxlJobInfo jobInfo : scheduleList) {
+
+                            // time-ring jump
+                            // 当前时间 > 下一次触发时间+5s，下一次触发时间过期时间超过5s
+                            if (nowTime > jobInfo.getTriggerNextTime() + PRE_READ_MS) {
+                                // 2.1、trigger-expire > 5s：pass && make next-trigger-time
+
+                                // 1、misfire match
+                                MisfireStrategyEnum misfireStrategyEnum = MisfireStrategyEnum.match(jobInfo.getMisfireStrategy(), MisfireStrategyEnum.DO_NOTHING);
+                                // 立即执行一次策略
+                                if (MisfireStrategyEnum.FIRE_ONCE_NOW == misfireStrategyEnum) {
+                                    // FIRE_ONCE_NOW 》 trigger
+                                    JobTriggerPoolHelper.trigger(jobInfo.getId(), TriggerTypeEnum.MISFIRE, -1, null, null, null);
+                                }
+
+                                // 2、fresh next
+                                // 设置下一次的触发时间
+                                refreshNextValidTime(jobInfo, new Date());
+
+                            } else if (nowTime > jobInfo.getTriggerNextTime()) {
+                                // 触发时间过期时间 < 5s，立即执行一次
+                                // 2.2、trigger-expire < 5s：direct-trigger && make next-trigger-time
+
+                                // 1、trigger
+                                JobTriggerPoolHelper.trigger(jobInfo.getId(), TriggerTypeEnum.CRON, -1, null, null, null);
+                                // 2、fresh next
+                                refreshNextValidTime(jobInfo, new Date());
+
+                                // next-trigger-time in 5s, pre-read again
+                                // 如果任务正在执行 并且 在当前时间的5s内，放进时间轮
+                                if (jobInfo.getTriggerStatus() == 1 && nowTime + PRE_READ_MS > jobInfo.getTriggerNextTime()) {
+
+                                    // 1、make ring second 时间轮
+                                    int ringSecond = (int) ((jobInfo.getTriggerNextTime() / 1000) % 60);
+                                    // 2、push time ring 加入时间轮
+                                    pushTimeRing(ringSecond, jobInfo.getId());
+                                    // 3、fresh next
+                                    refreshNextValidTime(jobInfo, new Date(jobInfo.getTriggerNextTime()));
+
+                                }
+
+                            } else {
+                                // 2.3、trigger-pre-read：time-ring trigger && make next-trigger-time
+
+                                // 1、make ring second
+                                int ringSecond = (int) ((jobInfo.getTriggerNextTime() / 1000) % 60);
+                                // 2、push time ring
+                                pushTimeRing(ringSecond, jobInfo.getId());
+                                // 3、fresh next
+                                refreshNextValidTime(jobInfo, new Date(jobInfo.getTriggerNextTime()));
+                            }
+
+                        }
+
+                        // 3、update trigger info 更新调度信息
+                        for (XxlJobInfo jobInfo : scheduleList) {
+                            XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().scheduleUpdate(jobInfo);
+                        }
+
+                    } else {
+                        preReadSuc = false;
+                    }
+                    // tx stop
+                } catch (Exception e) {
+					...
+                } finally {
+					...
+                }
+            });
+        }
+    }
+}
+```
+
+`xxl_job_info`表记录定时任务的表，里面有个`trigger_next_time`（Long）字段，表示下一次任务被触发的时间，任务每被触发一次都要更新`trigger_next_time`字段，这样就知道任务何时被触发。
+
+- 从数据库`xxl_job_info`中读取5秒内需要执行的任务，并遍历任务。
+- 如果当前时间超过下一次触发时间5秒，获取此时调度任务已经过期的调度策略的配置，默认是什么也做策略。如果配置是立即执行一次策略，那么就立即触发定时任务，否则什么也不做。最后更新下一次触发时间。
+- 如果当前时间超过下一次触发时间，但并没有超过5秒，立即触发一次任务，然后更新下一次触发时间。如果任务正在运行并且更新以后的触发时间在当前时间5秒内，将任务放进时间轮，然后再次更新下一次触发时间。因为触发时间太短了所以就放进时间轮中，供下一次触发。
+- 如果不是上面的两种情况，则计算时间轮，将任务放进时间轮中，最后更新下一次触发时间。
+- 更新调度任务信息保存到数据库中，更新`trigger_next_time`字段。
+
+#### 任务触发
+
+```java
+public void start(){
+    ...
+        
+    // ring thread
+    ringThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+
+            while (!ringThreadToStop) {
+
+                // align second
+                try {
+                    TimeUnit.MILLISECONDS.sleep(1000 - System.currentTimeMillis() % 1000);
+                } catch (InterruptedException e) {
+                }
+
+                try {
+                    // second data
+                    List<Integer> ringItemData = new ArrayList<>();
+                    int nowSecond = Calendar.getInstance().get(Calendar.SECOND);   // 避免处理耗时太长，跨过刻度，向前校验一个刻度；
+                    for (int i = 0; i < 2; i++) {
+                        List<Integer> tmpData = ringData.remove( (nowSecond+60-i)%60 );
+                        if (tmpData != null) {
+                            ringItemData.addAll(tmpData);
+                        }
+                    }
+
+                    // ring trigger
+                    if (ringItemData.size() > 0) {
+                        // do trigger
+                        for (int jobId: ringItemData) {
+                            // do trigger 触发定时任务
+                            JobTriggerPoolHelper.trigger(jobId, TriggerTypeEnum.CRON, -1, null, null, null);
+                        }
+                        // clear
+                        ringItemData.clear();
+                    }
+                } catch (Exception e) {
+                }
+            }
+        }
+    });
+    ...
+}
+```
+
+首先获取当前的时间（秒数），然后从时间轮内移出当前秒数前2个秒数的任务列表，遍历任务列表触发任务的执行，最后清空已经执行的任务列表。
+
+> 获取当前秒数前2个秒数的任务列表：避免处理时间太长导致错失了调度。
+
+### 客户端触发
+
+
+
+### 服务端执行

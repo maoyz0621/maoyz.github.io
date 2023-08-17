@@ -54,7 +54,7 @@ public class Main {
 
 <img src="images/image-20200717161505347.png" alt="image-20200717161505347" style="zoom: 50%;" />
 
-## 解决方法1
+### 解决方法1
 
 针对上述的问题，就是因为线程来操作临界资源的时候，因为线程并发修改而造成数据不一致的问题，其实最简单的方法，就是通过引入Synchronized来给我们的对象上锁
 
@@ -107,7 +107,7 @@ MonitorExit
 - 但是假设有多个线程来访问这个资源的时候，偏向锁就会升级成 CAS轻量级锁，也就是我们所说的自旋锁，会不断的自旋操作来获取CPU资源
 - 但是假设某个线程长期进行自旋操作，而没有获取到锁，一般原来的版本是可以指定自旋次数的，后面的JDK进行优化，引入了适应性自旋。当某个线程长期获取不到资源的时候，就会升级成重量级锁，这个时候只要其它线程过来后，获取不到资源就会直接阻塞。
 
-## 解决方法2
+### 解决方法2
 
 除了刚刚说的引入Synchronized以外，还可以使用的就是引入ReentrantLock来实现，这里用到了可重入锁，也就是已获得锁的线程可以直接进入，其它的线程则需要等待该线程释放锁
 
@@ -153,7 +153,7 @@ public class Main3 {
   - 程序需要从 用户态 -> 内核态 进行切换，这一部分是比较消耗时间的
 - 因为ReentrantLock属于API层面，不需要从进行资源的切换，也就是不用从 用户态 切换到 内核态
 
-## 解决方法3
+### 解决方法3
 
 另外一种方法，就是自己实现一把锁，也就是实现Lock接口
 
@@ -251,7 +251,22 @@ public class Main4 {
 
 ## AQS
 
-上面我们提到了，例如 ReentrantLock、CountDownLatch、CycleBarrier 底层都是通过AQS来实现的，我们我们编写一个类，继承AQS，用于实现一把锁
+**ReentrantLock**、**CountDownLatch**、**CycleBarrier** 底层都是通过AQS来实现的。
+
+|                                                |
+| ---------------------------------------------- |
+| <img src="images/AQS.png" style="zoom:80%;" /> |
+
+```java
+// FIFO线程等待队列
+private transient volatile Node head;
+
+private transient volatile Node tail;
+// 共享资源，保证可见性，=1则代表当前对象锁已经被占有，其他线程来加锁时则会失败
+private volatile int state;
+```
+
+
 
 **AQS的核心思想**：如果被请求的共享资源空闲，则将当前请求的资源的线程设置为有效的工作线程，并将共享资源设置为锁定状态，如果被请求的共享资源被占用，那么就需要一套线程阻塞等待以及唤醒时锁分配的机制，这个AQS是用CLH队列锁实现的，即将暂时获取不到的锁的线程加入到队列中。CLH队列是一个虚拟的双向队列，虚拟的双向队列即不存在队列的实例，仅存在节点之间的关联关系。
 
@@ -263,18 +278,20 @@ AQS是将每一条请求共享资源的线程封装成一个CLH锁队列的一�
 
 实现了AQS的锁有：自旋锁、互斥锁、读写锁、条件变量、信号量、栅栏都是AQS的衍生物，具体实现如下
 
-<img src="images/AQS.png" style="zoom:80%;" />
 
-如上图所示，AQS维护了一个volatile int state的变量 和 一个FIFO线程等待队列，多线程争用资源被阻塞的时候，就会进入这个队列中。state就是共享资源，其访问方式有如下三种：
 
-- getState()
-- setState()
+如上图所示，AQS维护了一个`volatile int state`的变量 和 一个`FIFO线程等待队列`，多线程竞争资源被阻塞的时候，就会进入这个队列中。
+
+**state**就是共享资源，通过`CAS`来保证其并发修改的安全性，其访问方式有如下三种：
+
+- getState()：获取锁的标志 state 值
+- setState()：设置锁的标志 state 值
 - compareAndSetState()
 
 AQS定义了两种资源共享方式
 
-- Exclusive：独占，只有一个线程能执行，如ReentrantLock
-- Share：共享，多个线程可以同时执行，如Semaphore、CountDownLatch、ReadWriteLock、CycleBarrier
+- Exclusive：独占，只有一个线程能执行，如**ReentrantLock**
+- Share：共享，多个线程可以同时执行，如**Semaphore**、**CountDownLatch**、**ReadWriteLock**、**CycleBarrier**
 
 不同的自定义同步器争用共享资源的方式也不同
 
@@ -285,7 +302,38 @@ AQS使用了基于模板方法的设计模式，如果需要自定义同步器�
 - 继承AbstractQueuedSynchronizer，并重写指定的方法，在这里重写的方法就是对共享资源state获取和释放
 - 将AQS组合在自定义同步组件的实现中，并调用其模板方法，而这些模板方法会调用使用者重写的方法。
 
-我们通过下面的代码，来进行查看
+
+
+- 加锁
+
+```java
+public final void acquire(int arg) {
+    // 1、tryAcquire，尝试和获取锁
+    // 2、addWaiter，未获取到锁，排队
+    // 3、acquireQueued，挂起线程和后续被唤醒锁资源
+    if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        selfInterrupt();
+}
+```
+
+
+
+- 释放锁
+
+```java
+public final boolean release(int arg) {
+    // 1、tryRelease
+    if (tryRelease(arg)) {
+        Node h = head;
+        if (h != null && h.waitStatus != 0)
+            unparkSuccessor(h);
+        return true;
+    }
+    return false;
+}
+```
+
+
 
 ```java
 /**
@@ -328,20 +376,20 @@ public class Sync extends AbstractQueuedSynchronizer {
 自定义同步器在实现的时候，只需要实现共享资源state的获取和释放即可，至于具体线程等待队列的维护，AQS已经在顶层实现好了。自定义同步器实现的时候，主要实现下面几种方法：
 
 - isHeldExclusively()：该线程是否正在独占资源。只有用到condition才需要实现它
-- tryAcquire(int)：独占方式。尝试获取资源，成功则返回true，失败则返回false。
-- tryRelease(int)：独占方式，尝试释放资源，成功则返回true，失败则返回false
-- tryAcquireShared(int)：共享方式，尝试获取资源。负数表示失败，0表示成功，但没有剩余可用资源；正数表示成功，且有剩余资源。
-- tryReleaseShared(int)：共享方式。尝试释放资源，如果允许释放后允许唤醒后续等待节点返回true，否则返回false。
+- tryAcquire(int)：独占方式获取锁，尝试获取资源，成功则返回true，失败则返回false。
+- tryRelease(int)：独占方式释放锁，尝试释放资源，成功则返回true，失败则返回false。
+- tryAcquireShared(int)：共享方式获取锁，尝试获取资源。负数表示失败，0表示成功，但没有剩余可用资源；正数表示成功，且有剩余资源。
+- tryReleaseShared(int)：共享方式释放锁。尝试释放资源，如果允许释放后允许唤醒后续等待节点返回true，否则返回false。
 
 ### ReentrantLock
 
-以ReentrantLock（可重入独占式锁）为例，state初始化为0，表示未锁定状态，A线程lock()时，会调用tryAcquire()独占锁，并将state + 1，之后其它线程在想通过tryAcquire的时候就会失败，知道A线程unlock() 到 state = 0 为止，其它线程才有机会获取到该锁。A释放锁之前，自己也是可以重复获取此锁（state累加），这就是可重入的概念。
+可重入独占式锁，state初始化为0，表示未锁定状态，A线程lock()时，会调用tryAcquire()独占锁，并将state + 1，之后其它线程在想通过tryAcquire的时候就会失败，直到A线程unlock() 到 state = 0 为止，其它线程才有机会获取到该锁。A线程释放锁之前，自己也是可以重复获取此锁（state累加），这就是可重入的概念。
 
 > 注意：获取多少次锁就需要释放多少次锁，保证state是能够回到0
 
 ### CountDownLatch
 
-以CountDownLatch为例，任务分N个子线程执行，state就初始化为N，N个线程并行执行，每个线程执行完之后 countDown() 一次，state 就会CAS减1，当N子线程全部执行完毕，state = 0,hui unpark() 主调动线程，主调用线程就会从await()函数返回，继续之后的动作。
+CountDownLatch，任务分N个子线程执行，state就初始化为N，N个线程并行执行，每个线程执行完之后 countDown() 一次，state 就会CAS减1，当N子线程全部执行完毕，state = 0,会 unpark() 主调动线程，主调用线程就会从await()函数返回，继续之后的动作。
 
 ## 总结
 
