@@ -5,7 +5,7 @@
 > 1. ArrayList 底层是一个动态扩容的数组结构 
 > 2. 允许存放多个null 元素
 > 3. 允许存放重复数据，存储顺序按照元素的添加顺序
-> 4. ArrayList并不是一个线程安全的集合。如果集合的增删操作需要保证线程的安全性，可以考虑使用 CopyOnWriteArrayList 或者使用 collections.synchronizedList(List l)函数返回一个线程安全的ArrayList类
+> 4. ArrayList并不是一个线程安全的集合。如果集合的增删操作需要保证线程的安全性，可以考虑使用`CopyOnWriteArrayList`或者使用 collections.synchronizedList(List l)函数返回一个线程安全的ArrayList类
 >
 
 ## 继承关系
@@ -131,7 +131,7 @@ public ArrayList(Collection<? extends E> c) {
 ### add
 
 ```java
-// 元素追加列表末尾
+// java8 元素追加列表末尾
 public boolean add(E e) {
     // 检查当前底层数组容量，如果容量不够则进行扩容
     ensureCapacityInternal(size + 1);
@@ -201,7 +201,43 @@ private static int calculateCapacity(Object[] elementData, int minCapacity) {
 3. 扩容1.5倍
 4. 其最大容量为Integer.MAX_VALUE
 
+```java
+// java11 元素追加列表末尾
+public boolean add(E e) {
+    modCount++;
+    add(e, elementData, size);
+    return true;
+}
 
+private void add(E e, Object[] elementData, int s) {
+    if (s == elementData.length)
+        elementData = grow();
+    elementData[s] = e;
+    size = s + 1;
+}
+private Object[] grow() {
+    return grow(size + 1);
+}
+private Object[] grow(int minCapacity) {
+   return elementData = Arrays.copyOf(elementData,
+                                      newCapacity(minCapacity));
+}
+private int newCapacity(int minCapacity) {
+    // overflow-conscious code
+    int oldCapacity = elementData.length;
+    int newCapacity = oldCapacity + (oldCapacity >> 1);
+    if (newCapacity - minCapacity <= 0) {
+        if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA)
+            return Math.max(DEFAULT_CAPACITY, minCapacity);
+        if (minCapacity < 0) // overflow
+            throw new OutOfMemoryError();
+        return minCapacity;
+    }
+    return (newCapacity - MAX_ARRAY_SIZE <= 0)
+        ? newCapacity
+        : hugeCapacity(minCapacity);
+}
+```
 
 ```java
 // 指定位置插入指定数据
@@ -308,6 +344,17 @@ public E remove(int index) {
 	elementData[--size] = null; // clear to let GC do its work
 	// 返回旧值
 	return oldValue;
+}
+
+// java11
+public E remove(int index) {
+    Objects.checkIndex(index, size);
+    final Object[] es = elementData;
+
+    @SuppressWarnings("unchecked") E oldValue = (E) es[index];
+    fastRemove(es, index);
+
+    return oldValue;
 }
 ```
 
@@ -528,7 +575,7 @@ final void checkForComodification() {
 
 ### 迭代删除
 
-1. 迭代器for循环，使用iterator.remove()
+1. 迭代器for循环，使用`iterator.remove()`
 
 ```java
 List<Integer> list = new ArrayList<>(Arrays.asList(1, 2, 3, 4));
@@ -564,7 +611,7 @@ for (int i = 0; i < list.size(); i++) {
 // 4 => [sh-1, sh-3, sh-5, sh-7, sh-9] sh-9
 ```
 
-3. 传统for循环java.lang.IndexOutOfBoundsException
+3. 传统for循环`java.lang.IndexOutOfBoundsException`
 
 ```java
 List<String> list = new ArrayList<>();
@@ -589,7 +636,7 @@ for (int i = 0; i < size; i++) {
 // java.lang.IndexOutOfBoundsException: Index: 5, Size: 5
 ```
 
-4. 迭代器for循环，使用list.remove(next)，java.util.ConcurrentModificationException
+4. 迭代器for循环，使用`list.remove(next)`，`java.util.ConcurrentModificationException`
 
 ```java
 List<String> list = new ArrayList<>();
@@ -614,7 +661,7 @@ for (Iterator<String> iterator = list.iterator(); iterator.hasNext(); ) {
 
 <img src=".\image\Java\ConcurrentModificationException.png" style="zoom:80%;" />
 
-5. 增强for循环ConcurrentModificationException
+5. 增强for循环`ConcurrentModificationException`
 
 ```java
 ArrayList<String> list = new ArrayList<>();
@@ -659,6 +706,25 @@ for (int i = 0; list.iterator().hasNext(); i++) {
 // 秘密 => sh9
 // java.lang.IndexOutOfBoundsException: Index: 5, Size: 5
 ```
+
+### 快速失败
+
+```java
+private void checkForComodification() {
+    if (modCount != expectedModCount)
+        throw new ConcurrentModificationException();
+}
+```
+
+ArrayList实现了**快速失败**(fail-fast)机制，错误检测机制。在并发修改时会抛出**ConcurrentModificationException**异常。
+
+记录列表的修改总数（modCount），列表结构发生变化（添加或删除），modCount++，每次遍历前都会检查modCount是否发生变化，如果变化则抛出异常，表示列表并发修改。
+
+如何解决：`CopyOnWriteArrayList`
+
+
+
+> 第一次向数组中添加数据的时候才会初始化数组，相当于懒加载
 
 参考文章:
 

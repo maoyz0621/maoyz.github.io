@@ -1,5 +1,13 @@
 # SpringBoot
 
+## SpringBoot启动流程
+
+1. new一个**SpringApplication**.run方法
+2. 监听器 **SpringApplicationRunListeners**
+3. 加载配置环境 **ConfigurableEnvironment**，环境加入到监听器中
+4. 加载应用上下文**ConfigurableApplicationContext**
+5. 创建Spring容器，refreshContext()，实现starter自动化配置和bean的实例化等工作。
+
 ## 注解
 
 ## @SpringBootConfiguration
@@ -63,7 +71,7 @@ else {
 
 ### @ConditionalOnXxx注解
 
->使用范围
+>条件依赖使用范围
 
 - `@Conditional`  (只有满足一些列条件之后创建一个bean) 标注在类上面，表示该类下面的所有@Bean都会启用配置，也可以标注在方法上面，只是对该方法启用配置。
 
@@ -85,15 +93,15 @@ else {
 
 ## SpringFactoriesLoader
 
-Spring提供的SPI实现
+Spring提供的SPI实现，加载自动配置类
 
-从指定的配置文件META-INF/spring.factories加载配置，即根据@EnableAutoConfiguration的完整类名org.springframework.boot.autoconfigure.EnableAutoConfiguration作为查找的Key，获取对应的一组@Configuration类
+从指定的配置文件`META-INF/spring.factories`加载配置，即根据**@EnableAutoConfiguration**的完整类名`org.springframework.boot.autoconfigure.EnableAutoConfiguration`作为查找的Key，获取对应的一组**@Configuration**类
 
 
 
 ## Environment.resolveRequiredPlaceholders(key)
 
-获取application.properties的配置内容
+获取`application.properties`的配置内容
 ```java
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
@@ -113,7 +121,7 @@ Spring提供的SPI实现
 
 ## 注解@Cacheable 和@Transactional 失效原因
 
-在有些情形下注解式缓存@Cacheable和事务@Transactional是不起作用的：例如同一个bean内部方法调用，子类调用父类中有缓存注解的方法等。因为注解调用走的都是增强代理类; 后者不起作用是因为缓存切面必须走代理才有效，这时可以手动使用CacheManager来获得缓存效果。
+有些情形下注解式缓存**@Cacheable**和事务**@Transactional**是不起作用的：例如同一个bean内部方法调用，子类调用父类中有缓存注解的方法等。因为注解调用走的都是增强代理类; 后者不起作用是因为缓存切面必须走代理才有效，这时可以手动使用CacheManager来获得缓存效果。
 
 ```java
     @Transactional(rollbackFor = Exception.class)
@@ -131,7 +139,7 @@ Spring提供的SPI实现
     }
 ```
 
-解决办法一:ApplicationContext
+解决办法一：ApplicationContext
 ```java
     @Component
     public class ApplicationContextHolder implements ApplicationContextAware {
@@ -161,7 +169,7 @@ Spring提供的SPI实现
     }
 ```
 
-解决方法二:AopContext
+解决方法二：AopContext
 ```java
 
     /**
@@ -176,9 +184,11 @@ Spring提供的SPI实现
 
 ## 自动配置
 
-注解 @EnableAutoConfiguration, @Configuration, @ConditionalOnClass 就是自动配置的核心，首先它得是一个配置文件，其次根据类路径下是否有这个类去自动配置
+约定大于配置
 
-自动装配在springboot-autoconfigure工程，/META-INF/spring.factories中获取EnableAutoConfiguration指定的值
+注解 **@EnableAutoConfiguration**, **@Configuration**, **@ConditionalOnClass** 就是自动配置的核心，首先它得是一个配置文件，其次根据类路径下是否有这个类去自动配置
+
+自动装配在`springboot-autoconfigure`工程，`/META-INF/spring.factories`中获取`org.springframework.boot.autoconfigure.EnableAutoConfiguration=`指定的值
 
 #### 监视器
 

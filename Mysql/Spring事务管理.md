@@ -946,7 +946,7 @@ public abstract class AbstractFallbackTransactionAttributeSource implements Tran
 > 5. 查看接口的方法是否存在事务，查看接口上是否存在事务。
 >
 
-可以看出，对于非公共方法，则返回null。如果在接口、实现类或方法上都指定了@Transactional 注解，则优先级顺序为方法 > 实现类 > 接口；
+可以看出，对于非public方法，则返回null。如果在接口、实现类或方法上都指定了@Transactional 注解，则优先级顺序为**方法 > 实现类 > 接口**；
 
 
 
@@ -1376,22 +1376,20 @@ protected void completeTransactionAfterThrowing(@Nullable TransactionInfo txInfo
 
 #### 注解事务失效
 
-##### 1、失效场景
+##### 失效场景
 
-1. **有@Transaction的方法被没有@Transaction方法调用**；
+1. 有@Transaction的方法被没有@Transaction方法调用；
 2. 非public方法事务注解；
 3. @Transaction注解中propagation配置；
-4. **业务代码被try{}catch{}**
+4. 业务代码异常被捕获而未抛出
+5. 事务方法中存在多个数据源
 
-##### 2、解决方案：
+##### 解决方案：
 
 1. AopContext.currentProxy()
-
 2. 编程事务，手动回滚事务
-
 3. ApplicationContextAware获取Bean
-
-
+4. 注入自身
 
 
 

@@ -2,11 +2,11 @@
 
 ## CGLIG
 
-cglib :Code Generation Library
+**Code Generation Library**
 
-使用ASM在内存中动态的生成被代理的子类，代理类无需实现接口
+强大、高性能的代码生成库。使用ASM（字节码操作框架）在内存中**动态的生成被代理的子类**，代理类无需实现接口。
 
-ASM:字节码操作框架，以二进制的形式修改已有类或动态生成类
+ASM：字节码操作框架，以二进制的形式修改已有类或动态生成类
 
 前提：不能对final类以及final方法进行代理
 
@@ -15,7 +15,7 @@ net.sf.cglib.proxy.MethodInterceptor
 
 ## JDK
 
-Java自带的动态代理，使用反射原理。代理对象必须实现接口。
+Java自带的动态代理，使用**反射原理**。代理对象必须**实现接口**。
 
 java.lang.reflect.InvocationHandler
 

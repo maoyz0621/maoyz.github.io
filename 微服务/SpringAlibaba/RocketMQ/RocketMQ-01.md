@@ -164,7 +164,7 @@ Caused by: org.apache.rocketmq.remoting.exception.RemotingConnectException: conn
 
 - 原因：
 
-1. 使用RocketMq的时候，出现这种错误，按照官网的启动broker的命令启动broker时，总是使用的是内网ip启动了broker，导致远程链接链接不上，但是本地连接不报错。
+1. 使用RocketMQ的时候，出现这种错误，按照官网的启动broker的命令启动broker时，总是使用的是内网ip启动了broker，导致远程链接链接不上，但是本地连接不报错。
 2. broker使用的IP一般是本机IP地址，默认系统自动识别，但是某些多网卡机器会存在识别错误的情况，导致无法识别到正确的本地IP地址，从而导致broker启动是使用了内网IP。
 3. 虽然启动时已经配置了本地IP地址，但是并为通过配置文件启动broker，导致配置文件没有生效。
 
@@ -244,33 +244,33 @@ brokerId = 192.168.107.130
 
 - NameServer是一个几乎无状态节点，可集群部署，节点之间无任何信息同步。
 
-- Broker部署相对复杂，Broker分为Master与Slave，一个Master可以对应多个Slave，但是一个Slave只能对应一个Master，Master与Slave的对应关系通过指定相同的BrokerName，不同的BrokerId来定义，BrokerId为0表示Master，非0表示Slave。Master也可以部署多个。每个Broker与NameServer集群中的所有节点建立长连接，定时注册Topic信息到所有NameServer。
-- Producer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer取Topic路由信息，并向提供Topic服务的Master建立长连接，且定时向Master发送心跳。Producer完全无状态，可集群部署。
-- Consumer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer取Topic路由信息，并向提供Topic服务的Master、Slave建立长连接，且定时向Master、Slave发送心跳。Consumer既可以从Master订阅消息，也可以从Slave订阅消息，订阅规则由Broker配置决定。
+- Broker部署相对复杂，Broker分为Master与Slave，一个Master可以对应多个Slave，但是一个Slave只能对应一个Master，**Master与Slave的对应关系通过指定相同的BrokerName**，不同的BrokerId来定义，BrokerId为0表示Master，非0表示Slave。Master也可以部署多个。每个Broker与NameServer集群中的所有节点**建立长连接**，定时注册Topic信息到所有NameServer。
+- Producer与NameServer集群中的其中一个节点（随机选择）建立长连接，**定期从NameServer获取Topic路由信息**，并向提供Topic服务的**Master**建立长连接，且**定时向Master发送心跳**。Producer完全无状态，可集群部署。
+- Consumer与NameServer集群中的其中一个节点（随机选择）建立长连接，定期从NameServer取Topic路由信息，并向提供Topic服务的**Master、Slave**建立长连接，且定时向Master、Slave发送心跳。**Consumer既可以从Master订阅消息，也可以从Slave订阅消息**，订阅规则由Broker配置决定。
 
 ### 3.2.3 集群模式
 
-#### 1）单Master模式
+#### 单Master模式
 
-这种方式风险较大，一旦Broker重启或者宕机时，会导致整个服务不可用。不建议线上环境使用,可以用于本地测试。
+~~这种方式风险较大，一旦Broker重启或者宕机时，会导致整个服务不可用。不建议线上环境使用,可以用于本地测试。~~
 
-#### 2）多Master模式
+#### 多Master模式
 
 一个集群无Slave，全是Master，例如2个Master或者3个Master，这种模式的优缺点如下：
 
 - 优点：配置简单，单个Master宕机或重启维护对应用无影响，在磁盘配置为RAID10时，即使机器宕机不可恢复情况下，由于RAID10磁盘非常可靠，消息也不会丢（异步刷盘丢失少量消息，同步刷盘一条不丢），性能最高；
 - 缺点：单台机器宕机期间，这台机器上未被消费的消息在机器恢复之前不可订阅，消息实时性会受到影响。
 
-#### 3）多Master多Slave模式（异步）
+#### 多Master多Slave模式（异步）
 
-每个Master配置一个Slave，有多对Master-Slave，HA采用异步复制方式，主备有短暂消息延迟（毫秒级），这种模式的优缺点如下：
+每个Master配置一个Slave，有多对Master-Slave，HA采用**异步复制**方式，**主备有短暂消息延迟**（毫秒级），这种模式的优缺点如下：
 
 - 优点：即使磁盘损坏，消息丢失的非常少，且消息实时性不会受影响，同时Master宕机后，消费者仍然可以从Slave消费，而且此过程对应用透明，不需要人工干预，性能同多Master模式几乎一样；
 - 缺点：Master宕机，磁盘损坏情况下会丢失少量消息。
 
-#### 4）多Master多Slave模式（同步）
+#### 多Master多Slave模式（同步）
 
-每个Master配置一个Slave，有多对Master-Slave，HA采用同步双写方式，即只有主备都写成功，才向应用返回成功，这种模式的优缺点如下：
+每个Master配置一个Slave，有多对Master-Slave，HA采用**同步双写**方式，即**只有主备都写成功，才向应用返回成功**，这种模式的优缺点如下：
 
 - 优点：数据与服务都无单点故障，Master宕机情况下，消息无延迟，服务可用性与数据可用性都非常高；
 - 缺点：性能比异步复制模式略低（大约低10%左右），发送单个消息的RT会略高，且目前版本在主节点宕机后，备机不能自动切换为主机。
@@ -336,7 +336,7 @@ firewall-cmd --state
 systemctl disable firewalld.service
 ```
 
-或者为了安全，只开放特定的端口号，RocketMQ默认使用3个端口：9876 、10911 、11011 。如果防火墙没有关闭的话，那么防火墙就必须开放这些端口：
+或者为了安全，只开放特定的端口号，RocketMQ默认使用3个端口：9876 （nameserver）、10911 （master）、11011（slave） 。如果防火墙没有关闭的话，那么防火墙就必须开放这些端口：
 
 * `nameserver` 默认使用 9876 端口
 * `master` 默认使用 10911 端口
@@ -758,17 +758,15 @@ nohup sh mqbroker -c /opt/rocketmq-all-4.7.1/conf/2m-2s-sync/broker-a-s.properti
 
 启动后通过JPS查看启动进程
 
+```java
 java.lang.RuntimeException: Lock failed,MQ already started
 	at org.apache.rocketmq.store.DefaultMessageStore.start(DefaultMessageStore.java:227)
 	at org.apache.rocketmq.broker.BrokerController.start(BrokerController.java:853)
 	at org.apache.rocketmq.broker.BrokerStartup.start(BrokerStartup.java:64)
 	at org.apache.rocketmq.broker.BrokerStartup.main(BrokerStartup.java:58)
-
-
+```
 
 出现如下问题 是因为我们在集群中master和slave共用一个storePath造成的，这个时候 我们要启动的每一个broker要指定不一样的storePath 路径就行，也就是在我们的配置文件中修改即可 。。。。完美解决。。。
-
-
 
 
 
@@ -1025,6 +1023,7 @@ tail -500f ~/logs/rocketmqlogs/broker.log
   <td class=xl66 width=159 style='width:119pt'>指定topic</td>
  </tr>
 </table>
+
 #### 2）集群相关
 
 <table border=0 cellpadding=0 cellspacing=0 width=714>
@@ -2026,7 +2025,7 @@ java -jar rocketmq-console-ng-2.0.0.jar --rocketmq.config.namesrvAddr=rocketmq-n
 </dependency>
 ```
 
-* 消息发送者步骤分析r
+* 消息发送者步骤分析
 
 ```tex
 1.创建消息生产者producer，并制定生产者组名
@@ -2051,7 +2050,7 @@ java -jar rocketmq-console-ng-2.0.0.jar --rocketmq.config.namesrvAddr=rocketmq-n
 
 ### 4.1.1 消息发送
 
-#### 1）发送同步消息
+#### 发送同步消息
 
 这种可靠性同步地发送方式使用的比较广泛，比如：重要的消息通知，短信通知。
 
@@ -2081,7 +2080,7 @@ public class SyncProducer {
 }
 ```
 
-#### 2）发送异步消息
+#### 发送异步消息
 
 异步消息通常用在对响应时间敏感的业务场景，即发送端不能容忍长时间地等待Broker的响应。
 
@@ -2122,7 +2121,7 @@ public class AsyncProducer {
 }
 ```
 
-#### 3）单向发送消息
+#### 单向发送消息
 
 这种方式主要用在不特别关心发送结果的场景，例如日志发送。
 
@@ -2153,7 +2152,7 @@ public class OnewayProducer {
 
 ### 4.1.2 消费消息
 
-#### 1）负载均衡模式
+#### 负载均衡模式
 
 消费者采用负载均衡方式消费消息，多个消费者共同消费队列消息，每个消费者处理的消息不同
 
@@ -2215,7 +2214,7 @@ public static void main(String[] args) throws Exception {
 
 ## 4.2 顺序消息
 
-消息有序指的是可以按照消息的发送顺序来消费(FIFO)。RocketMQ可以严格的保证消息有序，可以分为分区有序或者全局有序。
+消息有序指的是可以按照消息的发送顺序来消费(FIFO)。RocketMQ可以严格的保证消息有序，可以分为：**分区有序**或者**全局有序**。
 
 顺序消费的原理解析，在默认的情况下消息发送会采取Round Robin轮询方式把消息发送到不同的queue(分区队列)；而消费消息的时候从多个queue上拉取消息，这种情况发送和消费是不能保证顺序。但是如果控制发送的顺序消息只依次发送到同一个queue中，消费的时候只从这个queue上依次拉取，则就保证了顺序。当发送和消费参与的queue只有一个，则是全局有序；如果多个queue参与，则为分区有序，即相对每个queue，消息都是有序的。
 
@@ -2414,11 +2413,11 @@ public class ConsumerInOrder {
 延时消息（延迟队列）是指消息发送到broker后，不会立即被消费，等待特定时间投递给真正的topic。
 broker有配置项messageDelayLevel，默认值为“1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h”，18个level。可以配置自定义messageDelayLevel。注意，messageDelayLevel是broker的属性，不属于某个topic。发消息时，设置delayLevel等级即可：msg.setDelayLevel(level)。level有以下三种情况：
 
-- level == 0，消息为非延迟消息
-- 1<=level<=maxLevel，消息延迟特定时间，例如level==1，延迟1s
-- level > maxLevel，则level== maxLevel，例如level==20，延迟2h
+- `level == 0`，消息为非延迟消息
+- `1 <= level <= maxLevel`，消息延迟特定时间，例如level==1，延迟1s
+- `level > maxLevel`，则level== maxLevel，例如level==20，延迟2h
 
-定时消息会暂存在名为SCHEDULE_TOPIC_XXXX的topic中，并根据delayTimeLevel存入特定的queue，queueId = delayTimeLevel – 1，即一个queue只存相同延迟的消息，保证具有相同发送延迟的消息能够顺序消费。broker会调度地消费SCHEDULE_TOPIC_XXXX，将消息写入真实的topic。
+定时消息会暂存在名为**SCHEDULE_TOPIC_xxxx**的topic中，并根据delayTimeLevel存入特定的queue，queueId = delayTimeLevel – 1，即一个queue只存相同延迟的消息，保证具有相同发送延迟的消息能够顺序消费。broker会调度地消费**SCHEDULE_TOPIC_xxxx**，将消息写入真实的topic。
 
 需要注意的是，定时消息会在第一次写入和调度写入真实topic时都会计数，因此发送数量、tps都会变高。
 
@@ -2671,7 +2670,7 @@ consumer.start();
 
 (3) 根据发送结果执行本地事务（如果写入失败，此时half消息对业务不可见，本地逻辑不执行）。
 
-(4) 根据本地事务状态执行Commit或者Rollback（Commit操作生成消息索引，消息对消费者可见）
+(4) 根据本地事务状态执行Commit或者Rollback（Commit操作生成消息索引，消息对消费者可见）。
 
 #### 2）事务补偿
 
@@ -2685,7 +2684,7 @@ consumer.start();
 
 #### 3）事务消息状态
 
-事务消息共有三种状态，提交状态、回滚状态、中间状态：
+事务消息共有三种状态，**提交状态**、**回滚状态**、**中间状态**：
 
 * TransactionStatus.CommitTransaction: 提交事务，它允许消费者消费此消息。
 * TransactionStatus.RollbackTransaction: 回滚事务，它代表该消息将被删除，不允许被消费。

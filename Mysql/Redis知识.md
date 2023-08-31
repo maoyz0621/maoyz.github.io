@@ -16,7 +16,7 @@
 
 - **哈希（Hash）**
 
-  压缩表：当field个数不超过hash-max-ziplist-entries(默认为512个)时,并且没有大value(64个字节以上算大)
+  压缩表：当field个数不超过hash-max-ziplist-entries（默认为512个）时，并且没有大value（64个字节以上算大）
 
   哈希表：ziplist的两个条件只要有一个不符合就会转换为hashtable
 
@@ -82,31 +82,6 @@
 
 
 
-## Pipeline（管道）
-
-​		一次请求/响应服务器能实现处理新的请求即使旧的请求还未被响应。这样就可以将多个命令发送到服务器，而不用等待回复，最后在一个步骤中读取该答复。
-
-​		大量 pipeline 应用场景可通过 Redis [脚本]（Redis 版本 >= 2.6）得到更高效的处理，后者在服务器端执行大量工作。脚本的一大优势是可通过最小的延迟读写数据，让读、计算、写等操作变得非常快（pipeline 在这种情况下不能使用，因为客户端在写命令前需要读命令返回的结果）。
-
-应用程序有时可能在 pipeline 中发送 [EVAL] 或 [EVALSHA] 命令。
-
-​		**重要说明**: 使用管道发送命令时，服务器将被迫回复一个队列答复，占用很多内存。所以，如果你需要发送大量的命令，最好是把他们按照合理数量分批次的处理，例如10K的命令，读回复，然后再发送另一个10k的命令，等等。这样速度几乎是相同的，但是在回复这10k命令队列需要非常大量的内存用来组织返回数据内容。
-
-
-
-
-### 使用Pipeline或者Lua脚本减少请求次数
-
-(1) 批量操作的命令，如mget，mset等
-
-(2) pipeline方式 
-
-(3) Lua脚本
-
-> redis确实不是单线程的,更确切地说法是redis的核心业务线程只有一个,但是可以配置多个I/O线程，除此之外还有执行RDB序列化操作的时候也会开启线程
-
-
-
 ## 持久化配置
 
 快照（RDB快照）和追加式文件（AOF文件），可以同时开启两种持久化方式，在这种情况下, 当redis重启的时候会优先载入AOF文件来恢复原始的数据，因为在通常情况下AOF文件保存的数据集要比RDB文件保存的数据集要完整。[RDB file]  [AOF tail]
@@ -115,10 +90,10 @@
 
 ### AOF（Append-Only File）
 
-|                                                           |
-| :-------------------------------------------------------: |
-|             ![](./image/Redis/Redis-AOF.png)              |
-| <img src="./image/Redis/AOF流程.png" style="zoom:65%;" /> |
+|                                                             |
+| :---------------------------------------------------------: |
+| <img src="./image/Redis/Redis-AOF.png" style="zoom:80%;" /> |
+| <img src="./image/Redis/AOF流程.png" style="zoom: 50%;" />  |
 
 ​		以日志的形式记录每个对服务器写操作，只许追加文件不可修改文件，当服务器重启的时候会重新执行这些命令来恢复原始的数据，AOF命令以redis协议追加保存每次写的操作到文件末尾，Redis还能对AOF文件进行后台重写，使得AOF文件的体积不至于过大。**appendonly.aof**文本文件
 
@@ -148,8 +123,8 @@ appendfsync   no           # 从不同步，高效但不会持久化
 ```shell
 # 指定更新日志文件名，默认为appendonly.aof
 appendfilename  appendonly.aof
-# 设置为yes表示rewrite期间对新写操作不fsync,暂时存在内存中,等rewrite完成后再写入。Linux默认fsync策略是30秒。可能丢失30秒数据
-no-appendfsync-on-rewrite no
+# 设置为yes表示rewrite期间对新写操作不fsync，暂时存在内存中，等rewrite完成后再写入。Linux默认fsync策略是30秒。可能丢失30秒数据
+no-appendfsync-on-rewrite yes
 # 增长到一定大小的时候Redis能够调用bgrewriteaof对日志文件进行重写。当前AOF文件大小是上次日志重写得到AOF文件大小的二倍（设置为100）时，自动启动新的日志重写过程
 auto-aof-rewrite-percentage  100
 # 设置允许重写的最小aof文件大小，避免了达到约定百分比但尺寸仍然很小的情况还要重写
@@ -171,7 +146,7 @@ auto-aof-rewrite-min-size  64mb
 
 
 
-```
+```shell
 save 900 1			# 900秒（15分钟）内有1个更改
 save 300 10			# 300秒（5分钟）内有10个更改
 save 60 10000		# 60秒内有10000个更改
@@ -235,7 +210,12 @@ dir ./
 
 > aof-use-rdb-preamble   yes
 
-加载Redis时，可以识别AOF文件是否以“redis”字符串开头，是，加载带前缀的RDB文件，之后继续加载AOF尾巴
+加载Redis时，可以识别AOF文件是否以“redis”字符串开头，是，加载带前缀的RDB文件，之后继续加载AOF尾巴。
+
+
+
+- 在RDB持久化模式中：可以使用*save*和*bgsave*命令进行数据持久化操作
+- 在AOF持久化模式中：使用*rewriteaof*和*bgrewriteaof*命令进行持久化操作
 
 
 
@@ -248,6 +228,14 @@ dir ./
 非阻塞IO，多路复用IO
 
 好的数据结构
+
+
+
+1. 用来做缓存的Redis实例尽量不要开启持久化功能
+2. 建议关闭RDB持久化功能，使用AOF持久化
+3. 利用脚本定期在slave节点做RDB，实现数据备份
+4. 实则合理的rewrite阀组，避免频繁的bgrewrite
+5. 配置 `no-appendfsync-on-rewrite=yes`，禁止在rewrite期间做aof，避免因AOF引起的阻塞
 
 
 
@@ -290,8 +278,7 @@ dir ./
 
 > 总结：定期删除是集中处理，惰性删除是零散处理。Redis采用惰性删除和定期删除这两种方式组合进行的
 
-- 在RDB持久化模式中：可以使用*save*和*bgsave*命令进行数据持久化操作
-- 在AOF持久化模式中：使用*rewriteaof*和*bgrewriteaof*命令进行持久化操作
+
 
 非字符串的bigKey，不要使用del删除，删除的时候建议采用渐进式的方式来完成：hscan、ltrim、sscan、zscan。
 
@@ -308,9 +295,9 @@ dir ./
 
 当超过能够使用的最大内存（大于**maxmemory**）时，便会触发主动淘汰内存方式，设置**maxmemory-policy**（最大内存淘汰策略），保证机器有20% -  30%的闲置内存
 
-LRU（Least Recently Used）：最近最少使用，其核心思想是“**如果数据最近被访问过，那么将来被访问的几率也更高**”。
+LRU（Least Recently Used）：最少最近使用，用当前时间减去最后一次访问时间，值越大则淘汰优先级越高。其核心思想是“**如果数据最近被访问过，那么将来被访问的几率也更高**”。
 
-LFU（Least Frequently Used）：最不经常使用，使用频率最少，其核心思想是“**如果数据过去被访问多次，那么将来被访问的频率也更高**”。
+LFU（Least Frequently Used）：最少频率使用，统计每个key的访问频率，值越小淘汰优先级越高。其核心思想是“**如果数据过去被访问多次，那么将来被访问的频率也更高**”。
 
 策略种类：
 
@@ -355,9 +342,7 @@ LFU（Least Frequently Used）：最不经常使用，使用频率最少，其�
 #
 # LRU means Least Recently Used
 # LFU means Least Frequently Used
-#
-# Both LRU, LFU and volatile-ttl are implemented using approximated
-# randomized algorithms.
+# Both LRU, LFU and volatile-ttl are implemented using approximated randomized algorithms.
 #
 # Note: with any of the above policies, Redis will return an error on write
 #       operations, when there are no suitable keys for eviction.
@@ -368,7 +353,6 @@ LFU（Least Frequently Used）：最不经常使用，使用频率最少，其�
 #       zunionstore zinterstore hset hsetnx hmset hincrby incrby decrby
 #       getset mset msetnx exec sort
 # Redis默认内存淘汰策略
-# The default is:
 # maxmemory-policy noeviction
 
 # LRU, LFU and minimal TTL algorithms are not precise algorithms but approximated
@@ -379,7 +363,7 @@ LFU（Least Frequently Used）：最不经常使用，使用频率最少，其�
 #
 # The default of 5 produces good enough results. 10 Approximates very closely
 # true LRU but costs more CPU. 3 is faster but not very accurate.
-#
+# 随机挑选样例的数据
 # maxmemory-samples 5
 
 # Starting from Redis 5, by default a replica will ignore its maxmemory setting
@@ -1130,7 +1114,7 @@ big key搜索工具
 
 热点key寻找，内部实现使用monitor，可以使用`redis-faina`
 
-slowlog-max-len：慢查询列表
+`slowlog-max-len`：128，慢查询列表
 
 ### 4.0+版本
 
@@ -1228,7 +1212,28 @@ public void delKeyHash(String key) {
 
 
 
-## 批命令
+## Pipeline（管道）
+
+​		一次请求/响应服务器能实现处理新的请求即使旧的请求还未被响应。这样就可以将多个命令发送到服务器，而不用等待回复，最后在一个步骤中读取该答复。
+
+​		大量 pipeline 应用场景可通过 Redis [脚本]（Redis 版本 >= 2.6）得到更高效的处理，后者在服务器端执行大量工作。脚本的一大优势是可通过最小的延迟读写数据，让读、计算、写等操作变得非常快（pipeline 在这种情况下不能使用，因为客户端在写命令前需要读命令返回的结果）。
+
+应用程序有时可能在 pipeline 中发送 [EVAL] 或 [EVALSHA] 命令。
+
+​		**重要说明**: 使用管道发送命令时，服务器将被迫回复一个队列答复，占用很多内存。所以，如果你需要发送大量的命令，最好是把他们按照合理数量分批次的处理，例如10K的命令，读回复，然后再发送另一个10k的命令，等等。这样速度几乎是相同的，但是在回复这10k命令队列需要非常大量的内存用来组织返回数据内容。
+
+
+### 使用Pipeline或者Lua脚本减少请求次数
+
+(1) 批量操作的命令，如mget，mset等
+
+(2) pipeline方式 
+
+(3) Lua脚本
+
+> redis确实不是单线程的,更确切地说法是redis的核心业务线程只有一个,但是可以配置多个I/O线程，除此之外还有执行RDB序列化操作的时候也会开启线程
+
+
 
 原生和Pipeline
 
@@ -1245,6 +1250,16 @@ https://yq.aliyun.com/articles/531067
 关于Redis单线程问题：Redis在处理客户端的请求时，包括获取 (socket 读)、解析、执行、内容返回 (socket 写) 等都由一个顺序串行的主线程处理，这就是所谓的“单线程”。但如果严格来讲从Redis4.0之后并不是单线程，除了主线程外，它也有后台线程在处理一些较为缓慢的操作，例如清理脏数据、无用连接的释放、大key的删除等等。
 
 
+
+### 集群下的批处理
+
+- 串行命令：for循环遍历
+
+- 串行slot：计算每个key的slot，将slot一致的分为一组，每组利用Pipeline**串行**执行
+
+- 并行slot：计算每个key的slot，将slot一致的分为一组，每组利用Pipeline**并行**执行，推荐
+
+- hash_tag：将所有key设置相同的hash_tag，则key的slot一定相同，容易出现数据倾斜
 
 ## 线程模型
 
@@ -1343,7 +1358,7 @@ Reactor模式，非阻塞IO多路复用机制
 解决办法：
 
 - 接口层增加校验：比如鉴权、参数校验，不合法的直接return
-- 缓存空值，但过期时间很短
+- 缓存空值，但过期时间TTL很短
 - BloomFilter布隆过滤器
 
 
@@ -1360,6 +1375,7 @@ Reactor模式，非阻塞IO多路复用机制
 
 - 热点数据永不过期
 - 互斥锁，在第一个查询数据的请求上使用一个锁，其它的线程走到这一步拿不到锁就等着，等第一个线程查询到了数据，然后做缓存。后面的线程进来发现已经有缓存了，就直接走缓存。
+- 逻辑过期
 
 
 
@@ -1370,11 +1386,11 @@ Reactor模式，非阻塞IO多路复用机制
 解决方案：
 
 - 搭建异地多活、集群
-
 - 缓存时间设置业务过期时间 + 随机值
 - 缓存数据预热（提前将可能大量访问的数据加载到缓存中，可以手动触发加载）
 - 互斥锁
 - ehcache本地缓存 + 限流&降级组件
+- 多级缓存
 
 
 
@@ -1388,15 +1404,92 @@ Reactor模式，非阻塞IO多路复用机制
 
 
 
-### 热点key倾斜
+### 大key
+
+value比较大，string类型控制在10kb以内，集合元素个数不要超过N。
+
+一直往value塞数据，没有删除或过期机制；数据没有合理做分片，将大key变成一个个小key。
+
+导致客户端超时阻塞、内存空间不均匀、网络阻塞。
+
+#### 如何检测？
+
+scan
+
+`memory usage keyname`
+
+**redis-rdb-tools**，解析快照文件，执行bgsave时对dump出来的rdb文件进行分析。
+
+#### 如何删除？
+
+主动删除
+
+分批渐进式删除
+
+unlink + bigKey 异步非阻塞删除
+
+被动删除，配置`lazy free`
+
+#### 如何优化？
+
+1. 只存储有用字段
+2. 对value进行压缩
+3. 可以使用不同关联的key进行存储
+4. 大key 分拆成几个 key-value
+5. 集群扩容
+6. 集合数据类型，hash类型，拆分新的newHashKey，设置一个桶值bucket，filed值对bucket取余
+
+```
+newHashKey = hashKey + (filed) % bucket
+hmset(newHashKey)
+hmget(newHashKey)
+```
 
 
 
+### 热点key
+
+极短时间内访问频次非常高的key
+
+#### 产生原因
+
+- 比如秒杀活动、热点微博、热评，某件商品被数万次点击浏览或购买时，就会造成热点问题
+
+- 被大量发布、浏览的热点新闻、热点评论等读多写少场景也会产生热点问题
 
 
-### 热点key重建
+#### 产生危害
 
+1. 占用大量CPU，性能变差，影响其它请求，请求过多，服务器被打垮
+2. 分片集中，引起节点数据倾斜
+3. 超出服务承受能力造成缓存击穿，造成DB宕机
 
+#### 如何发现
+
+- 热key检测系统
+- proxy代理层上报数据
+- 4.0+版本hotkeys，`redis-cli --hotkeys`
+- redis节点抓包解析上报数据
+
+#### 如何解决
+
+1. 使用本地缓存
+2. 冗余备份key，拆key，将key拆分成N份，分散在不同的节点上
+3. 限流熔断（保护系统）**nginx限流**、应用网关限流、**微服务限流**
+
+京东开源的hotkey
+
+### Redis分布式锁
+
+#### 可重入
+
+#### 可重试
+
+#### 超时释放
+
+#### 主从一致性
+
+联锁，多个独立锁，`RLock getMultiLock(RLock... locks)`
 
 
 
@@ -1409,7 +1502,7 @@ Reactor模式，非阻塞IO多路复用机制
 
 
 
-### 查询响应慢
+### 慢查询
 
 #### 客户端
 
@@ -1425,7 +1518,7 @@ Reactor模式，非阻塞IO多路复用机制
 
 1. 慢查询
 
-   在慢查询日志中，可以查看到处理时间超过slowlog-log-slower-than（可配置）微秒的命令
+   在慢查询日志中，可以查看到处理时间超过`slowlog-log-slower-than`（可配置）微秒的命令
 
 2. 大量的key同时过期引起的阻塞
 
@@ -1435,7 +1528,18 @@ Reactor模式，非阻塞IO多路复用机制
 
    AOF重写需要fork子进程
 
+### 内存不足
 
+- 数据内存：存储键值信息，主要是BigKey问题、内存碎片
+
+- 进程内存：
+
+- 缓冲区内存：客户端缓冲区（）输入和输出缓冲区、AOF缓冲区（AOF刷盘之前的缓存区域，执行rewrite的缓冲区）、复制缓冲区（主从复制的repl_backlog_buf）。
+
+#### 查看内存分配情况
+
+- `info memory`
+- `memory xxxx`
 
 ### 连接池设置建议
 
@@ -1461,23 +1565,21 @@ Reactor模式，非阻塞IO多路复用机制
    4.0版本
 
    ```
-   lazyfree-lazy-eviction no
-   lazyfree-lazy-expire no
-   lazyfree-lazy-server-del no
-   slave-lazy-flush no
+   lazyfree-lazy-eviction no     # 超过最大内存惰性删除
+   lazyfree-lazy-expire no       # 过期惰性删除
+   lazyfree-lazy-server-del no   # 服务端被动惰性删除
+   slave-lazy-flush no           # slave接收完RDB文件后清空数据选项
    ```
-
-   
 
 3. 设置键值的过期时间；
 
 4. 禁用长耗时的查询命令；
 
-5. 使用 slowlog 优化耗时命令；
+5. 使用 **slowlog** 优化耗时命令；
 
    ```
-   slowlog-log-slower-than ：用于设置慢查询的评定时间，也就是说超过此配置项的命令，将会被当成慢操作记录在慢查询日志中，它执行单位是微秒 (1 秒等于 1000000 微秒)；
-   slowlog-max-len ：用来配置慢查询日志的最大记录数。
+   slowlog-log-slower-than:1000， 用于设置慢查询的评定时间，也就是说超过此配置项的命令，将会被当成慢操作记录在慢查询日志中，它执行单位是微秒 (1 秒等于 1000000 微秒)；
+   slowlog-max-len:128， 用来配置慢查询日志的最大记录数。
    ```
 
 6. 使用 Pipeline 批量操作数据；

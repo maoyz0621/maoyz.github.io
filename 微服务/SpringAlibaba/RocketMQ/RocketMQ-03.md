@@ -62,7 +62,7 @@ RocketMQ充分利用了上述特性，也就是所谓的“零拷贝”技术，
 
 ### 1.1.4 消息存储结构
 
-RocketMQ消息的存储是由**ConsumeQueue**和**CommitLog**配合完成的，消息真正的物理存储文件是CommitLog，ConsumeQueue是消息的逻辑队列，类似数据库的索引文件，存储的是指向物理存储的地址。每个Topic下的每个Message Queue都有一个对应的ConsumeQueue文件。
+RocketMQ消息的存储是由**ConsumeQueue**和**CommitLog**配合完成的，消息真正的物理存储文件是CommitLog，ConsumeQueue是消息的逻辑队列，类似数据库的索引文件，存储的是指向物理存储的地址。**每个Topic下的每个Message Queue都有一个对应的ConsumeQueue文件**。
 
 ![](img/消息存储结构.png)
 
@@ -86,7 +86,7 @@ RocketMQ的消息是存储到磁盘上的，这样既能保证断电后恢复，
 
 #### 3）配置
 
-**同步刷盘还是异步刷盘，都是通过Broker配置文件里的flushDiskType 参数设置的，这个参数被配置成SYNC_FLUSH、ASYNC_FLUSH中的 一个。**
+**不管同步刷盘还是异步刷盘，都是通过Broker配置文件里的`flushDiskType`参数设置的，这个参数被配置成`SYNC_FLUSH`、`ASYNC_FLUSH`中的一个。**
 
 ## 1.2 高可用性机制
 
@@ -94,13 +94,13 @@ RocketMQ的消息是存储到磁盘上的，这样既能保证断电后恢复，
 
 RocketMQ分布式集群是通过Master和Slave的配合达到高可用性的。
 
-Master和Slave的区别：在Broker的配置文件中，**参数 brokerId的值为0表明这个Broker是Master，大于0表明这个Broker是 Slave，同时brokerRole参数也会说明这个Broker是Master还是Slave**。
+Master和Slave的区别：在Broker的配置文件中，**参数 brokerId的值为0表明这个Broker是Master，大于0表明这个Broker是Slave，同时brokerRole参数也会说明这个Broker是Master还是Slave**。
 
 **Master角色的Broker支持读和写，Slave角色的Broker仅支持读**，也就是 Producer只能和Master角色的Broker连接写入消息；Consumer可以连接 Master角色的Broker，也可以连接Slave角色的Broker来读取消息。
 
 ### 1.2.1 消息消费高可用
 
-在Consumer的配置文件中，并不需要设置是从Master读还是从Slave 读，当Master不可用或者繁忙的时候，Consumer会被自动切换到从Slave 读。有了自动切换Consumer这种机制，当一个Master角色的机器出现故障后，Consumer仍然可以从Slave读取消息，不影响Consumer程序。这就达到了消费端的高可用性。
+在Consumer的配置文件中，并不需要设置是从Master读还是从Slave 读，当Master不可用或者繁忙的时候，Consumer会被自动切换到从Slave读。有了自动切换Consumer这种机制，当一个Master角色的机器出现故障后，Consumer仍然可以从Slave读取消息，不影响Consumer程序。这就达到了消费端的高可用性。
 
 ### 1.2.2 消息发送高可用
 
@@ -112,13 +112,13 @@ Master和Slave的区别：在Broker的配置文件中，**参数 brokerId的值�
 
 如果一个Broker组有Master和Slave，消息需要从Master复制到Slave 上，有同步和异步两种复制方式。
 
-#### 1）同步复制
+#### 同步复制
 
 同步复制方式是等Master和Slave均写成功后才反馈给客户端写成功状态；
 
 在同步复制方式下，如果Master出故障， Slave上有全部的备份数据，容易恢复，但是同步复制会增大数据写入延迟，降低系统吞吐量。
 
-#### 2）异步复制 
+#### 异步复制 
 
 异步复制方式是只要Master写成功 即可反馈给客户端写成功状态。
 
@@ -126,13 +126,13 @@ Master和Slave的区别：在Broker的配置文件中，**参数 brokerId的值�
 
 #### 3）配置
 
-同步复制和异步复制是通过Broker配置文件里的brokerRole参数进行设置的，这个参数可以被设置成ASYNC_MASTER、 SYNC_MASTER、SLAVE三个值中的一个。
+同步复制和异步复制是通过Broker配置文件里的`brokerRole`参数进行设置的，这个参数可以被设置成**ASYNC_MASTER**、 **SYNC_MASTER**、**SLAVE**三个值中的一个。
 
 #### 4）总结
 
 <img src="img/复制刷盘.png" style="zoom: 50%;" />
 
-实际应用中要结合业务场景，合理设置刷盘方式和主从复制方式， 尤其是SYNC_FLUSH方式，由于频繁地触发磁盘写动作，会明显降低 性能。**通常情况下，应该把Master和Save配置成ASYNC_FLUSH的刷盘方式，主从之间配置成SYNC_MASTER的复制方式，这样即使有一台机器出故障，仍然能保证数据不丢，是个不错的选择**。
+实际应用中要结合业务场景，合理设置刷盘方式和主从复制方式， 尤其是SYNC_FLUSH方式，由于频繁地触发磁盘写动作，会明显降低 性能。**通常情况下，应该把Master和Save配置成ASYNC_FLUSH的刷盘方式，主从之间配置成SYNC_MASTER的复制方式**，这样即使有一台机器出故障，仍然能保证数据不丢，是个不错的选择。
 
 ## 1.3 负载均衡
 
@@ -160,11 +160,11 @@ Producer端，每个实例在发消息的时候，默认会轮询所有的messag
 
 <img src="img/consumer负载均衡2.png" style="zoom:67%;" />
 
-需要注意的是，集群模式下，queue都是只允许分配给一个实例，这是由于如果多个实例同时消费一个queue的消息，由于拉取哪些消息是consumer主动控制的，那样会导致同一个消息在不同的实例下被消费多次，所以算法上都是一个queue只分给一个consumer实例，一个consumer实例可以允许同时分到不同的queue。
+需要注意的是，**集群模式下，queue都是只允许分配给一个实例**，这是由于如果多个实例同时消费一个queue的消息，由于拉取哪些消息是consumer主动控制的，那样会导致同一个消息在不同的实例下被消费多次，所以算法上都是一个queue只分给一个consumer实例，一个consumer实例可以允许同时分到不同的queue。
 
 通过增加consumer实例去分摊queue的消费，可以起到水平扩展的消费能力的作用。而有实例下线的时候，会重新触发负载均衡，这时候原来分配到的queue将分配到其他实例上继续消费。
 
-但是如果consumer实例的数量比message queue的总数量还多的话，多出来的consumer实例将无法分到queue，也就无法消费到消息，也就无法起到分摊负载的作用了。**所以需要控制让queue的总数量大于等于consumer的数量**。
+但是如果consumer实例的数量比message queue的总数量还多的话，多出来的consumer实例将无法分到queue，也就无法消费到消息，也就无法起到分摊负载的作用了。所以需要**控制让queue的总数量大于等于consumer的数量**。
 
 #### 2）广播模式
 
@@ -263,8 +263,8 @@ public class MessageListenerImpl implements MessageListener {
 
 消息队列 RocketMQ 允许 Consumer 启动的时候设置最大重试次数，重试时间间隔将按照如下策略：
 
-- 最大重试次数小于等于 16 次，则重试时间间隔同上表描述。
-- 最大重试次数大于 16 次，超过 16 次的重试时间间隔均为每次 2 小时。
+- 最大重试次数小于等于16次，则重试时间间隔同上表描述。
+- 最大重试次数大于16次，超过16次的重试时间间隔均为每次 2 小时。
 
 ```java
 Properties properties = new Properties();
@@ -298,7 +298,7 @@ public class MessageListenerImpl implements MessageListener {
 
 当一条消息初次消费失败，消息队列 RocketMQ 会自动进行消息重试；达到最大重试次数后，若消费依然失败，则表明消费者在正常情况下无法正确地消费该消息，此时，消息队列 RocketMQ 不会立刻将消息丢弃，而是将其发送到该消费者对应的特殊队列中。
 
-在消息队列 RocketMQ 中，这种正常情况下无法被消费的消息称为死信消息（Dead-Letter Message），存储死信消息的特殊队列称为死信队列（Dead-Letter Queue）。
+在消息队列 RocketMQ 中，这种正常情况下无法被消费的消息称为死信消息（Dead-Letter Message），存储死信消息的特殊队列称为死信队列（**Dead-Letter Queue**）。
 
 ### 1.5.1 死信特性
 
@@ -335,15 +335,15 @@ public class MessageListenerImpl implements MessageListener {
 
 在互联网应用中，尤其在网络不稳定的情况下，消息队列 RocketMQ 的消息有可能会出现重复，这个重复简单可以概括为以下情况：
 
-- 发送时消息重复
+- **发送时消息重复**
 
   当一条消息已被成功发送到服务端并完成持久化，此时出现了网络闪断或者客户端宕机，导致服务端对客户端应答失败。 如果此时生产者意识到消息发送失败并尝试再次发送消息，消费者后续会收到两条内容相同并且 Message ID 也相同的消息。
 
-- 投递时消息重复
+- **投递时消息重复**
 
   消息消费的场景下，消息已投递到消费者并完成业务处理，当客户端给服务端反馈应答的时候网络闪断。 为了保证消息至少被消费一次，消息队列 RocketMQ 的服务端将在网络恢复后再次尝试投递之前已被处理过的消息，消费者后续会收到两条内容相同并且 Message ID 也相同的消息。
 
-- 负载均衡时消息重复（包括但不限于网络抖动、Broker重启以及订阅方应用重启）
+- **负载均衡时消息重复**（包括但不限于网络抖动、Broker重启以及订阅方应用重启）
 
   当消息队列 RocketMQ的Broker或客户端重启、扩容或缩容时，会触发Rebalance，此时消费者可能会收到重复消息。
 

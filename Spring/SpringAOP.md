@@ -1,14 +1,14 @@
 # Spring AOP
 
-## AOP的理念：
+## AOP的理念
 
-就是将**分散在各个业务逻辑代码中相同的代码通过横向切割的方式**抽取到一个独立的模块中！
+就是将**分散在各个业务逻辑代码中相同的代码通过横向切割的方式**抽取到一个独立的模块中
 
-## 底层原理：
+## 底层原理
 
 **动态代理**，如果要代理的对象实现了某个接口，那么Spring AOP就会使用JDK动态代理去创建代理对象，**可以强制使用CGLIB实现AOP**；而对于没有实现接口的对象，就无法使用JDK动态代理，转而使用CGlib动态代理生成一个被代理对象的子类来作为代理。
 
-##  方式：
+##  方式
 
 - JDK动态代理（默认使用）
 
@@ -20,7 +20,7 @@
 
 ## Spring AOP 和 AspectJ
 
-  ![](image/Aspect.jpg)
+  <img src="image/Aspect.jpg" style="zoom:80%;" />
 
 ## 继承关系
 |                            |
@@ -36,9 +36,9 @@
 ```java
 @Import(AspectJAutoProxyRegistrar.class)
 public @interface EnableAspectJAutoProxy {
-
+   // true:cglib动态代理，false：jdk动态代理
    boolean proxyTargetClass() default false;
-
+   // 暴露代理对象
    boolean exposeProxy() default false;
 }
 ```
@@ -47,7 +47,7 @@ public @interface EnableAspectJAutoProxy {
 | :-------------------: |
 | ![](image/Advice.png) |
 
-对应@Before、 @AfterReturning、  @AfterThrowing、 @After、 @Around
+对应**@Before**、 **@AfterReturning**、  **@AfterThrowing**、 **@After**、 **@Around**
 
 ### AspectJAutoProxyRegistrar
 
@@ -240,7 +240,9 @@ public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException 
 }
 ```
 
-
+- isOptimize()：默认false，是否考虑优先使用`Cglib`，因为其性能高于JDK的proxy
+- isProxyTargetClass()：默认false，是否基于类的代理
+- hasNoUserSuppliedProxyInterfaces()：根据被代理类的接口判断, 如果没有实现任何接口，那么也采用`Cglib`
 
 |                            |
 | -------------------------- |
@@ -438,7 +440,7 @@ public List<Object> getInterceptorsAndDynamicInterceptionAdvice(
 
 ## 总结
 
-1. 开启AOP注解@EnableAspectJAutoProxy 或 <aop:aspectj-autoproxy proxy-target-class="true"/>
+1. 开启AOP注解`@EnableAspectJAutoProxy `或 `<aop:aspectj-autoproxy proxy-target-class="true"/>`
 
 2. 开启AOP之后，给容器注册一个后置组件：AnnotationAwareAspectJAutoProxyCreator
 
@@ -477,3 +479,67 @@ public List<Object> getInterceptorsAndDynamicInterceptionAdvice(
    ​		正常：环绕前置通知 -> 前置通知 -> 目标方法  -> 返回通知 -> 后置通知- > 环绕后置通知 
    
    ​		异常：环绕前置通知 -> 前置通知 -> 目标方法  -> 异常通知 -> 后置通知 -> 环绕后置通知
+
+## SpringBoot默认使用Cglib
+
+```java
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "spring.aop", name = "auto", havingValue = "true", matchIfMissing = true)
+public class AopAutoConfiguration {
+
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnClass(Advice.class)
+	static class AspectJAutoProxyingConfiguration {
+
+		@Configuration(proxyBeanMethods = false)
+		@EnableAspectJAutoProxy(proxyTargetClass = false)
+		@ConditionalOnProperty(prefix = "spring.aop", name = "proxy-target-class", havingValue = "false",
+				matchIfMissing = false)
+		static class JdkDynamicAutoProxyConfiguration {
+		}
+
+		@Configuration(proxyBeanMethods = false)
+		@EnableAspectJAutoProxy(proxyTargetClass = true)
+		@ConditionalOnProperty(prefix = "spring.aop", name = "proxy-target-class", havingValue = "true",
+				matchIfMissing = true)
+		static class CglibAutoProxyConfiguration {
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnMissingClass("org.aspectj.weaver.Advice")
+	@ConditionalOnProperty(prefix = "spring.aop", name = "proxy-target-class", havingValue = "true",
+			matchIfMissing = true)
+	static class ClassProxyingConfiguration {
+
+		ClassProxyingConfiguration(BeanFactory beanFactory) {
+			if (beanFactory instanceof BeanDefinitionRegistry) {
+				BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
+				AopConfigUtils.registerAutoProxyCreatorIfNecessary(registry);
+				AopConfigUtils.forceAutoProxyCreatorToUseClassProxying(registry);
+			}
+		}
+
+	}
+
+}
+```
+
+在配置文件`additional-spring-configuration-metadata.json`中：
+
+```json
+    {
+      "name": "spring.aop.auto",
+      "type": "java.lang.Boolean",
+      "description": "Add @EnableAspectJAutoProxy.",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.aop.proxy-target-class",
+      "type": "java.lang.Boolean",
+      "description": "Whether subclass-based (CGLIB) proxies are to be created (true), as opposed to standard Java interface-based proxies (false).",
+      "defaultValue": true
+    }
+```
+

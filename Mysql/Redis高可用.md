@@ -4,10 +4,10 @@
 
 ### 主从复制原理
 
-
-
+```
 127.0.0.1:6379> auth root
 OK
+```
 
 #### 全量同步
 
@@ -51,16 +51,16 @@ Slave初始化后开始正常工作时主服务器发生的写操作同步到从
 
 <img src="./image/Redis/redis_info.png" style="zoom:80%;" />
 
-​		主从节点首次复制时，主节点将自己的run_id发送给从节点，从节点将这个run_id保存起来，当断线重连时，从节点会将这个run_id发送给主节点，主节点根据runid判断能否进行部分复制；
+​		主从节点首次复制时，主节点将自己的`run_id`发送给从节点，从节点将这个`run_id`保存起来，当断线重连时，从节点会将这个`run_id`发送给主节点，主节点根据`run_id`判断能否进行部分复制；
 
-​		如果从节点保存的run_id与主节点的run_id相同，说明主从节点之前同步过，主节点会继续尝试使用部分复制（到底能不能部分复制还要看offset和复制积压缓冲区的情况）
+​		如果从节点保存的`run_id`与主节点的`run_id`相同，说明主从节点之前同步过，主节点会继续尝试使用**部分复制**（到底能不能部分复制还要看offset和复制积压缓冲区的情况）
 
-> ​		如果从节点保存的run_id与主节点的run_id不同，说明从节点在断线前同步的Redis节点并不是当前的主节点，只能进行**全量复制**
+> 如果从节点保存的`run_id`与主节点的`run_id`不同，说明从节点在断线前同步的Redis节点并不是当前的主节点，只能进行**全量复制**。
 >
 
 #### 复制偏移量
 
-参与复制的主从节点都会维护自身复制偏移量。主节点（master）在处理完写入命令后，会把命令的字节长度做累加记录，统计信息会在`info replication`中的`master_repl_offset`指标中
+参与复制的主从节点都会维护自身复制**偏移量**。主节点（master）在处理完写入命令后，会把命令的字节长度做累加记录，统计信息会在`info replication`中的`master_repl_offset`指标中
 
 从节点（slave）每秒钟上报自身的复制偏移量给主节点，因为主节点也会保存从节点的复制偏移量，统计指标如下：
 
@@ -118,6 +118,10 @@ d) Redis Slave掉线期间，master保存在内存的offset可用，也就是mas
 2) slave重启时，run_id会丢失
 
 很显然，会发生全量同步，因为增量同步的条件之一run id已经不能满足
+
+
+
+master节点宕机怎么办？
 
 
 
@@ -267,7 +271,9 @@ sentinel deny-scripts-reconfig yes
 
 在为一个Master添加一个新的Sentinel前，Sentinel总是检查是否已经有Sentinel与新的Sentinel的进程号或者是地址是一样的。如果是那样，这个Sentinel将会被删除，而把新的Sentinel添加上去。
 
-#### 主观下线和客观下线
+#### 服务状态监控
+
+**主观下线**和**客观下线**
 
 ##### **SDOWN**（主观下线）
 
@@ -277,7 +283,7 @@ Subjectively Down，指的是**单个Sentinel实例**对服务器做出的下线
 
 Sentinel 会以每秒一次的频率向所有与其建立了命令连接的实例（Master，Slave，其它Sentinel）发送PING命令，通过判断PING回复是有效回复，还是无效回复来判断实例时候在线（对该sentinel来说是“主观在线”）
 
-sentinel配置文件中的down-after-milliseconds设置了判断主观下线的时间长度，如果实例在down-after-milliseconds毫秒内，返回的都是无效回复，那么sentinel回认为该实例已（主观）下线，修改其flags状态为SRI_S_DOWN。
+sentinel配置文件中的`down-after-milliseconds`设置了判断主观下线的时间长度，如果实例在`down-after-milliseconds`毫秒内，返回的都是无效回复，那么sentinel会认为该实例已（主观）下线，修改其flags状态为SRI_S_DOWN。
 
 > 如果多个sentinel监视一个服务，有可能存在多个sentinel的down-after-milliseconds配置不同，这个在实际生产中要注意。
 
@@ -287,7 +293,7 @@ Objectively Down，指的是**多个 Sentinel 实例**在对同一个服务器�
 
 只有在足够数量的 Sentinel 都将一个服务器标记为主观下线之后， 服务器才会被标记为客观下线（ODOWN）
 
-只有当master被认定为客观下线时，才会发生故障迁移。
+**只有当master被认定为客观下线时，才会发生故障迁移。**
 
 当Sentinel监视的某个服务主观下线后，Sentinel会询问其它监视该服务的Sentinel，看它们是否也认为该服务主观下线，接收到足够数量（这个值可以配置）的Sentinel判断为主观下线，既任务该服务客观下线，并对其做故障转移操作。
 
@@ -300,6 +306,8 @@ sentinel接收到回复后，根据配置设置的下线最小数量，达到这
 客观下线条件只适用于主服务器： 对于任何其他类型的 Redis 实例， Sentinel 在将它们判断为下线前不需要进行协商， 所以从服务器或者其他 Sentinel 永远不会达到客观下线条件。只要一个 Sentinel 发现某个主服务器进入了客观下线状态， 这个 Sentinel 就可能会被其他 Sentinel 推选出， 并对失效的主服务器执行自动故障迁移操作。
 
 ##### 转换过程
+
+
 
 #### Master选举
 
@@ -348,3 +356,22 @@ Sentinel 自动故障迁移使用 Raft 算法来选举领头（leader） Sentine
 
 ### 集群原理
 
+集群完整性
+
+`cluster-require-full-coverage=false`，保证高可用性
+
+避免大集群，建立多个集群。
+
+
+
+
+
+集群完整性
+
+集群宽度问题
+
+数据倾斜问题
+
+命令的集群兼容性问题
+
+lua和事务问题

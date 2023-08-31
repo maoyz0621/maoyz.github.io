@@ -47,12 +47,16 @@ string pool，在类加载完成，经过验证，准备阶段之后在堆中生
 
 - 堆设置
 
-1. -Xms:初始堆大小，默认物理内存的1/64
-2. -Xmx:最大堆大小，默认物理内存的1/4，设置与-Xms一样
-3. -XX:NewSize=n:设置年轻代大小
-4. -XX:NewRatio=n:设置年轻代和年老代的比值。如:为3，表示年轻代与年老代比值为1：3，年轻代占整个年轻代年老代和的1/4
-5. -XX:SurvivorRatio=n:年轻代中Eden区与两个Survivor区的比值。注意Survivor区有两个。如：3，表示Eden：Survivor=3：2，一个Survivor区占整个年轻代的1/5
-6. -XX:MaxPermSize=n:设置持久代大小
+1. -Xms:  初始堆大小，默认物理内存的1/64
+2. -Xmx:  最大堆大小，默认物理内存的1/4，设置与-Xms一样
+3. -XX:NewSize=n:  设置年轻代大小
+4. -XX:NewRatio=n:  设置老年代的和年轻代的比值。如:为3，表示老年代:年轻代=3:1，年轻代占整个年轻代年老代和的1/4
+5. -XX:SurvivorRatio=n:  设值年轻代中Eden区与两个Survivor区的比值。注意Survivor区有两个。如：3，表示Eden：Survivor=3：2，一个Survivor区占整个年轻代的1/5
+6. -XX:MaxPermSize=n:  设置持久代大小
+7. -Xmn:128m  设值年轻代大小
+8. -XX:MetaspaceSize=128m  初始空间大小，控制matesaceGC发生的初始最小阈值。当使用的matespace空间到达了MetaspaceSize的时候，就会触发Metaspace的GC。
+9. -XX:MaxMetaspaceSize=320m  最大空间
+10. -XX:MaxTenuringThreshold=5  控制年轻代需要经历多少次GC晋升到老年代中的最大阈值。默认是15。 对象不一定要经历15次YGC才会晋升到老年代中。例如，当survivor区空间不够时，便会提前进入到老年代中，但这个次数一定不大于设置的最大阈值。
 
 - 收集器设置
 
@@ -98,7 +102,33 @@ Memory Leak，程序在申请内存后，**无法释放已申请的内存空间*
 
 OOM，out of memory，在申请内存时，**没有足够的内存空间供其使用**；通常发生于OLD段或Perm段垃圾回收后，仍然无内存空间容纳新的Java对象的情况。通常都是由于内存泄露导致堆栈内存不断增大，从而引发内存溢出。
 
+#### 造成原因：
 
+1. 一次性申请对象太多
+2. 内存资源未释放
+3. 本身资源不够
+
+#### 快速定位：
+
+通过dump定位
+
+```
+-XX:+HeapDumpOnOutOfMemoryError  -XX:HeapDumpPath=/opt/tmp/heapdump.hprof
+```
+
+打印日志，获取dmup文件，Arthas
+
+结合jvisualvm ，找到GCRoot，查看线程栈
+
+```
+jmap -histo:live <pid>   命令，强制执行 Full GC
+```
+
+#### 如何解决：
+
+1. 修改申请对象数量
+2. 及时释放资源
+3. jmap -heap 查看堆信息
 
 ## Garbage Collection
 
@@ -470,9 +500,13 @@ CMS提供了参数-XXCMSInitiatingOccupancyFraction来控制触发CMS的内存�
 
 逻辑分代，物理不分代
 
+> 可以同时回收新生代和老年代内的垃圾对象的，不需要两个垃圾回收器协同运作，一个人就可以将所有的垃圾对象回收。他相较于ParNew+CMS，最大的特点就是会将java的堆内存拆分成多个大小相等的Region。虽然G1也有年轻代和老年代的区分，但也只是在概念上区分。可以理解为G1将一部分的Region划分为年轻代，然后将另一部分划分成了老年代，如下图：
+
 |                                                    |
 | :------------------------------------------------: |
 | <img src="./image/GC/G1.png" style="zoom:125%;" /> |
+
+> G1还有一个特点，就是可以让我们设置一个垃圾回收器预期的停顿时间，也就是**stop the world**时间。比如我们可以设置，在一小时内，G1的stop the world时间不能超过1分钟。
 
 设置参数：
 
@@ -603,10 +637,10 @@ CMS提供了参数-XXCMSInitiatingOccupancyFraction来控制触发CMS的内存�
 
 运行过程：
 
-1. 初始标记（Initial Marking）
-2. 并发标记（Concurrent Marking）
-3. 最终标记（Final Marking）
-4. 筛选回收（Live Data Counting and Evacuation）
+1. 初始标记（Initial Marking），这个阶段是STW(Stop the World )的，所有应用线程会被暂停，标记出从GC Root开始直接可达的对象。
+2. 并发标记（Concurrent Marking），从GC Roots开始对堆中对象进行可达性分析，找出存活对象，耗时较长。当并发标记完成后，开始最终标记（Final Marking）阶段
+3. 最终标记（Final Marking）（标记那些在并发标记阶段发生变化的对象，将被回收）
+4. 筛选回收（Live Data Counting and Evacuation）（首先对各个Regin的回收价值和成本进行排序，根据用户所期待的GC停顿时间指定回收计划，回收一部分Region）
 
 > STAB     Snapshot At The Beginning在起始的时候做一个快照
 >

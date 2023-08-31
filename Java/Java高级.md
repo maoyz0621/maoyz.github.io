@@ -22,6 +22,53 @@ MQ异步 - 吞吐
 
 云原生、k8s - 动态扩缩容
 
+## 队列
+
+### 阻塞队列
+
+#### ArrayBlockingQueue
+
+**有界队列**，其内部是用数组存储元素的，利用Reentrant实现线程安全。如果**ArrayBlockingQueue**被设置为非公平的，那么就存在插队的可能；如果设置为公平的，那么等待了最长时间的线程会优先被处理，其它线程不允许插队。
+
+其实现并发同步的原理就是利用**ReentrantLock**和它的俩个**Condition**，读操作和写操作都需要先获取到ReentrantLock独占锁才能进行下一步操作。进行读操作时如果队列为空，线程就会进入到读线程专属的notEmpty的Condition的队列中去排队，等待写线程写入新的元素；同理队列已满，这个时候写操作的线程进入到写线程专属的notFull队列中去排队，等待读线程将队列元素移除并腾出空间。
+
+
+#### LinkedBlockingQueue
+
+内部使用链表实现的，如果我们不指定它的初始容量，那么它的默认容量就为整形的最大值**Integer.MAX_VALUE**，由于这个数特别特别的大，所以它也被称为**无界队列**。
+
+#### SynchronousQueue
+
+它的容量不同，所以没有地方来暂存元素，导致每次取数据都要先阻塞，直到有数据放入；同理，每次放数据的时候也会阻塞，直到有消费者来取。SynchronousQueue的容量不是1而是0，因为SynchronousQueue不需要去持有元素，它做的就是直接传递。
+
+#### PriorityBlockingQueue
+
+支持优先级的**无界阻塞**队列，可以通过自定义类实现compareTo()方法来制定元素排序规则，或者初始化时通过构造器参数Comparator来制定排序规则。同时，插入队列的对象必须是可比较大小的，也就是Comparable的，否则就会抛出ClasscastException异常。
+它的take()方法在队列为空时会阻塞，但是正因为它是无界队列，而且会自动扩容，所以它的队列永远不会满，所以它的put()方法永远不会阻塞，添加操作始终都会成功。
+
+#### DelayQueue
+
+延迟队列，具有延迟的功能，我们可以设定在队列中的任务延迟多久之后执行。它是**无界队列**，但是放入的元素必须实现**Delayed**接口，而Delayed接口又继承了Comparable接口，所以自然就拥有了比较和排序的能力。
+
+### 线程池选择
+
+|      | newCachedThreadPool              | SynchronousQueue    |
+| ---- | -------------------------------- | ------------------- |
+|      | newFixedThreadPool               | LinkedBlockingQueue |
+|      | newSingleThreadExecutor          | LinkedBlockingQueue |
+|      | newScheduledThreadPool           | DelayedWorkQueue    |
+|      | newSingleThreadScheduledExecutor | DelayedWorkQueue    |
+
+
+
+### 非阻塞队列
+
+#### ConcurrentLinkedQueue
+
+使用CAS非阻塞算法+不停重试的实际来实现线程安全的
+
+
+
 
 
 ## JUC
@@ -1220,7 +1267,7 @@ Java内存屏障主要有Load和Store两类。
 如图所示，这里的unlock M和lock M就是划分程序的分割线。在这里，红色区域和绿色区域的代码内部是可以进行重排序的，但是unlock和lock操作是不能与它们进行重排序的。即第一个图中的红色部分必须要在unlock M指令之前全部执行完，第二个图中的绿色部分必须全部在lock M指令之后执行。并且在第一个图中的unlock M指令处，红色部分的执行结果要全部刷新到主存中，在第二个图中的lock M指令处，绿色部分用到的变量都要从主存中重新读取。
 在程序中加入分割线将其划分成多个程序块，虽然在程序块内部代码仍然可能被重排序，但是保证了程序代码在宏观上是有序的。并且可以确保在分割线处，CPU一定会和主内存进行交互。Happens-Before原则就是定义了程序中什么样的代码可以作为分隔线。并且无论是哪条Happens-Before原则，它们所产生分割线的作用都是相同的。
 
-
+> 如果A happen-before B，意味着A的执行结果必须对B可见，也就是保证跨线程的内存可见性。并不代表A一定在B之前执行。因为，对于多线程程序而言，两个操作的执行顺序是不确定的。happen-before 只确保如果A在B之前执行，则A的执行结果必须对B可见。定义了内存可见性的约束，也就定义了一系列重排序的约束。
 
 ## synchronized 
 

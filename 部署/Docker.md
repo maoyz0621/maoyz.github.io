@@ -295,17 +295,25 @@ CMD echo "---------end----------"
 
 #### RUN、CMD、ENTRYPOINT
 
-- RUN：执行命令并创建新的镜像层，经常用于安装软件包
-- CMD：设置容器启动后默认执行的命令和参数，能够被docker run的命令行参数替换
-- ENTRYPOINT：配置容器启动时运行的命令
+- RUN：用于指定` docker build`过程中要运行的命令，在当前镜像之上执行任何命令，执行命令并创建新的镜像层，经常用于安装软件包，可以有多个RUN指令并依次执行
 
-#### Shell 和 Exec 格式
+> RUN <command> (shell模式)，RUN ["executable", "param1", "param2"] (exec 模式)
 
-- Shell格式
+- CMD：在`docker run`时运行，容器启动时默认执行的命令和参数，只有**最后一个该指令有效**，能够被`docker run`的命令行参数替换。
+
+> CMD ["executable", "param1",  "param2"] (exec 模式, 推荐使用)；CMD ["param1", "param2"] (作为 ENTRYPOINT 指令的参数)
+
+- ENTRYPOINT：在`docker run`时运行，配置容器启动时运行的命令，只有**最后一个该指令有效**, 不会被`docker run`的命令行参数替换。而且这些命令行参数会被当作参数送给ENTRYPOINT指令指定的程序；但是, 如果运行 docker run 时使用了 --entrypoint 选项，此选项的参数可当作要运行的程序覆盖 ENTRYPOINT 指令指定的程序；
+
+> ENTRYPOINT["executable", "param1",  "param2"] (exec 模式, 推荐使用)
+
+#### shell 和 exec 格式
+
+- shell格式
 
   底层调用`/bin/sh  -c  [command]`
 
-- Exec格式
+- exec格式
 
   直接调用`[command]`，不会被shell解析
 
@@ -515,17 +523,17 @@ C类内网IP地址：192.168.0.0 - 192.168.255.255，默认子网掩码是255.25
 
 - `lo`
 
-  `127.0.0.1/8`:本机回环地址
+  `127.0.0.1/8`:  本机回环地址
 
 - `eth0`
 
-  `192.168.107.100/24`:本机内网地址
+  `192.168.107.100/24`:  本机内网地址
 
   `192.168.107.255`:
 
 - `docker0`
 
-  `172.17.0.1/16`:docker0地址
+  `172.17.0.1/16`:  docker0地址
 
   `172.17.255.255`:
 

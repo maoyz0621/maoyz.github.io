@@ -130,6 +130,12 @@ show slave status \G;
 4. 登陆repl用户
 `mysql -urepl -p -S /data/mysql/mysql_1/mysqld.sock -hlocalhost  -P 3301`
 
+## 主从复制
+
+
+
+选择一台从服务做主
+
 
 
 ## 开启profile 查看生命周期
@@ -200,6 +206,76 @@ show slave status \G;    # 观察 Slave_IO_Running = YES   Slave_SQL_Running = Y
 >1 `show variables like 'sql_mode';`
 >2 `set session`
    `sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';`
+
+
+
+- 事务超时时间设置，默认是50s
+
+```
+SET innodb_lock_wait_timeout=10;
+```
+
+- 连接超时时间设置，连接超时time为28800s(即8小时)，超过8h，数据库会断开这个连接
+
+```
+SET wait_timeout=30;
+```
+
+- 数据库超时时间设置
+
+```
+SET interactive_timeout=30;
+```
+
+
+
+- 查询大事务：
+
+```mysql
+select * from information_schema.innodb_trx where TIME_TO_SEC(timediff(now(),trx_started)) > 10
+```
+
+
+
+- 查看长事务执行的最后一条sql
+
+```mysql
+mysql> select now(), (UNIX_TIMESTAMP(now()) - UNIX_TIMESTAMP(a.trx_started)) diff_sec,b.id,b.user,b.host,b.db,d.SQL_TEXT from information_schema.innodb_trx a inner join
+    -> information_schema.PROCESSLIST b
+    -> on a.TRX_MYSQL_THREAD_ID=b.id and b.command = 'Sleep'
+    -> inner join performance_schema.threads c ON b.id = c.PROCESSLIST_ID
+```
+
+- 查询被阻塞事务
+
+```mysql
+mysql> select * from sys.innodb_lock_waits;
+```
+
+- 监控长事务
+
+```bash
+#!/bin/bash
+ 
+/usr/local/mysql/bin/mysql -N -uroot -pxxxxxx -e "select now(),(UNIX_TIMESTAMP(now()) - UNIX_TIMESTAMP(a.trx_started)) diff_sec,b.id,b.user,b.host,b.db,d.SQL_TEXT from information_schema.innodb_trx a inner join
+information_schema.PROCESSLIST b
+on a.TRX_MYSQL_THREAD_ID=b.id and b.command = 'Sleep'
+inner join performance_schema.threads c ON b.id = c.PROCESSLIST_ID
+inner join performance_schema.events_statements_current d ON d.THREAD_ID = c.THREAD_ID;" | while read A B C D E F G H
+do
+  if [ "$C" -gt 30 ]
+      then
+      echo $(date +"%Y-%m-%d %H:%M:%S")
+      echo "processid[$D] $E@$F in db[$G] hold transaction time $C SQL:$H"
+  fi
+done >> /tmp/longtransaction.txt
+```
+
+> 这里的-gt 30是30秒钟的意思，只要超过了30秒钟就认定是长事务
+
+
+
+
 
 ## 数据库连接池
 

@@ -55,9 +55,9 @@ Znode兼具文件和目录两种特点。既像文件一样维护着数据长度
 事务id，64位的数字，高32位表示epoch用来标识leader关系是否改变，每次一个leader被选出来，它都会有一个新的epoch；低32位递增计数，保证事务的顺序一致性
 
 1. **cZxid**
-   Create，节点创建的事务标识
+   create，节点创建的事务标识
 2. **mZxid**
-   Modify，节点更新的zxid。对znode的修改都会更新mZxid
+   modify，节点更新的zxid。对znode的修改都会更新mZxid
 3. **pZxid**
    该节点的子节点（或该节点）的最近一次创建/删除，与孙子节点无关，znode最后更新的子节点zxid。
 
@@ -78,7 +78,7 @@ Znode兼具文件和目录两种特点。既像文件一样维护着数据长度
 
 
 
-### Watch机制
+## Watch机制
 
 发布订阅（事件监听器），是 ZooKeeper 中的一个很重要的特性。
 
@@ -91,26 +91,26 @@ ZooKeeper 允许用户在指定节点上注册一些 Watcher，并且在一些�
 
 1. Watch是**一次性**的，每次都需要重新注册，并且客户端在会话异常结束时不会收到任何通知，而快速重连接时仍不影响接收通知。
 2. Watch的回调执行都是顺序执行的，并且客户端在没有收到关注数据的变化事件通知之前是不会看到最新的数据
-3. Watch是轻量级的，WatchEvent是最小的通信单元，结构上只包含通知状态、事件类型和节点路径。ZooKeeper服务端只会通知客户端发生了什么，并不会告诉具体内容。
+3. Watch是轻量级的，WatchedEvent是最小的通信单元，结构上只包含通知状态、事件类型和节点路径。ZooKeeper服务端只会通知客户端发生了什么，并不会告诉具体内容。
 4. 串行同步的。
 
-#### 客户端实现过程
+### 客户端实现过程
 
 标记会话带有Watch事件请求，同时保存和节点的对应关系，添加到outgoingQueue队列中。
 
-#### 服务端实现过程
+### 服务端实现过程
 
 解析是否带有Watch事件，如果为true，存储到WatchManager。
 
-#### 服务端触发过程
+### 服务端触发过程
 
 触发数据变更事件，封装WatchedEvent，调用process()方法向客户端发送通知。
 
-#### 客户端回调过程
+### 客户端回调过程
 
 SendThread.readResponse()方法统一处理服务器响应。交给EventThread线程处理
 
-### ACL权限控制
+## ACL权限控制
 
 ZooKeeper 采用 ACL（Access Control List）策略来进行权限控制，类似于  UNIX 文件系统的权限控制。
 
@@ -118,7 +118,7 @@ ZooKeeper 采用 ACL（Access Control List）策略来进行权限控制，类�
 - READ               获取节点数据和子节点列表的权限
 - WRITE             更新节点数据的权限
 - DELETE           删除子节点的权限
-- ADMIN            设置节点ACL的权限
+- ADMIN           设置节点ACL的权限
 
 > 为什么 ZooKeeper 不能采用相对路径查找节点呢？
 >
@@ -151,7 +151,7 @@ zoo.cfg 集群配置：
 # 如果要设置观察者
 peerType=observer
 
-# 追加集群节点配置 server.[id]=host:2181:3181
+# 追加集群节点配置 server.[myid]=host:2181:3181，第一个端口：Leader和Learner之间的同步，第二个端口：选举过程中的投票通信
 server.1=node1:2888:3888
 server.2=node2:2888:3888
 server.3=node3:2888:3888
@@ -194,11 +194,11 @@ server.5=node5:2888:3888:observer
 
 2. 非事务性会话请求：查询数据节点
 
-**数据同步是从Learnning服务器同步Leader服务器上的数据。**
+**数据同步是从Learner服务器同步Leader服务器上的数据。**
 
 #### 同步条件
 
-触发同步机制，Leader选取过程中，除了被选取为**Leader**的服务器，其它服务器都作为**Learnning**服务器，并向Leader服务器注册，上报**peerLastZxid**。
+触发同步机制，Leader选取过程中，除了被选取为**Leader**的服务器，其它服务器都作为**Learner服务器，并向Leader服务器注册，上报**peerLastZxid**。
 
 #### 同步过程
 
@@ -208,7 +208,7 @@ server.5=node5:2888:3888:observer
 
 #### 同步后处理
 
-Learnning服务器执行接收到的事务日志，进行本地化操作。
+Learner服务器执行接收到的事务日志，进行本地化操作。
 
 ### 脑裂问题
 
