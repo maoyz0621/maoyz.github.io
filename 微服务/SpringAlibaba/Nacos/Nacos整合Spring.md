@@ -106,7 +106,7 @@ nacos.config.ext-config[0].enable-remote-sync-config=true
 
 
 
-### nacos-config
+### nacos-discovery
 
 - pom依赖
 
@@ -198,7 +198,136 @@ Caused by: java.lang.ClassCastException: class com.sun.proxy.$Proxy97 cannot be 
 
 
 
-## 配置文件的读取优先级
+```xml
+<!-- 2.2.x 分支 -->
+<properties>
+	<spring-cloud.version>Hoxton.SR3</spring-cloud.version>
+	<spring-boot.version>2.2.5.RELEASE</spring-boot.version>
+	<spring-cloud-alibaba.version>2.2.1.RELEASE</spring-cloud-alibaba.version>
+</properties>
+
+<!-- 2021.x 分支 -->
+<properties>
+	<spring-cloud.version>2021.0.5</spring-cloud.version>
+	<spring-boot.version>2.6.13</spring-boot.version>
+	<spring-cloud-alibaba.version>2021.0.5.0</spring-cloud-alibaba.version>
+</properties>
+
+<!-- 2022.x 分支 -->
+<properties>
+	<spring-cloud.version>2022.0.0</spring-cloud.version>
+	<spring-boot.version>3.0.2</spring-boot.version>
+	<spring-cloud-alibaba.version>2022.0.0.0</spring-cloud-alibaba.version>
+</properties>
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-parent</artifactId>
+            <version>${spring-boot.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-dependencies</artifactId>
+            <version>${spring-cloud.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+            <version>${spring-cloud-alibaba.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+            <version>${spring-cloud-alibaba.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+            <version>${spring-cloud-alibaba.version}</version>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+### 配置文件的读取优先级
+
+- bootstrap.yml，spring.profiles.active=dev
+
+```yaml
+spring:
+  application:
+    name: springcloud2021-nacos
+  cloud:
+    discovery:
+      enabled: true
+    nacos:
+      discovery:
+        namespace: 6cb18b3e-51e0-411a-9a7c-9660dbbeef1e  # 命名空间：默认public
+        server-addr: 127.0.0.1:8848
+        enabled: true
+      config:
+        namespace: 6cb18b3e-51e0-411a-9a7c-9660dbbeef1e  # 命名空间：默认public
+        server-addr: 127.0.0.1:8848 # 配置中心地址
+        file-extension: properties  # 文件类型，yaml和 properties
+        prefix: ${spring.application.name} # 使用配置名
+        # prefix: springcloud2021-nacos-other # 使用配置名
+        group: dev  # 分组
+        refresh-enabled: true
+        # 共享配置文件
+        shared-configs: # 共享配置文件
+          - data-id: common.properties
+            group: DEFAULT_GROUP
+            refresh: true
+
+        # 延展配置，多个配置 写在下面的优先级高：
+        extension-configs:
+          - data-id: mysql.yaml
+            group: ext
+            refresh: true
+          - data‐id: middle.yaml
+            group: ext
+            refresh: true
+        # 延展配置方法二，多个配置 写在下面的优先级高：    
+        extension-configs[0]:
+          data-id: mysql.yaml
+          group: ext
+          refresh: true
+        extension-configs[1]:
+          data‐id: middle.yaml
+          group: ext
+          refresh: true
+```
+
+默认配置文件：springcloud2021-nacos-dev.properties
+
+使用别名`springcloud2021-nacos-other`配置文件：springcloud2021-nacos-other.properties
+
+| 属性文件                        |
+| ------------------------------- |
+| ![](.\images\Nacos属性文件.jpg) |
+
+> ```
+> 默认属性文件DataId: ${prefix}-${spring.profile.active}.${file-extension}：springcloud2021-nacos-dev.properties
+> 	${prefix}：默认为spring.application.name的值，也可以通过配置项 spring.cloud.nacos.config.prefix来配置
+> 	${file-extension}：yaml和 properties
+> ```
+
+扩展配置`com.alibaba.cloud.nacos.NacosConfigProperties#extensionConfigs`和
+
+共享配置`com.alibaba.cloud.nacos.NacosConfigProperties#sharedConfigs`
+
+默认主配置：
 
 > 总结：
 >
@@ -211,3 +340,97 @@ Caused by: java.lang.ClassCastException: class com.sun.proxy.$Proxy97 cannot be 
 > bootstrap.yml > bootstrap.properties >
 >
 > application.yml > application.yaml > application.properties
+
+
+
+原因分析：
+
+- `com.alibaba.cloud.nacos.client.NacosPropertySourceLocator#locate`
+
+```java
+public PropertySource<?> locate(Environment env) {
+	nacosConfigProperties.setEnvironment(env);
+	ConfigService configService = nacosConfigManager.getConfigService();
+
+	if (null == configService) {
+		log.warn("no instance of config service found, can't load config from nacos");
+		return null;
+	}
+	long timeout = nacosConfigProperties.getTimeout();
+	nacosPropertySourceBuilder = new NacosPropertySourceBuilder(configService,
+			timeout);
+	String name = nacosConfigProperties.getName();
+
+	String dataIdPrefix = nacosConfigProperties.getPrefix();
+	if (StringUtils.isEmpty(dataIdPrefix)) {
+		dataIdPrefix = name;
+	}
+
+	if (StringUtils.isEmpty(dataIdPrefix)) {
+		dataIdPrefix = env.getProperty("spring.application.name");
+	}
+
+	CompositePropertySource composite = new CompositePropertySource(
+			NACOS_PROPERTY_SOURCE_NAME);
+	// 加载 shared-configs 配置
+	loadSharedConfiguration(composite);
+    // 加载 extension-configs 配置
+	loadExtConfiguration(composite);
+    // 加载应用内配置
+	loadApplicationConfiguration(composite, dataIdPrefix, nacosConfigProperties, env);
+	return composite;
+}
+
+
+/**
+ * load configuration of application.
+ */
+private void loadApplicationConfiguration(
+		CompositePropertySource compositePropertySource, String dataIdPrefix,
+		NacosConfigProperties properties, Environment environment) {
+    // 不设置，默认值：properties
+	String fileExtension = properties.getFileExtension();
+	String nacosGroup = properties.getGroup();
+	// load directly once by default 加载默认的，不追加扩展符的 data-id 文件：
+    // springcloud2021-nacos
+	loadNacosDataIfPresent(compositePropertySource, dataIdPrefix, nacosGroup,
+			fileExtension, true);
+	// load with suffix, which have a higher priority than the default
+    // 加载带扩展符的 data-id 文件，优先级大于默认的：
+    // springcloud2021-nacos.properties
+	loadNacosDataIfPresent(compositePropertySource,
+			dataIdPrefix + DOT + fileExtension, nacosGroup, fileExtension, true);
+	// Loaded with profile, which have a higher priority than the suffix
+    // 加载带环境标识的 data-id 文件，优先级大于带扩展符的：
+    // springcloud2021-nacos-dev.properties
+	for (String profile : environment.getActiveProfiles()) {
+		String dataId = dataIdPrefix + SEP1 + profile + DOT + fileExtension;
+		loadNacosDataIfPresent(compositePropertySource, dataId, nacosGroup,
+				fileExtension, true);
+	}
+
+}
+```
+
+
+
+### SpringCloud注册
+
+```java
+org.springframework.cloud.client.serviceregistry.ServiceRegistry
+	NacoServiceRegistry
+    	register()调用com.alibaba.nacos.api.naming.NamingService#registerInstance完成服务注册
+```
+
+
+
+实现过程：
+
+```java
+AutoServiceRegistrationAutoConfiguration
+	AutoServiceRegistration
+		AbstractAutoServiceRegistration
+			NacosAutoServiceRegistration
+```
+
+Nacos是通过Spring的事件机制onApplicationEvent()继承到SpringCloud中

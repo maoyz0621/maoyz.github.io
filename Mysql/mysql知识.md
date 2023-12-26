@@ -206,6 +206,38 @@ ORDER BY
 
 
 
+- 5.7以后对排序的sql解析做了优化，子查询中的排序是会被忽略的
+
+> 要求：姓名分组，先age倒序后add_time倒序
+
+```mysql
+-- 方法一
+SELECT
+	*
+FROM
+	(SELECT
+	*
+FROM
+	`staffs` 
+ORDER BY
+	age DESC, add_time DESC limit 99999) temp
+GROUP BY name;
+
+-- 方法二
+SELECT
+	*
+FROM
+	(SELECT
+	*
+FROM
+	`staffs` HAVING 1
+ORDER BY
+	age DESC, add_time DESC) temp
+GROUP BY name;
+```
+
+
+
 ## distinct
 
 distinct去重，首先distinct必须放在查询字段的开头，如果放在中间或末尾，mysql会报错。

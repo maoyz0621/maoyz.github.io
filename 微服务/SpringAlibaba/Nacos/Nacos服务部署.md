@@ -87,9 +87,13 @@ Caused by: java.lang.UnsupportedOperationException: Cannot determine JNI library
 Mysql无法连接电脑的本地IP，解决办法：
 
 ```mysql
-create user root @'192.168.0.107' identified by 'root';
+create user 'nacos' @'192.168.0.107' identified by 'nacos';
 grant all privileges on *.* to 'root'@'192.168.0.107' with grant option;
-flush prvileges
+flush PRIVILEGES;
+
+create user 'nacos' @'%' identified by 'nacos';
+grant all privileges on nacos.* to 'nacos'@'%' with grant option;
+flush PRIVILEGES;
 ```
 
 

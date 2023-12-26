@@ -46,6 +46,12 @@
 
 ### 系统数据库
 
+window启动：
+
+```
+mongod --config mongod.cfg
+```
+
 #### admin
 
 权限数据库，创建用户的时候将用户添加到admin中

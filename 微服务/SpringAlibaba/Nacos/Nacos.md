@@ -2,11 +2,11 @@
 
 **Dynamic Naming and Configuration Service**，Nacos 提供了一组简单易用的特性集，实现**动态服务发现**、**动态DNS服务**、服务配置管理、服务及流量管理
 
-- **命名空间（NameSpace）**：用于不同环境（开发环境、测试环境和生产环境）的配置隔离。不同的命名空间下，可以存在相同名称的配置分组（Group）或配置集。
+- **命名空间（NameSpace）**：用于不同环境（开发环境、测试环境、预发布环境和生产环境）的配置隔离。不同的命名空间下，可以存在相同名称的配置分组（Group）或配置集。
 - **配置分组（Group）**：对配置集进行分组，不同的配置分组下可以有相同的配置集（DateId）。默认的配置分组名称为 **DEFAULT_GROUP**。用于区分不同的项目或应用。
 - **配置集（DataId）**：个配置文件通常就是一个**配置集**，一个配置集可以包含了系统的各种配置信息，例如一个配置集可能包含了数据源、线程池、日志级别等配置项。每个配置集都可以定义一个有意义的名称。
 
-数据结构类型Map<String, Map<String, Service>>，最外层的key是namespaceId，值是map，内部map大的key是group拼接serviceName（group@@serviceName），值是service对象；service对象内部又是一个map，key是集群名称，值是Cluster对象，Cluster对象内部维护了实例对象集合
+数据结构类型`Map<namespaceId, Map<group@@serviceName, Service>>`，最外层的key是namespaceId，值是map，内部map大的key是group拼接serviceName（group@@serviceName），值是service对象；service对象内部又是一个map，key是集群名称，值是Cluster对象，Cluster对象内部维护了实例对象集合
 
 |                                                  |
 | ------------------------------------------------ |
@@ -23,7 +23,7 @@ Nacos2.x：客户端不再需要定时发送实例心跳，长连接的流式推
 
 |                                                              |
 | ------------------------------------------------------------ |
-| <img src="images/Nacos动态服务发现.jpg" style="zoom:80%;" /> |
+| <img src="images/Nacos动态服务发现.jpg" style="zoom: 67%;" /> |
 
 ### 通讯协议
 
@@ -33,10 +33,12 @@ Nacos2.x：客户端不再需要定时发送实例心跳，长连接的流式推
 
 ## Nacos中的CAP
 
+作为配置中心时，所有的配置信息都是同一份，一般存在MySQL中；作为注册中心时，
+
 推荐AP，保证高可用。
 
 > Nacos中**服务注册中心**默认是**AP**模式，如果设置为CP模式`
-> `那么客户端设置 `spring.cloud.nacos.discovery.ephemeral=false` （默认为true） false - 持久化实例，使用 CP架构；true - 临时实例，使用 AP架构
+> `那么客户端设置 `spring.cloud.nacos.discovery.ephemeral=false` （默认为true） false - 持久化实例，使用 CP架构；true - 临时实例，使用AP架构
 
 
 ### Raft协议

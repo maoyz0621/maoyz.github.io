@@ -1,0 +1,15 @@
+1、解决VSCode安装Go tools失败的问题
+	设置代理：
+		$ go env -w GO111MODULE=on
+		$ go env -w GOPROXY=https://goproxy.io,direct
+		
+2、GO111MODULE 是 Go 1.11 引入的新版模块管理方式
+
+3、VSVode安装Run、Debug插件
+	Code Runner
+	Code Debugger
+
+
+https://zhuanlan.zhihu.com/p/519979757   Golang面试题
+
+https://zhuanlan.zhihu.com/p/557250803
