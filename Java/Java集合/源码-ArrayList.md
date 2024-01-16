@@ -14,7 +14,7 @@
 public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable
 ```
 
-![](image/Java/Collection/ArrayList继承.png)
+![](../image/Java/Collection/ArrayList继承.png)
 
 - 实现 `RandomAccess` 标记接口  
 
@@ -192,7 +192,7 @@ private static int calculateCapacity(Object[] elementData, int minCapacity) {
 }
 ```
 
-![](image/Java/Collection/ArrayList-add1.gif)
+![](../image/Java/Collection/ArrayList-add1.gif)
 
 总结：
 
@@ -260,7 +260,7 @@ private void rangeCheck(int index) {
 }
 ```
 
-![](image/Java/Collection/ArrayList-add.gif)
+![](../image/Java/Collection/ArrayList-add.gif)
 
 ### addAll
 
@@ -360,7 +360,7 @@ public E remove(int index) {
 
 删除指定位置的元素，将任何后续元素移动到左侧（从其索引中减去一个元素）
 
-![](image/Java/Collection/ArrayList-remove.gif)
+![](../image/Java/Collection/ArrayList-remove.gif)
 
 ```java
 public boolean remove(Object o) {
@@ -659,7 +659,7 @@ for (Iterator<String> iterator = list.iterator(); iterator.hasNext(); ) {
 
 由iterator()引起的，IndexOutOfBoundsException转化为ConcurrentModificationException
 
-<img src=".\image\Java\ConcurrentModificationException.png" style="zoom:80%;" />
+<img src="..\image\Java\ConcurrentModificationException.png" style="zoom:80%;" />
 
 5. 增强for循环`ConcurrentModificationException`
 
@@ -707,7 +707,7 @@ for (int i = 0; list.iterator().hasNext(); i++) {
 // java.lang.IndexOutOfBoundsException: Index: 5, Size: 5
 ```
 
-### 快速失败
+### Fail-Fast机制-快速失败
 
 ```java
 private void checkForComodification() {
@@ -716,9 +716,9 @@ private void checkForComodification() {
 }
 ```
 
-ArrayList实现了**快速失败**(fail-fast)机制，错误检测机制。在并发修改时会抛出**ConcurrentModificationException**异常。
+ArrayList实现了**快速失败**(fail-fast)机制，错误检测机制。在并发修改时迭代器很快就会完全失败，抛出**ConcurrentModificationException**异常。
 
-记录列表的修改总数（modCount），列表结构发生变化（添加或删除），modCount++，每次遍历前都会检查modCount是否发生变化，如果变化则抛出异常，表示列表并发修改。
+记录列表的修改总数（**modCount**），列表结构发生变化（添加或删除），modCount++，每次遍历前都会检查modCount是否发生变化，如果变化则抛出异常，表示列表并发修改。
 
 如何解决：`CopyOnWriteArrayList`
 

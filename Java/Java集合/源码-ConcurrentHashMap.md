@@ -1,6 +1,6 @@
 # ConcurrentHashMap
 
-<img src="image/Java/Map/java8_concurrenthashmap.png" style="zoom:80%;" />
+<img src="../image/Java/Map/java8_concurrenthashmap.png" style="zoom:80%;" />
 
 其中抛弃了原有的 Segment 分段锁，直接采用transient volatile HashEntry<K,V>[] table保存数据，而采用了 `CAS + synchronized` 来保证并发安全性，底层采用数组+链表+红黑树的存储结构。
 

@@ -1,6 +1,6 @@
 # HashMap
 
-![](image/Java/Map/Map体系.png)
+![](../image/Java/Map/Map体系.png)
 
 
 
@@ -378,7 +378,7 @@ final Node<K,V>[] resize() {
 - ①如果定位到的数组位置没有元素就直接插入。
 - ②如果定位到的数组位置有元素就和要插入的key比较，如果key相同就直接覆盖，如果key不相同，就判断p是否是一个树节点，如果是就调用`e = ((TreeNode)p).putTreeVal(this, tab, hash, key, value)`将元素添加进入。如果不是就遍历链表插入(插入的是链表尾部)。
 
-<img src="image/Java/Map/HashMap-put逻辑.jpg" style="zoom: 67%;" />
+<img src="../image/Java/Map/HashMap-put逻辑.jpg" style="zoom: 67%;" />
 
 - 小结：
 
