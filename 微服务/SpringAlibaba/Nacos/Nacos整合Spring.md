@@ -318,9 +318,10 @@ spring:
 | ![](.\images\Nacos属性文件.jpg) |
 
 > ```
-> 默认属性文件DataId: ${prefix}-${spring.profile.active}.${file-extension}：springcloud2021-nacos-dev.properties
-> 	${prefix}：默认为spring.application.name的值，也可以通过配置项 spring.cloud.nacos.config.prefix来配置
-> 	${file-extension}：yaml和 properties
+> 默认属性文件
+> DataId: ${prefix}-${spring.profile.active}.${file-extension}：springcloud2021-nacos-dev.properties
+> - ${prefix}：默认为spring.application.name的值，也可以通过配置项 spring.cloud.nacos.config.prefix来配置
+> - ${file-extension}：yaml和 properties
 > ```
 
 扩展配置`com.alibaba.cloud.nacos.NacosConfigProperties#extensionConfigs`和

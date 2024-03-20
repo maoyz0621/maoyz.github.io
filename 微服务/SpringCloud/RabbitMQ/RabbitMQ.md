@@ -13,8 +13,10 @@
    消息的生产者，也是一个向交换器发布消息的客户端应用程序。
 
 3. Exchange
-   交换器，用来接收生产者发送的消息并将这些消息路由给服务器中的队列。
+   交换器，用来接收生产者发送的消息并将这些消息路由给服务器中的队列。在RabbitMQ中，消息并不是直接被投递到 **Queue(消息队列)** 中的，中间还必须经过 **Exchange(交换器)** 这一层，**Exchange(交换器)** 会把我们的消息分配到对应的 **Queue(消息队列)** 中。
 
+   **Exchange(交换器)** 用来接收生产者发送的消息并将这些消息路由给服务器中的队列中，如果路由不到，或许会返回给 **Producer(生产者)** ，或许会被直接丢弃掉 。这里可以将 RabbitMQ 中的交换器看作一个简单的实体。
+   
 4. Binding
    绑定，用于消息队列和交换器之间的关联。一个绑定就是基于路由键将交换器和消息队列连接起来的路由规则，所以可以将交换器理解成一个由绑定构成的路由表。
 
@@ -40,11 +42,17 @@
 11. Broker
     表示消息队列服务器实体。
 
+## 消息传输
+
+由于 TCP 链接的创建和销毁开销较大，且并发数受系统资源限制，会造成性能瓶颈，所以 RabbitMQ **使用信道的方式来传输数据**。信道（Channel）是生产者、消费者与 RabbitMQ 通信的渠道，信道是建立在 TCP 链接上的虚拟链接，且每条 TCP 链接上的信道数量没有限制。就是说 RabbitMQ 在一条 TCP 链接上建立成百上千个信道来达到多个线程处理，这个 TCP 被多个线程共享，每个信道在 RabbitMQ 都有唯一的 ID，保证了信道私有性，每个信道对应一个线程使用。
+
+
+
 ## 工作模式
 
 ### 队列
 
-work消息模型、**Publish/Subscribe**（交换机类型：Fanout，也称为广播 **）**、**Routing 路由模型**（交换机类型：direct）、**Topics 通配符模式**（交换机类型：topics）
+**简单模式**、**work消息模型**、**Publish/Subscribe**（交换机类型：fanout，也称为广播 **）**、**Routing路由模型**（交换机类型：direct）、**Topic主题模式**（交换机类型：topic）
 
 生产者-消费者模型。直接绑定队列，虽然不用创建交换机，但会使用默认的交换机，并用默认的直连（`default-direct`）策略连接队列
 
@@ -56,11 +64,11 @@ work消息模型、**Publish/Subscribe**（交换机类型：Fanout，也称为�
 
 ### Exchange类型
 
-四种类型：`direct`、`fanout`、`topic`、`headers `
+四种类型：`direct（默认）`、`fanout`、`topic`、`headers `
 
 #### Fanout Exchange
 
-​		每个发到 fanout 类型交换器的消息都会分到所有绑定的队列上去。fanout 交换器忽略 RoutingKey 路由键，只是简单的将队列绑定到交换器上，每个发送到交换器的消息都会被转发到与该交换器绑定的所有队列上。优点是转发消息最快，性能最好。
+每个发到 fanout 类型交换器的消息都会分到所有绑定的队列上去。fanout 交换器忽略 RoutingKey 路由键，只是简单的将队列绑定到交换器上，每个发送到交换器的消息都会被转发到与该交换器绑定的所有队列上。优点是转发消息最快，性能最好。
 
 |         fanout         |
 | :--------------------: |
@@ -69,7 +77,10 @@ work消息模型、**Publish/Subscribe**（交换机类型：Fanout，也称为�
 
 #### Direct Exchange（直连交换机）
 
-​		默认的Exchange，消息中的路由键（routing key）如果和 Binding 中的 binding key 一致， 交换器就将消息发到对应的队列中。
+默认的Exchange，消息中的路由键（routing key）如果和 Binding 中的 binding key 一致， 交换器就将消息发到对应的队列中。
+
+direct 类型常用在处理有优先级的任务，根据任务的优先级把消息发送到对应的队列，这样可以指派更多的资源去处理高优先级的队列。
+
 |         routingkey         |
 | :------------------------: |
 | ![](iamge/routingkey.png)  |
@@ -78,7 +89,7 @@ work消息模型、**Publish/Subscribe**（交换机类型：Fanout，也称为�
 
 #### Topic Exchange（主题交换机）
 
-​		Topic Exchange和Direct Exchange 类似，通过模式匹配分配消息的路由键属性，将路由键和某个模式进行匹配，此时队列需要绑定到一个模式上。它将路由键和绑定键的字符串切分成单词，这些单词之间用点隔开。`#`匹配0个或多个单词，`*`匹配不多不少一个单词。
+​		Topic Exchange和Direct Exchange 类似，通过模式匹配分配消息的路由键属性，将路由键和某个模式进行匹配，此时队列需要绑定到一个模式上。它将路由键和绑定键的字符串切分成单词，这些单词之间用点隔开。`#`匹配0个或多个单词，`*`匹配一个单词。
 
 - `*` 可以通配1个单词
 - `#` 可以通配零个或多个单词
@@ -98,12 +109,10 @@ work消息模型、**Publish/Subscribe**（交换机类型：Fanout，也称为�
 
 - 发送方确认机制：
 
-  ```
   开启confirm模式
   确认模式是异步的
-  ConfirmCallback：确认消息到达exchange，不保证消息可以路由到正确的queue,如果exchange错误，就会触发confirm机制
+  ConfirmCallback：确认消息到达exchange，不保证消息可以路由到正确的queue，如果exchange错误，就会触发confirm机制
   ReturnCallback：消息失败
-  ```
 
 - 接收方确认机制
 
@@ -169,13 +178,48 @@ channel.basicNack(message.getMessageProperties().getDeliveryTag(), false, true);
 
    1) `mandatory` 设置 true，使用mandatory 设置true的时候有个关键点要调整，生产者如何获取到没有被正确路由到合适队列的消息呢？通过调用channel.addReturnListener来添加ReturnListener监听器实现，只要发送的消息，没有路由到具体的队列，ReturnListener就会收到监听消息。
 
-   2) 使用备份交换机(alternate-exchange)，实现没有路由到队列的消息
+   2) 使用备份交换机（alternate-exchange），实现没有路由到队列的消息
 
 
 
 #### Server -> 消费者
 
 ​		消费者手动ack机制
+
+
+
+### 死信队列
+
+DLX，全称为 `Dead-Letter-Exchange`，死信交换器，死信邮箱。当消息在一个队列中变成死信 (`dead message`) 之后，它能被重新被发送到另一个交换器中，这个交换器就是 DLX，绑定 DLX 的队列就称之为死信队列。
+
+**导致的死信的几种原因**：
+
+- 消息被否定确认，使用 `channel.basicNack` 或 `channel.basicReject` ，并且此时`requeue` 属性被设置为`false`。
+- 消息在队列的存活时间超过设置的TTL时间。
+- 消息队列的消息数量已经超过最大队列长度。
+
+同一个项目的死信交换机可以公用一个，队列分配单独的路由key.
+
+如果队列配置了参数 `x-dead-letter-routing-key` 的话，“死信”的路由key将会被替换成该参数对应的值。如果没有设置，则保留该消息原有的路由key
+
+### 延迟队列
+
+延迟队列指的是存储对应的延迟消息，消息被发送以后，并不想让消费者立刻拿到消息，而是等待特定时间后，消费者才能拿到这个消息进行消费。
+
+RabbitMQ本身是没有延迟队列的，要实现延迟消息，一般有两种方式：
+
+1. 通过RabbitMQ 本身队列的特性来实现，需要**使用RabbitMQ 的死信交换机（Exchange）和消息的存活时间 TTL（Time To Live）**。
+2. 在 RabbitMQ 3.5.7 及以上的版本提供了一个**插件（rabbitmq-delayed-message-exchange）**来实现延迟队列功能。同时，插件依赖 Erlang/OPT 18.0 及以上。
+
+AMQP 协议以及 RabbitMQ 本身没有直接支持延迟队列的功能，但是可以通过 TTL 和 DLX 模拟出延迟队列的功能。
+
+
+
+### 保证消息的顺序性
+
+- 拆分多个 queue(消息队列)，每个 queue(消息队列) 一个 consumer(消费者)，就是多一些 queue (消息队列)而已，确实是麻烦点；
+
+- 或者就一个 queue (消息队列)，但是对应一个 consumer(消费者)，然后这个 consumer(消费者)内部用内存队列做排队，然后分发给底层不同的 worker 来处理。
 
 
 
@@ -237,6 +281,12 @@ priority：可选参数，policy的优先级
 
 rabbitmqctl set_policy ha-all "^" '{"ha-mode":"all","ha-sync-mode":"automatic"}' --apply-to all
 ```
+
+跟普通集群模式不一样的是，在镜像集群模式下，你创建的 queue，无论元数据还是 queue 里的消息都会存在于多个实例上，就是说，每个 RabbitMQ 节点都有这个 queue 的一个完整镜像，包含 queue 的全部数据的意思。然后每次写消息到 queue 的时候，都会自动把消息同步到多个实例的 queue 上。
+
+RabbitMQ 有很好的管理控制台，就是在后台新增一个策略，这个策略是**镜像集群模式**的策略，指定的时候是可以要求数据同步到所有节点的，也可以要求同步到指定数量的节点，再次创建 queue 的时候，应用这个策略，就会自动将数据同步到其他的节点上去了。
+
+这样的好处在于，你任何一个机器宕机了，没事儿，其它机器（节点）还包含了这个 queue 的完整数据，别的 consumer 都可以到其它节点上去消费数据。坏处在于，第一，这个性能开销也太大了吧，消息需要同步到所有机器上，导致网络带宽压力和消耗很重！RabbitMQ 一个 queue 的数据都是放在一个节点里的，镜像集群下，也是每个节点都放这个 queue 的完整数据。
 
 
 
@@ -315,17 +365,7 @@ public class OrderMessageListener {
 
 重复消费？
 
-死信队列？
 
-DLQ（Dead Letter Queue）死信队列配置一个死信交换机，同一个项目的死信交换机可以公用一个，队列分配单独的路由key.
-
-1. 消息被否定确认，使用 `channel.basicNack` 或 `channel.basicReject` ，并且此时`requeue` 属性被设置为`false`。
-
-2. 消息在队列的存活时间超过设置的TTL时间。
-
-3. 消息队列的消息数量已经超过最大队列长度。
-
-   如果队列配置了参数 `x-dead-letter-routing-key` 的话，“死信”的路由key将会被替换成该参数对应的值。如果没有设置，则保留该消息原有的路由key
 
 延时队列？
 

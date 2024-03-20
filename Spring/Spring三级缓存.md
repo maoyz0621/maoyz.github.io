@@ -463,4 +463,4 @@ A，B循环依赖，先初始化A，先暴露一个半成品A，再去初始化�
 
 9、这样 beanB 就获取到了 beanA 的依赖，于是 beanB 顺利完成初始化，并将 beanA 从三级缓存移动到二级缓存中
 
-10、随后 beanA 继续他的属性填充工作，此时也获取到了 beanB ，beanA 也随之完成了创建，回到 getSingleton() 方法中继续向下执行，将 beanA 从二级缓存移动到一级缓存中·
+10、随后 beanA 继续他的属性填充工作，此时也获取到了 beanB ，beanA 也随之完成了创建，回到 getSingleton() 方法中继续向下执行，将 beanA 从二级缓存移动到一级缓存中

@@ -3,14 +3,33 @@
 **Dynamic Naming and Configuration Service**，Nacos 提供了一组简单易用的特性集，实现**动态服务发现**、**动态DNS服务**、服务配置管理、服务及流量管理
 
 - **命名空间（NameSpace）**：用于不同环境（开发环境、测试环境、预发布环境和生产环境）的配置隔离。不同的命名空间下，可以存在相同名称的配置分组（Group）或配置集。
-- **配置分组（Group）**：对配置集进行分组，不同的配置分组下可以有相同的配置集（DateId）。默认的配置分组名称为 **DEFAULT_GROUP**。用于区分不同的项目或应用。
+- **配置分组（Group）**：对配置集进行分组，不同的配置分组下可以有相同的配置集（DataId）。默认的配置分组名称为 **DEFAULT_GROUP**。用于区分不同的项目或应用。
 - **配置集（DataId）**：个配置文件通常就是一个**配置集**，一个配置集可以包含了系统的各种配置信息，例如一个配置集可能包含了数据源、线程池、日志级别等配置项。每个配置集都可以定义一个有意义的名称。
 
-数据结构类型`Map<namespaceId, Map<group@@serviceName, Service>>`，最外层的key是namespaceId，值是map，内部map大的key是group拼接serviceName（group@@serviceName），值是service对象；service对象内部又是一个map，key是集群名称，值是Cluster对象，Cluster对象内部维护了实例对象集合
+数据结构类型`Map<namespaceId, Map<group@@serviceName, Service>>`，最外层的key是`namespaceId`，值是Map，内部Map大的key是group拼接serviceName（`group@@serviceName`），值是`Service`对象；Service对象内部又是一个Map，key是`集群名称`，值是`Cluster对象`，Cluster对象内部维护了`Instance`实例对象集合。
+
+```java
+// ServiceManager，key是个namespace，value是个Map<String, Service>，该map的key是group@@serviceName，value是个service类
+private Map<String, Map<String, Service>> serviceMap = new ConcurrentHashMap<>();
+
+
+// Service，key是个string，保存的是clustername，value是个Cluster类型
+private Map<String, Cluster> clusterMap = new HashMap<>();
+
+
+// Cluster
+@JSONField(serialize = false)
+private Set<Instance> persistentInstances = new HashSet<>();
+@JSONField(serialize = false)
+private Set<Instance> ephemeralInstances = new HashSet<>();
+```
+
+
 
 |                                                  |
 | ------------------------------------------------ |
 | <img src="images/Nacos.jpg" style="zoom:80%;" /> |
+| ![](.\images\Nacos数据结构类型.png)              |
 | <img src="images/Nacos界面.jpg"  />              |
 
 Nacos1.x：心跳多，无效查询多，心跳续约感知变化慢，连接消耗大，资源空耗严重。
@@ -51,6 +70,8 @@ Nacos2.x：客户端不再需要定时发送实例心跳，长连接的流式推
 
 保存节点之间的选举和数据同步，数据持久化到本地。
 
+- 半数以上节点同步成功才返回给客户端
+
 ### Distro协议
 
 **最终一致性**协议，**AP模式**，类似Eureka，权威Server的概念，每个节点负责⼀部分数据以及将自己的数据同步给其他节点，有效的降低了消息冗余的问题。
@@ -59,7 +80,8 @@ Nacos2.x：客户端不再需要定时发送实例心跳，长连接的流式推
 
 数据不会持久化到本地，只会存在内存中。
 
-
+- 客户端心跳/连接保活，重连时有恢复（注册、订阅）机制
+- 数据同步为异步
 
 > 两种一致性策略共存
 

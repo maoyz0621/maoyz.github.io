@@ -13,7 +13,7 @@ ASM：字节码操作框架，以二进制的形式修改已有类或动态生�
 `net.sf.cglib.proxy.MethodInterceptor`
 
 
-## jdk
+## JDK
 
 Java自带的动态代理，使用**反射原理**。代理对象必须**实现接口**。
 

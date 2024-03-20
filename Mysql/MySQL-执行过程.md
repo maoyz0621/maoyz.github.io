@@ -429,7 +429,7 @@ mysql> show variables like '%expire_logs_days%';
 
 ## redo log
 
-> 事务的持久性，记录的是数据被操作后的样子
+> 事务的持久性
 
 包括两部分：内存中的**日志缓存（redo log buffer）**和磁盘上的**日志文件（redo log file）**
 
@@ -439,7 +439,7 @@ InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要`b
 
 ## undo log
 
-记录需要回滚的日志信息。记录的是数据操作前的样子
+记录需要回滚的日志信息。
 
 存储老版本数据。假设修改表中 id=2 的行数据，把 name='B' 修改为 name = 'B2' ，那么 undo 日志就会用来存放 name='B' 的记录，如果这个修改出现异常，可以使用 `undo log`来实现回**滚操**作，保证事务的一致性。
 
@@ -450,37 +450,55 @@ InnoDB特有的，且日志上的记录落盘后会被覆盖掉。因此需要`b
 在回滚阶段中undo log分为：`insert undo log` 和 `update undo log`；
 
 - `insert undo log `: 事务对`insert`新记录时产生的`undo log`，只在事务回滚时需要，并且在事务提交后就可以立即丢弃。
-- `update undo log` : 事务对记录进行`update`操作时产生的`undo log`。不仅在事务回滚时需要，一致性读也需要，所以不能随便删除，只有当数据库所使用的快照中不涉及该日志记录，对应的回滚日志才会被 **purge 线程**删除。
-
-- `delete undo log`：删除一条记录时，至少要把这条记录中的内容都记下来，这样之后回滚时再把由这些内容组成的记录插入到表中就好了。 
-  - 删除操作都只是设置一下老记录的DELETED_BIT，并不真正将过时的记录删除。
-  - 为了节省磁盘空间，InnoDB有专门的purge线程来清理DELETED_BIT为true的记录。为了不影响MVCC的正常工作，purge线程自己也维护了一个read view（这个read view相当于系统中最老活跃事务的read view）;如果某个记录的DELETED_BIT为true，并且DB_TRX_ID相对于purge线程的read view可见，那么这条记录一定是可以被安全清除的。
-
-> 对MVCC有用的实质是`update un log`
+- `update undo log` : 事务对记录进行`delete`和`update`操作时产生的`undo log`。不仅在事务回滚时需要，一致性读也需要，所以不能随便删除，只有当数据库所使用的快照中不涉及该日志记录，对应的回滚日志才会被 **purge 线程**删除。
 
 
 
-1. **比如一个有个事务插入persion表插入了一条新记录，记录如下，name为Jerry, age为24岁，隐式主键是1，事务ID和回滚指针，我们假设为NULL**
+## MVCC
 
-![](.\image\MySQL\undo-1.png)
+> 隔离性
 
-2. **现在来了一个事务1对该记录的name做出了修改，改为Tom**
-   1. 在事务1修改该行(记录)数据时，数据库会先对该行加排他锁
-   2. 然后把该行数据拷贝到undo log中，作为旧记录，即在undo log中有当前行的拷贝副本
-   3. 拷贝完毕后，修改该行name为Tom，并且修改隐藏字段的事务ID为当前事务1的ID, 我们默认从1开始，之后递增，回滚指针指向拷贝到undo log的副本记录，即表示我的上一个版本就是它
-   4. 事务提交后，释放锁
+**Multi-Version Concurrency Control** ，多版本并发控制，提高数据库并发性能，读写时，不加锁，非阻塞并发读；
 
-![](.\image\MySQL\undo-2.png)
+- 当前读：读取的数据是最新版本，读取时还要保证其它并发事务不能修改当前记录，会对读取的记录进行加锁，像`select lock in share mode(共享锁)`, `select for update` ; `update`, `insert` ,`delete(排他锁)`
+- 快照读：读取的数据是历史数据，可以认为MVCC是行锁的一个变种，但它在很多情况下，避免了加锁操作，降低了开销；既然是基于多版本，即快照读可能读到的并不一定是数据的最新版本，而有可能是之前的历史版本
 
-3. **又来了个事务2修改person表的同一个记录，将age修改为30岁**
-   1. 在事务2修改该行数据时，数据库也先为该行加锁
-   2. 然后把该行数据拷贝到undo log中，作为旧记录，发现该行记录已经有undo log了，那么最新的旧数据作为链表的表头，插在该行记录的undo log最前面
-   3. 修改该行age为30岁，并且修改隐藏字段的事务ID为当前事务2的ID, 那就是2，回滚指针指向刚刚拷贝到undo log的副本记录
-   4. 事务提交，释放锁
+### 版本链
 
-![](.\image\MySQL\undo.png)
+`InnoDB`存储引擎，它的聚簇索引记录中都包含两个必要的隐藏列（`db_row_id`并不是必要的，创建的表中有主键或者非NULL唯一键时都不会包含`db_row_id`列）
 
+- `db_trx_id`：事务id，6byte，每次对某条聚簇索引记录进行改动时，都会把对应的事务id赋值给`trx_id`隐藏列。 
 
+- `db_roll_pointer`：回滚指针，7byte，指向这条记录的上一个版本，每次对某条聚簇索引记录进行改动时，都会把老版本写入到`undo log`中，然后这个隐藏列就相当于一个指针，可以通过它来找到该记录修改前的信息。
+
+> Tips： 能不能在两个事务中交叉更新同一条记录呢？不可以，第一个事务更新了某条记录后，就会给这条记录加锁，另一个事务再次更新时就需要等待第一个事务提交了，把锁释放之后才可以继续更新。
+
+### ReadView
+
+事务进行**快照读**时产生的**读视图**，在该事务执行的**快照读**的那一刻，会生成数据库系统当前的一个快照，记录并维护系统当前**活跃事务的ID**（当每个事务开启时，都会被分配一个ID，这个ID是递增的，所以最新的事务，ID值越大）
+
+`Read Uncommitted`隔离级别的事务，直接读取记录的最新版本。
+
+`Serializable `隔离级别的事务，使用加锁的方式访问记录。
+
+只在`Read Committed`、 `Repeatable Read`隔离级别的事务，在执行普通的`SELECT`操作时访问记录的版本链的过程，使不同事务的读-写、写-读操作并发执行。
+
+> Tips： 事务执行过程中，只有在第一次真正修改记录时（比如使用INSERT、DELETE、UPDATE语句），才会被分配一个单独的`trx_id`，这个事务id是递增的。
+
+两者不同在生成`ReadView`的时机，`Read Committed`每一次进行`SELECT`操作前都会生成一个`ReadView`；而`Repeatable Read`只在第一次进行`SELECT`操作前生成一个`ReadView`，之后的查询操作都重复这个`ReadView`
+
+| m_ids          | 生成ReadView时当前系统活跃的读写事务的事务id列表     |
+| -------------- | ---------------------------------------------------- |
+| up_limit_id    | 生成ReadView时当前系统活跃的读写事务中的最小的事务id |
+| low_limit_id   | 生成ReadView时当前系统应该分配给下一个事务的id       |
+| creator_trx_id | 生成ReadView时事务id                                 |
+
+#### 判断版本链中版本可用
+
+- trx_id == creator_trx_id：可以访问这个版本
+- trx_id  <  up_limit_id：可以访问这个版本
+- trx_id  >=  low_limit_id：不可以访问这个版本
+- up_limit_id  <=  trx_id  <  low_limit_id：如果trx_id在m_ids中，说明创建ReadView时生成该版本的事务还是活跃的，该版本不可以被访问；如果不在，说明创建ReadView时生成该版本的事务已经被提交，该版本可以被访问。
 
 ### 事务特性
 
@@ -567,9 +585,9 @@ mysql> SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED；
 - Slave：I/O thread、SQL thread
 
 1. **主库写 binlog**：主库的更新 SQL(update、insert、delete) 被写到 binlog；
-2. **主库发送binlog**： log dump thread读取binlog变动内容，发送给从库；
-3. **从库写relay log**：I/O thread接收binlog内容，写入**relay log**中；
-4. **从库回放**：SQL thread读取**relay log**内容并对数据进行重放。
+2. **主库发送binlog**： log dump thread读取binlog变动内容，发送给从库
+3. **从库写relay log**：I/O thread接收binlog内容，写入**relay log**中
+4. **从库回放**：SQL thread读取**relay log**内容并对数据进行重放
 
 | 主从同步                                                 |
 | -------------------------------------------------------- |
@@ -580,7 +598,7 @@ mysql> SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED；
 默认复制方式：异步复制
 
 - 异步复制
-- **半同步复制**
+- ***半同步复制***
 - 组复制
 
 ### 延时问题
